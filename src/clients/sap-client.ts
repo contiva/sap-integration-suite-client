@@ -233,7 +233,12 @@ class SapClient {
     }
 
     if (!this.oauthClientId || !this.oauthClientSecret || !this.oauthTokenUrl) {
-      throw new Error('OAuth configuration is incomplete. Provide client ID (oauthClientId), client secret (oauthClientSecret), and token URL (oauthTokenUrl) via constructor parameters or environment variables.');
+      const missing = [];
+      if (!this.oauthClientId) missing.push('oauthClientId / SAP_OAUTH_CLIENT_ID');
+      if (!this.oauthClientSecret) missing.push('oauthClientSecret / SAP_OAUTH_CLIENT_SECRET');
+      if (!this.oauthTokenUrl) missing.push('oauthTokenUrl / SAP_OAUTH_TOKEN_URL');
+      
+      throw new Error(`OAuth configuration is incomplete. Missing: ${missing.join(', ')}. Provide these via constructor parameters or environment variables.`);
     }
   }
 

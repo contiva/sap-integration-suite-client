@@ -38,7 +38,14 @@ import * as MessageStoreTypes from './types/sap.MessageStore';
 import * as SecurityContentTypes from './types/sap.SecurityContent';
 
 /**
- * Default client instance for backward compatibility
+ * Lazy-loaded default client
+ * This ensures the client is only created when actually accessed,
+ * not at import time
+ */
+let _defaultClient: SapClient | null = null;
+
+/**
+ * Default client getter function
  * 
  * This client reads configuration from environment variables:
  * - SAP_BASE_URL
@@ -46,9 +53,26 @@ import * as SecurityContentTypes from './types/sap.SecurityContent';
  * - SAP_OAUTH_CLIENT_SECRET
  * - SAP_OAUTH_TOKEN_URL
  * 
+ * The client is created only when this function is called, not at import time.
+ * 
+ * @returns A SapClient instance configured with environment variables
  * @deprecated Consider creating your own client instance with explicit configuration
  */
-const defaultClient = new SapClient();
+function getDefaultClient(): SapClient {
+  if (!_defaultClient) {
+    _defaultClient = new SapClient();
+  }
+  return _defaultClient;
+}
+
+// Create a proxy for lazy loading the default client
+const defaultClientProxy = new Proxy({} as SapClient, {
+  get: (target, prop) => {
+    // Create the client on first property access
+    const client = getDefaultClient();
+    return client[prop as keyof SapClient];
+  }
+});
 
 // Export Core Client class as default
 export default SapClient;
@@ -60,8 +84,11 @@ export {
   /**
    * Default client instance that reads from environment variables
    * Use only if you have environment variables properly configured
+   * 
+   * Note: This client is lazy-loaded - it will only be created when actually accessed,
+   * not at import time. This helps avoid environment variable issues during import.
    */
-  defaultClient,
+  defaultClientProxy as defaultClient,
   
   /**
    * Configuration interface for creating SapClient instances
