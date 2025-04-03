@@ -1,7 +1,7 @@
 {
   "name": "sap-integration-suite-client",
   "author": "Contiva GmbH <mail@contiva.com>",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "SAP Cloud Platform Integration API Client",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -34,14 +34,10 @@
     "typescript": "^5.0.4"
   },
   "devDependencies": {
-    "@types/express": "^4.17.17",
     "@types/node": "^18.15.11",
     "@types/qs": "^6.9.7",
     "rimraf": "^5.0.1",
     "typescript": "^5.0.4"
-  },
-  "peerDependencies": {
-    "express": "^4.18.2"
   },
   "repository": {
     "type": "git",

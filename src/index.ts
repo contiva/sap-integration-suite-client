@@ -1,10 +1,10 @@
 /**
  * SAP Cloud Platform Integration API Client
- * Eine Bibliothek für die Interaktion mit SAP CPI APIs
+ * A library for interacting with SAP CPI APIs
  */
 
-// Core Client
-import SapClient from './clients/sap-client';
+// Core Client and Config
+import SapClient, { SapClientConfig } from './clients/sap-client';
 
 // Utilities
 import Logger from './utils/logger';
@@ -17,18 +17,20 @@ import * as MessageProcessingLogsTypes from './types/sap.MessageProcessingLogs';
 import * as MessageStoreTypes from './types/sap.MessageStore';
 import * as SecurityContentTypes from './types/sap.SecurityContent';
 
-// Route Builders - optional für Express-basierte Anwendungen
-import { createIntegrationContentRoutes } from './routes/integration-content.routes';
-import createMessageProcessingLogsRoutes from './routes/message-processing-logs.routes';
-import createLogFilesRoutes from './routes/log-files.routes';
-import { createMessageStoreRoutes } from './routes/message-store.routes';
-import { createSecurityContentRoutes } from './routes/security-content.routes';
+// Create default client instance for backward compatibility
+const defaultClient = new SapClient();
 
-// Exportiere Core Client als default
+// Export Core Client class as default
 export default SapClient;
 
-// Exportiere Hauptkomponenten
+// Export main components
 export {
+  // Default client instance for backward compatibility
+  defaultClient,
+  
+  // Client config interface
+  SapClientConfig,
+  
   // Client
   SapClient,
   
@@ -41,12 +43,5 @@ export {
   LogFilesTypes,
   MessageProcessingLogsTypes,
   MessageStoreTypes,
-  SecurityContentTypes,
-  
-  // Route Builders
-  createIntegrationContentRoutes,
-  createMessageProcessingLogsRoutes,
-  createLogFilesRoutes,
-  createMessageStoreRoutes,
-  createSecurityContentRoutes
+  SecurityContentTypes
 }; 

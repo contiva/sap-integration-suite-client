@@ -1,13 +1,14 @@
-import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
+import axios, { AxiosInstance } from 'axios';
 import { config } from 'dotenv';
-import { Api as IntegrationContentApi } from '../../src/types/sap.IntegrationContent';
-import { Api as LogFilesApi } from '../../src/types/sap.LogFiles';
-import { Api as MessageProcessingLogsApi } from '../../src/types/sap.MessageProcessingLogs';
-import { Api as MessageStoreApi } from '../../src/types/sap.MessageStore';
-import { Api as SecurityContentApi } from '../../src/types/sap.SecurityContent';
+import { Api as IntegrationContentApi } from '../types/sap.IntegrationContent';
+import { Api as LogFilesApi } from '../types/sap.LogFiles';
+import { Api as MessageProcessingLogsApi } from '../types/sap.MessageProcessingLogs';
+import { Api as MessageStoreApi } from '../types/sap.MessageStore';
+import { Api as SecurityContentApi } from '../types/sap.SecurityContent';
 import logger from '../utils/logger';
 import qs from 'querystring';
 
+// Load environment variables from .env file
 config();
 
 interface OAuthToken {
@@ -15,6 +16,15 @@ interface OAuthToken {
   token_type: string;
   expires_in: number;
   expiresAt?: number; // Timestamp when the token expires
+}
+
+// Config interface for SapClient
+export interface SapClientConfig {
+  baseUrl?: string;
+  oauthClientId?: string;
+  oauthClientSecret?: string;
+  oauthTokenUrl?: string;
+  logLevel?: string;
 }
 
 class SapClient {
@@ -32,19 +42,20 @@ class SapClient {
   public messageStore: MessageStoreApi<unknown>;
   public securityContent: SecurityContentApi<unknown>;
 
-  constructor() {
-    this.baseUrl = process.env.SAP_BASE_URL || '';
-    this.oauthClientId = process.env.SAP_OAUTH_CLIENT_ID || '';
-    this.oauthClientSecret = process.env.SAP_OAUTH_CLIENT_SECRET || '';
-    this.oauthTokenUrl = process.env.SAP_OAUTH_TOKEN_URL || '';
+  constructor(config?: SapClientConfig) {
+    // Load configuration with priority: passed config > environment variables > empty string
+    this.baseUrl = config?.baseUrl || process.env.SAP_BASE_URL || '';
+    this.oauthClientId = config?.oauthClientId || process.env.SAP_OAUTH_CLIENT_ID || '';
+    this.oauthClientSecret = config?.oauthClientSecret || process.env.SAP_OAUTH_CLIENT_SECRET || '';
+    this.oauthTokenUrl = config?.oauthTokenUrl || process.env.SAP_OAUTH_TOKEN_URL || '';
     
-    if (!this.baseUrl) {
-      throw new Error('SAP_BASE_URL environment variable is not set');
+    // Set log level if provided
+    if (config?.logLevel) {
+      logger.level = config.logLevel;
     }
-
-    if (!this.oauthClientId || !this.oauthClientSecret || !this.oauthTokenUrl) {
-      throw new Error('OAuth configuration is incomplete. Please check your environment variables.');
-    }
+    
+    // Validate required configuration
+    this.validateConfig();
 
     // Create axios instance without auth (auth will be added via interceptor)
     this.axiosInstance = axios.create({
@@ -92,6 +103,17 @@ class SapClient {
       baseUrl: this.baseUrl,
       customFetch: this.customFetch.bind(this),
     });
+  }
+  
+  // Validate required configuration
+  private validateConfig() {
+    if (!this.baseUrl) {
+      throw new Error('Base URL is required. Provide it via constructor parameter or SAP_BASE_URL environment variable.');
+    }
+
+    if (!this.oauthClientId || !this.oauthClientSecret || !this.oauthTokenUrl) {
+      throw new Error('OAuth configuration is incomplete. Provide client ID, client secret, and token URL via constructor parameters or environment variables.');
+    }
   }
 
   // Get or refresh OAuth token
@@ -210,4 +232,5 @@ class SapClient {
   }
 }
 
-export default new SapClient(); 
+// Export the SapClient class instead of an instance
+export default SapClient; 

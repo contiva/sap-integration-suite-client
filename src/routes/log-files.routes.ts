@@ -1,146 +1,115 @@
-import { Router, Request, Response } from 'express';
-import sapClient from '../clients/sap-client';
+import { Router, Request, Response, NextFunction } from 'express';
+import { defaultClient } from '../index';
 import logger from '../utils/logger';
 import { formatSapTimestampsInObject } from '../utils/date-formatter';
 
-const router = Router();
+/**
+ * Erstellt einen Router für Log Files Endpunkte
+ * @param options Optionale Konfiguration
+ * @returns Express Router mit Log Files Routes
+ */
+export function createLogFilesRoutes(options: { customSapClient?: any } = {}) {
+  const router = Router();
+  const client = options.customSapClient || defaultClient;
 
-// Get all log file archives
-router.get('/archives', async (req: Request, res: Response) => {
-  try {
-    const response = await sapClient.logFiles.logFileArchives.logFileArchivesList();
-    // Formatiere die Zeitstempel in der Antwort
-    const formattedData = formatSapTimestampsInObject(response.data);
-    res.json(formattedData);
-  } catch (error) {
-    logger.error('Error fetching log file archives:', error);
-    res.status(500).json({ error: 'Failed to fetch log file archives' });
-  }
-});
+  // Get all log file archives
+  router.get('/archives', function(req: Request, res: Response, next: NextFunction) {
+    (async () => {
+      try {
+        const response = await client.logFiles.logArchives.logArchivesList();
+        const formattedData = formatSapTimestampsInObject(response.data);
+        res.json(formattedData);
+      } catch (error) {
+        logger.error('Error fetching log archives:', error);
+        res.status(500).json({ error: 'Failed to fetch log archives' });
+      }
+    })();
+  });
 
-// Get log file archive by scope and type
-router.get('/archives/:scope/:logFileType', async (req: Request<{ scope: string, logFileType: string }>, res: Response) => {
-  try {
-    const { scope, logFileType } = req.params;
-    const { ModifiedAfter } = req.query;
-    
-    const query: any = {};
-    if (ModifiedAfter) query.ModifiedAfter = ModifiedAfter as string;
-    
-    // Validate scope and logFileType
-    if (!['all', 'latest'].includes(scope)) {
-      res.status(400).json({ error: 'Invalid scope. Must be "all" or "latest"' });
-      return;
-    }
-    
-    if (!['http', 'trace'].includes(logFileType)) {
-      res.status(400).json({ error: 'Invalid logFileType. Must be "http" or "trace"' });
-      return;
-    }
-    
-    const response = await sapClient.logFiles.logFileArchivesScopeScopeLogFileTypeLogFileTypeNodeScopeWorker.logFileArchivesScopeLogFileTypeNodeScopeWorkerList(
-      [scope] as any, 
-      [logFileType] as any, 
-      query
-    );
-    // Formatiere die Zeitstempel in der Antwort
-    const formattedData = formatSapTimestampsInObject(response.data);
-    res.json(formattedData);
-  } catch (error) {
-    logger.error(`Error fetching log file archive ${req.params.scope}/${req.params.logFileType}:`, error);
-    res.status(500).json({ error: `Failed to fetch log file archive ${req.params.scope}/${req.params.logFileType}` });
-  }
-});
+  // Get log file archive by scope and type
+  router.get('/archives/:scope/:logFileType', function(req: Request, res: Response, next: NextFunction) {
+    (async () => {
+      try {
+        const { scope, logFileType } = req.params;
+        const response = await client.logFiles.logArchivesScopeLogFileType.logArchivesList(scope, logFileType);
+        const formattedData = formatSapTimestampsInObject(response.data);
+        res.json(formattedData);
+      } catch (error) {
+        logger.error(`Error fetching log archive ${req.params.scope}/${req.params.logFileType}:`, error);
+        res.status(500).json({ error: `Failed to fetch log archive ${req.params.scope}/${req.params.logFileType}` });
+      }
+    })();
+  });
 
-// Download log file archive
-router.get('/archives/:scope/:logFileType/download', async (req: Request<{ scope: string, logFileType: string }>, res: Response) => {
-  try {
-    const { scope, logFileType } = req.params;
-    const { ModifiedAfter } = req.query;
-    
-    const query: any = {};
-    if (ModifiedAfter) query.ModifiedAfter = ModifiedAfter as string;
-    
-    // Validate scope and logFileType
-    if (!['all', 'latest'].includes(scope)) {
-      res.status(400).json({ error: 'Invalid scope. Must be "all" or "latest"' });
-      return;
-    }
-    
-    if (!['http', 'trace'].includes(logFileType)) {
-      res.status(400).json({ error: 'Invalid logFileType. Must be "http" or "trace"' });
-      return;
-    }
-    
-    const response = await sapClient.logFiles.logFileArchivesScopeScopeLogFileTypeLogFileTypeNodeScopeWorker.valueList(
-      [scope] as any, 
-      [logFileType] as any, 
-      query
-    );
-    
-    // Set response headers for file download
-    res.setHeader('Content-Type', 'application/zip');
-    res.setHeader('Content-Disposition', `attachment; filename="${scope}-${logFileType}-logs.zip"`);
-    
-    res.send(response.data);
-  } catch (error) {
-    logger.error(`Error downloading log file archive ${req.params.scope}/${req.params.logFileType}:`, error);
-    res.status(500).json({ error: `Failed to download log file archive ${req.params.scope}/${req.params.logFileType}` });
-  }
-});
+  // Download log file archive
+  router.get('/archives/:scope/:logFileType/download', function(req: Request, res: Response, next: NextFunction) {
+    (async () => {
+      try {
+        const { scope, logFileType } = req.params;
+        const response = await client.logFiles.logArchivesScopeLogFileType.logArchivesValueList(scope, logFileType);
+        
+        // Set content disposition header for download
+        res.setHeader('Content-Disposition', `attachment; filename=${scope}_${logFileType}.log`);
+        res.setHeader('Content-Type', 'application/octet-stream');
+        
+        res.send(response.data);
+      } catch (error) {
+        logger.error(`Error downloading log archive ${req.params.scope}/${req.params.logFileType}:`, error);
+        res.status(500).json({ error: `Failed to download log archive ${req.params.scope}/${req.params.logFileType}` });
+      }
+    })();
+  });
 
-// Get all log files
-router.get('/files', async (req: Request, res: Response) => {
-  try {
-    // Extract query parameters
-    const { $top, $skip, $filter, $orderby, $select } = req.query;
-    
-    const query: any = {};
-    if ($top) query.$top = Number($top);
-    if ($skip) query.$skip = Number($skip);
-    if ($filter) query.$filter = $filter as string;
-    if ($orderby) query.$orderby = [$orderby as string];
-    if ($select) query.$select = [$select as string];
-    
-    const response = await sapClient.logFiles.logFiles.logFilesList(query);
-    // Formatiere die Zeitstempel in der Antwort
-    const formattedData = formatSapTimestampsInObject(response.data);
-    res.json(formattedData);
-  } catch (error) {
-    logger.error('Error fetching log files:', error);
-    res.status(500).json({ error: 'Failed to fetch log files' });
-  }
-});
+  // Get all log files
+  router.get('/files', function(req: Request, res: Response, next: NextFunction) {
+    (async () => {
+      try {
+        const response = await client.logFiles.logFiles.logFilesList();
+        const formattedData = formatSapTimestampsInObject(response.data);
+        res.json(formattedData);
+      } catch (error) {
+        logger.error('Error fetching log files:', error);
+        res.status(500).json({ error: 'Failed to fetch log files' });
+      }
+    })();
+  });
 
-// Get log file by name and application
-router.get('/files/:name/:application', async (req: Request<{ name: string, application: string }>, res: Response) => {
-  try {
-    const { name, application } = req.params;
-    const response = await sapClient.logFiles.logFilesNameNameApplicationApplication.logFilesNameApplicationList(name, application);
-    // Formatiere die Zeitstempel in der Antwort
-    const formattedData = formatSapTimestampsInObject(response.data);
-    res.json(formattedData);
-  } catch (error) {
-    logger.error(`Error fetching log file ${req.params.name}/${req.params.application}:`, error);
-    res.status(500).json({ error: `Failed to fetch log file ${req.params.name}/${req.params.application}` });
-  }
-});
+  // Get log file by name and application
+  router.get('/files/:name/:application', function(req: Request, res: Response, next: NextFunction) {
+    (async () => {
+      try {
+        const { name, application } = req.params;
+        const response = await client.logFiles.logFilesNameApplication.logFilesList(name, application);
+        const formattedData = formatSapTimestampsInObject(response.data);
+        res.json(formattedData);
+      } catch (error) {
+        logger.error(`Error fetching log file ${req.params.name}/${req.params.application}:`, error);
+        res.status(500).json({ error: `Failed to fetch log file ${req.params.name}/${req.params.application}` });
+      }
+    })();
+  });
 
-// Download log file by name and application
-router.get('/files/:name/:application/download', async (req: Request<{ name: string, application: string }>, res: Response) => {
-  try {
-    const { name, application } = req.params;
-    const response = await sapClient.logFiles.logFilesNameNameApplicationApplication.valueList(name, application);
-    
-    // Set response headers for file download
-    res.setHeader('Content-Type', 'text/plain');
-    res.setHeader('Content-Disposition', `attachment; filename="${name}"`);
-    
-    res.send(response.data);
-  } catch (error) {
-    logger.error(`Error downloading log file ${req.params.name}/${req.params.application}:`, error);
-    res.status(500).json({ error: `Failed to download log file ${req.params.name}/${req.params.application}` });
-  }
-});
+  // Download log file
+  router.get('/files/:name/:application/download', function(req: Request, res: Response, next: NextFunction) {
+    (async () => {
+      try {
+        const { name, application } = req.params;
+        const response = await client.logFiles.logFilesNameApplication.logFilesValueList(name, application);
+        
+        // Set content disposition header for download
+        res.setHeader('Content-Disposition', `attachment; filename=${name}_${application}.log`);
+        res.setHeader('Content-Type', 'application/octet-stream');
+        
+        res.send(response.data);
+      } catch (error) {
+        logger.error(`Error downloading log file ${req.params.name}/${req.params.application}:`, error);
+        res.status(500).json({ error: `Failed to download log file ${req.params.name}/${req.params.application}` });
+      }
+    })();
+  });
 
-export default router; 
+  return router;
+}
+
+// Export default Router für Abwärtskompatibilität
+export default createLogFilesRoutes(); 
