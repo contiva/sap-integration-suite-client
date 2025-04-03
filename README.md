@@ -1,134 +1,225 @@
-# SAP CPI API Client
+# SAP Integration Suite Client
 
-Eine Bibliothek für die Interaktion mit den SAP Cloud Platform Integration APIs.
+[![npm version](https://badge.fury.io/js/sap-integration-suite-client.svg)](https://badge.fury.io/js/sap-integration-suite-client)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## Features
+A professional TypeScript library for interacting with SAP Cloud Integration APIs, developed by [Contiva GmbH](https://contiva.com).
 
-- Vereinheitlichter Client für SAP Cloud Integration APIs mit OAuth-Authentifizierung
-- Typsichere Schnittstellen mit TypeScript
-- RESTful API-Endpunkte für:
+## 🚀 Features
+
+- **Complete API Access**: Support for all major SAP Integration Suite APIs
   - Integration Content Management
   - Message Processing Logs
+  - Message Store
+  - Security Content
   - Log Files
-- Fehlerbehandlung und Logging
-- Rate Limiting und Sicherheits-Middleware
+- **OAuth Authentication**: Automatic token management with Client Credentials Flow
+- **Type Safety**: Complete TypeScript type definitions for all API endpoints
+- **Express Integration**: Pre-built routers for quick API integration
+- **Error Handling**: Robust error handling and logging
+- **Formatting**: Automatic conversion of SAP-specific data formats (e.g. timestamps)
 
-## Voraussetzungen
+## 📋 Prerequisites
 
-- Node.js (v16 oder höher)
-- SAP Cloud Integration Tenant mit API-Zugriff
-- OAuth-Zugangsdaten (Client ID, Client Secret und Token URL)
+- Node.js (v16 or higher)
+- SAP Cloud Integration tenant with API access
+- OAuth credentials (Client ID, Client Secret, and Token URL)
 
-## Installation
+## 📦 Installation
 
 ```bash
-npm install sap-cpi-api-client
+npm install sap-integration-suite-client
 ```
 
-## Konfiguration
+## ⚙️ Configuration
 
-Die Bibliothek nutzt Umgebungsvariablen für die Konfiguration. Lege folgende Variablen in deiner .env-Datei fest:
+The library uses environment variables for configuration. Set the following variables in your `.env` file:
 
 ```env
-SAP_BASE_URL=https://your-tenant.sap-api.com
+SAP_BASE_URL=https://your-tenant.sap-api.com/api/v1
 SAP_OAUTH_CLIENT_ID=your-client-id
 SAP_OAUTH_CLIENT_SECRET=your-client-secret
 SAP_OAUTH_TOKEN_URL=https://your-tenant.authentication.sap.hana.ondemand.com/oauth/token
 ```
 
-## Grundlegende Nutzung
+## 🔍 Examples
+
+### Basic Usage
 
 ```typescript
-// Importiere den SAP Client
-import SapClient from 'sap-cpi-api-client';
+// Import the SAP Client
+import SapClient from 'sap-integration-suite-client';
 
-// Verwende den Client, um API Aufrufe zu tätigen
+// Use the client to make API calls
 async function getIntegrationPackages() {
   try {
     const response = await SapClient.integrationContent.integrationPackages.integrationPackagesList();
     console.log(response.data);
+    return response.data;
   } catch (error) {
-    console.error('Fehler beim Abrufen der Integrationspakete:', error);
+    console.error('Error fetching integration packages:', error);
+    throw error;
+  }
+}
+
+// Retrieve Message Processing Logs
+async function getMessageProcessingLogs(filter = "Status eq 'FAILED'", top = 10) {
+  try {
+    const query = {
+      $filter: filter,
+      $top: top
+    };
+    const response = await SapClient.messageProcessingLogs.messageProcessingLogs.messageProcessingLogsList(query);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching message processing logs:', error);
+    throw error;
   }
 }
 ```
 
-## Nutzung mit Express
+### Express Integration
 
 ```typescript
 import express from 'express';
-import { createIntegrationContentRoutes, createMessageProcessingLogsRoutes } from 'sap-cpi-api-client';
+import { 
+  createIntegrationContentRoutes, 
+  createMessageProcessingLogsRoutes,
+  createMessageStoreRoutes,
+  createSecurityContentRoutes,
+  createLogFilesRoutes
+} from 'sap-integration-suite-client';
 
 const app = express();
 
-// Füge die vorgefertigten Routen hinzu
+// Middleware for JSON processing
+app.use(express.json());
+
+// Add pre-built routes
 app.use('/api/integration-content', createIntegrationContentRoutes());
 app.use('/api/message-processing-logs', createMessageProcessingLogsRoutes());
+app.use('/api/message-store', createMessageStoreRoutes());
+app.use('/api/security-content', createSecurityContentRoutes());
+app.use('/api/log-files', createLogFilesRoutes());
 
 app.listen(3000, () => {
-  console.log('Server läuft auf Port 3000');
+  console.log('Server running on port 3000');
 });
 ```
 
-### Anpassung des SAP Clients
+### Customizing the SAP Client
 
 ```typescript
-import express from 'express';
-import SapClient from 'sap-cpi-api-client';
-import { createSecurityContentRoutes } from 'sap-cpi-api-client';
+import SapClient from 'sap-integration-suite-client';
+import { createSecurityContentRoutes } from 'sap-integration-suite-client';
 
-// Client mit benutzerdefinierten Einstellungen
+// Client with custom settings
 const customSapClient = new SapClient({
   baseUrl: process.env.CUSTOM_SAP_URL,
-  // Weitere Optionen...
+  oauthClientId: process.env.CUSTOM_OAUTH_CLIENT_ID,
+  oauthClientSecret: process.env.CUSTOM_OAUTH_CLIENT_SECRET,
+  oauthTokenUrl: process.env.CUSTOM_OAUTH_TOKEN_URL
 });
 
+// Use with Express
 const app = express();
-
-// Übergebe den benutzerdefinierten Client an die Router
 app.use('/api/security-content', createSecurityContentRoutes({ 
   customSapClient 
 }));
-
-app.listen(3000);
 ```
 
-## Verfügbare API Endpunkte
+## 📚 API Reference
 
-Die Bibliothek bietet Zugriff auf folgende SAP API-Gruppen:
+### Available API Groups
 
-- **Integration Content**: Pakete, Flows, Artefakte
-- **Message Processing Logs**: Verarbeitungsprotokolle, Fehlerinformationen
-- **Message Store**: Nachrichtenspeicher, Anhänge
-- **Security Content**: Anmeldeinformationen, Zertifikate, Zugriffspolitiken
-- **Log Files**: Protokolldateien
+| API Group | Description | Main Functions |
+|------------|--------------|-----------------|
+| `integrationContent` | Management of integration packages and flows | List packages, retrieve flow details, deploy artifacts |
+| `messageProcessingLogs` | Access to message processing logs | Retrieve logs, view error information |
+| `messageStore` | Access to stored messages and attachments | Retrieve message entries and attachments |
+| `securityContent` | Management of security artifacts | Manage credentials, certificates, and access policies |
+| `logFiles` | Access to system log files | Retrieve log archives and files |
 
-## Typsicherheit
-
-Alle API-Antworten sind vollständig typisiert, basierend auf der SAP API-Dokumentation:
+### Type Safety
 
 ```typescript
-import { IntegrationContentTypes } from 'sap-cpi-api-client';
+import { IntegrationContentTypes, MessageProcessingLogsTypes } from 'sap-integration-suite-client';
 
-// Typsichere Verwendung von Antwortdaten
-const packages: IntegrationContentTypes.ComSapHciApiIntegrationPackage[] = 
-  response.data.d.results;
+// Type-safe use of API responses
+async function getFailedMessages() {
+  const response = await SapClient.messageProcessingLogs.messageProcessingLogs.messageProcessingLogsList({
+    $filter: "Status eq 'FAILED'"
+  });
+  
+  // Type-safe processing of results
+  const logs: MessageProcessingLogsTypes.ComSapHciApiMessageProcessingLog[] = 
+    response.data.d.results;
+    
+  return logs.map(log => ({
+    id: log.MessageGuid,
+    status: log.Status,
+    time: new Date(log.LogEnd || log.LogStart)
+  }));
+}
 ```
 
-## Hilfsutilities
+## 🛠️ Development
 
-Die Bibliothek enthält nützliche Hilfsfunktionen:
+### Local Development
 
-```typescript
-import { formatSapTimestampsInObject, Logger } from 'sap-cpi-api-client';
+```bash
+# Clone repository
+git clone https://github.com/contiva/sap-integration-suite-client.git
 
-// Formatieren von SAP-Zeitstempeln
-const formattedData = formatSapTimestampsInObject(response.data);
+# Change directory
+cd sap-integration-suite-client
 
-// Logging
-Logger.info('Operation erfolgreich');
+# Install dependencies
+npm install
+
+# Run build
+npm run build
+
+# Test library locally
+npm link
 ```
 
-## Lizenz
+### Testing with a Local Project
 
-MIT 
+```bash
+# In project directory
+npm link sap-integration-suite-client
+
+# Now the library can be used locally
+import SapClient from 'sap-integration-suite-client';
+```
+
+## ❓ Troubleshooting
+
+### OAuth Errors
+
+If you encounter authentication errors, check:
+
+1. Are your OAuth credentials correct?
+2. Does your client have the appropriate permissions?
+3. Is the token URL correct?
+
+### CORS Issues
+
+If you get CORS errors in a frontend application, ensure your SAP tenant supports CORS or use a proxy server.
+
+### Missing Module
+
+```
+Error: Cannot find module 'sap-integration-suite-client'
+```
+
+Make sure you have correctly installed the package and the name in your imports matches the actual package name.
+
+## 📄 License
+
+MIT © [Contiva GmbH](https://contiva.com)
+
+---
+
+Developed by Contiva GmbH - Experts in SAP Integration and API Management. 

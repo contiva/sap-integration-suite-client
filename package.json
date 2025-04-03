@@ -1,6 +1,7 @@
 {
-  "name": "sap-cpi-api-client",
-  "version": "0.1.0",
+  "name": "sap-integration-suite-client",
+  "author": "Contiva GmbH <mail@contiva.com>",
+  "version": "1.0.0",
   "description": "SAP Cloud Platform Integration API Client",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -9,7 +10,7 @@
   ],
   "scripts": {
     "build": "tsc",
-    "clean": "rimraf dist",
+    "clean": "rm -rf dist",
     "prebuild": "npm run clean",
     "prepare": "npm run build",
     "test": "jest",
@@ -20,9 +21,10 @@
     "api",
     "client",
     "cpi",
-    "cloud-platform-integration"
+    "cloud-platform-integration",
+    "integration-suite",
+    "integration suite"
   ],
-  "author": "Robert Fels",
   "license": "MIT",
   "private": false,
   "dependencies": {
