@@ -7,7 +7,6 @@
 import SapClient, { SapClientConfig } from './clients/sap-client';
 
 // Utilities
-import Logger from './utils/logger';
 import { formatSapTimestampsInObject } from './utils/date-formatter';
 
 // Types
@@ -35,7 +34,6 @@ export {
   SapClient,
   
   // Utilities
-  Logger,
   formatSapTimestampsInObject,
   
   // Types

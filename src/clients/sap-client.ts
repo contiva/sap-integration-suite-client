@@ -1,3 +1,10 @@
+/**
+ * SAP Cloud Platform Integration API Client
+ * 
+ * This module provides a client for interacting with the SAP Cloud Platform Integration API.
+ * It handles authentication, request management, and provides type-safe access to all SAP API endpoints.
+ */
+
 import axios, { AxiosInstance } from 'axios';
 import { config } from 'dotenv';
 import { Api as IntegrationContentApi } from '../types/sap.IntegrationContent';
@@ -5,54 +12,86 @@ import { Api as LogFilesApi } from '../types/sap.LogFiles';
 import { Api as MessageProcessingLogsApi } from '../types/sap.MessageProcessingLogs';
 import { Api as MessageStoreApi } from '../types/sap.MessageStore';
 import { Api as SecurityContentApi } from '../types/sap.SecurityContent';
-import logger from '../utils/logger';
 import qs from 'querystring';
 
 // Load environment variables from .env file
 config();
 
+/**
+ * OAuth token interface representing the token structure returned by SAP OAuth service
+ */
 interface OAuthToken {
+  /** The access token string */
   access_token: string;
+  /** Token type, typically "Bearer" */
   token_type: string;
+  /** Token expiration time in seconds */
   expires_in: number;
-  expiresAt?: number; // Timestamp when the token expires
+  /** Calculated timestamp when the token expires (added by the client) */
+  expiresAt?: number;
 }
 
-// Config interface for SapClient
+/**
+ * Configuration interface for SapClient
+ */
 export interface SapClientConfig {
+  /** Base URL of the SAP API (e.g. https://tenant.sap-api.com/api/v1) */
   baseUrl?: string;
+  /** OAuth client ID for authentication */
   oauthClientId?: string;
+  /** OAuth client secret for authentication */
   oauthClientSecret?: string;
+  /** OAuth token URL for retrieving tokens */
   oauthTokenUrl?: string;
-  logLevel?: string;
 }
 
+/**
+ * Main SAP Client class that provides access to all SAP API endpoints
+ * 
+ * This client handles:
+ * - Authentication via OAuth 2.0 client credentials flow
+ * - Token management (expiration and renewal)
+ * - CSRF token handling for write operations
+ * - Type-safe API access through generated API clients
+ * - Error handling
+ */
 class SapClient {
+  /** Axios instance used for HTTP requests */
   private axiosInstance: AxiosInstance;
+  /** Base URL of the SAP API */
   private baseUrl: string;
+  /** CSRF token for write operations */
   private csrfToken: string | null = null;
+  /** OAuth token with expiration information */
   private oauthToken: OAuthToken | null = null;
+  /** OAuth client ID */
   private oauthClientId: string;
+  /** OAuth client secret */
   private oauthClientSecret: string;
+  /** OAuth token URL */
   private oauthTokenUrl: string;
   
+  /** Integration Content API client */
   public integrationContent: IntegrationContentApi<unknown>;
+  /** Log Files API client */
   public logFiles: LogFilesApi<unknown>;
+  /** Message Processing Logs API client */
   public messageProcessingLogs: MessageProcessingLogsApi<unknown>;
+  /** Message Store API client */
   public messageStore: MessageStoreApi<unknown>;
+  /** Security Content API client */
   public securityContent: SecurityContentApi<unknown>;
 
+  /**
+   * Creates a new SAP Client instance
+   * @param config Configuration options
+   */
   constructor(config?: SapClientConfig) {
     // Load configuration with priority: passed config > environment variables > empty string
     this.baseUrl = config?.baseUrl || process.env.SAP_BASE_URL || '';
     this.oauthClientId = config?.oauthClientId || process.env.SAP_OAUTH_CLIENT_ID || '';
     this.oauthClientSecret = config?.oauthClientSecret || process.env.SAP_OAUTH_CLIENT_SECRET || '';
     this.oauthTokenUrl = config?.oauthTokenUrl || process.env.SAP_OAUTH_TOKEN_URL || '';
-    
-    // Set log level if provided
-    if (config?.logLevel) {
-      logger.level = config.logLevel;
-    }
     
     // Validate required configuration
     this.validateConfig();
@@ -105,7 +144,10 @@ class SapClient {
     });
   }
   
-  // Validate required configuration
+  /**
+   * Validates that the required configuration is provided
+   * @throws Error if required configuration is missing
+   */
   private validateConfig() {
     if (!this.baseUrl) {
       throw new Error('Base URL is required. Provide it via constructor parameter or SAP_BASE_URL environment variable.');
@@ -116,19 +158,26 @@ class SapClient {
     }
   }
 
-  // Get or refresh OAuth token
+  /**
+   * Gets or refreshes the OAuth token
+   * - Returns existing token if it's still valid
+   * - Fetches a new token if the current one is expired or doesn't exist
+   * - Adds expiration timestamp to the token
+   * 
+   * @returns Promise resolving to the OAuth token
+   * @throws Error if token cannot be obtained
+   */
   private async getOAuthToken(): Promise<OAuthToken> {
     const now = Date.now();
 
     // If we already have a token and it's not expired, return it
+    // We add a 1-minute buffer before expiration to be safe
     if (this.oauthToken && this.oauthToken.expiresAt && this.oauthToken.expiresAt > now + 60000) {
       return this.oauthToken;
     }
 
     // Otherwise, get a new token
     try {
-      logger.debug('Fetching new OAuth token');
-      
       const tokenResponse = await axios.post(
         this.oauthTokenUrl,
         qs.stringify({
@@ -149,15 +198,22 @@ class SapClient {
       
       this.oauthToken = token;
       
-      logger.debug('OAuth token obtained successfully');
       return token;
     } catch (error) {
-      logger.error('Failed to obtain OAuth token:', error);
       throw new Error('Failed to obtain OAuth token');
     }
   }
 
-  // Custom fetch implementation that uses axios
+  /**
+   * Custom fetch implementation that uses axios to make HTTP requests
+   * - Handles CSRF token for write operations
+   * - Adds OAuth token to requests
+   * - Transforms axios responses to fetch API Response objects
+   * 
+   * @param input URL or Request object
+   * @param init Request initialization options
+   * @returns Promise resolving to a Response object
+   */
   private async customFetch(input: string | URL | Request, init?: RequestInit): Promise<Response> {
     try {
       // For any operation that might need a CSRF token
@@ -203,12 +259,15 @@ class SapClient {
         headers: new Headers(response.headers as Record<string, string>),
       });
     } catch (error) {
-      logger.error('Error in SAP API request:', error);
       throw error;
     }
   }
 
-  // Get CSRF token for write operations
+  /**
+   * Ensures a CSRF token is available for write operations
+   * - Fetches a new token if one doesn't exist
+   * - Uses OAuth token for authentication
+   */
   private async ensureCsrfToken(): Promise<void> {
     if (!this.csrfToken) {
       try {
@@ -223,9 +282,7 @@ class SapClient {
         });
         
         this.csrfToken = response.headers['x-csrf-token'];
-        logger.debug('CSRF token fetched successfully');
       } catch (error) {
-        logger.error('Failed to fetch CSRF token:', error);
         throw error;
       }
     }

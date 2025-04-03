@@ -15,11 +15,10 @@ A professional TypeScript library for interacting with SAP Cloud Integration API
   - Log Files
 - **OAuth Authentication**: Automatic token management with Client Credentials Flow
 - **Type Safety**: Complete TypeScript type definitions for all API endpoints
-- **Error Handling**: Robust error handling and logging
 - **Formatting**: Automatic conversion of SAP-specific data formats (e.g. timestamps)
 - **Flexible Configuration**: Configure via environment variables or direct parameters
 - **Multi-Tenant Support**: Create multiple client instances for different SAP tenants
-- **Optional Express Integration**: Ready-to-use Express routers for quick API setup (optional)
+- **Lightweight**: No external dependencies beyond the essentials
 
 ## 📋 Prerequisites
 
@@ -59,8 +58,7 @@ const client = new SapClient({
   baseUrl: 'https://your-tenant.sap-api.com/api/v1',
   oauthClientId: 'your-client-id',
   oauthClientSecret: 'your-client-secret',
-  oauthTokenUrl: 'https://your-tenant.authentication.sap.hana.ondemand.com/oauth/token',
-  logLevel: 'info' // Optional: set the log level
+  oauthTokenUrl: 'https://your-tenant.authentication.sap.hana.ondemand.com/oauth/token'
 });
 ```
 
@@ -160,82 +158,6 @@ async function deployIntegrationFlow(id, version) {
 }
 ```
 
-## 🌐 Express Integration (Optional)
-
-The library includes optional Express router factories to quickly set up API endpoints. 
-
-**Note**: Express is not included as a dependency and needs to be installed separately if you want to use this feature:
-
-```bash
-npm install express
-```
-
-### Using the Default Routers
-
-```typescript
-import express from 'express';
-import { 
-  createIntegrationContentRoutes, 
-  createMessageProcessingLogsRoutes,
-  createMessageStoreRoutes,
-  createSecurityContentRoutes,
-  createLogFilesRoutes
-} from 'sap-integration-suite-client';
-
-const app = express();
-
-// Add pre-built routes
-app.use('/api/integration-content', createIntegrationContentRoutes());
-app.use('/api/message-processing-logs', createMessageProcessingLogsRoutes());
-app.use('/api/message-store', createMessageStoreRoutes());
-app.use('/api/security-content', createSecurityContentRoutes());
-app.use('/api/log-files', createLogFilesRoutes());
-
-app.listen(3000, () => {
-  console.log('Server running on port 3000');
-});
-```
-
-### Customizing Express Routers
-
-You can pass custom SAP client instances to the router factories:
-
-```typescript
-import express from 'express';
-import SapClient, { 
-  createIntegrationContentRoutes, 
-  createMessageProcessingLogsRoutes 
-} from 'sap-integration-suite-client';
-
-const app = express();
-
-// Create clients for different environments
-const productionClient = new SapClient({
-  baseUrl: 'https://production-tenant.sap-api.com/api/v1',
-  oauthClientId: 'production-client-id',
-  oauthClientSecret: 'production-client-secret',
-  oauthTokenUrl: 'https://production-tenant.authentication.sap.hana.ondemand.com/oauth/token'
-});
-
-const testClient = new SapClient({
-  baseUrl: 'https://test-tenant.sap-api.com/api/v1',
-  oauthClientId: 'test-client-id',
-  oauthClientSecret: 'test-client-secret',
-  oauthTokenUrl: 'https://test-tenant.authentication.sap.hana.ondemand.com/oauth/token'
-});
-
-// Use different clients for different routes
-app.use('/api/prod/integration-content', createIntegrationContentRoutes({ 
-  customSapClient: productionClient 
-}));
-
-app.use('/api/test/integration-content', createIntegrationContentRoutes({ 
-  customSapClient: testClient 
-}));
-
-app.listen(3000);
-```
-
 ## 📚 API Reference
 
 ### Available API Groups
@@ -275,23 +197,18 @@ async function getFailedMessages() {
 
 ## 🧰 Library Architecture
 
-The library is designed with flexibility in mind:
+The library is designed to be a lightweight API client:
 
-1. **Core SAP API Client**
-   - Connects directly to SAP APIs
-   - Handles authentication, error handling, and data formatting
-   - Can be used independently without any web framework
-
-2. **Optional Express Integration**
-   - Factory functions that create Express routers
-   - Each factory accepts a custom SAP client instance
-   - Allows for multi-tenant API endpoints
+- **Core SAP API Client**
+  - Connects directly to SAP APIs
+  - Handles authentication and data formatting
+  - Can be used in any Node.js application
+  - No external dependencies other than axios and dotenv
 
 This architecture allows you to:
 - Use the library in any Node.js application
-- Integrate with Express or other web frameworks
 - Create multiple client instances for different SAP tenants
-- Mix and match clients with different route handlers
+- Integrate with any framework of your choice
 
 ## 🛠️ Development
 
@@ -345,14 +262,6 @@ Error: Cannot find module 'sap-integration-suite-client'
 ```
 
 Make sure you have correctly installed the package and the name in your imports matches the actual package name.
-
-### Express Integration Issues
-
-If you encounter errors with the Express integration, ensure:
-
-1. Express is installed as a dependency in your project
-2. You're using the correct router factory functions
-3. The SAP client instance passed to the factory is properly configured
 
 ## 📄 License
 
