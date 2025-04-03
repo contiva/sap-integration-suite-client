@@ -134,11 +134,11 @@ class SapClient {
   /** OAuth token URL */
   private oauthTokenUrl: string;
   /** Whether to normalize API responses */
-  private normalizeResponses: boolean;
+  private normalizeResponses: boolean = true;
   /** Maximum number of retries for failed requests */
-  private maxRetries: number;
+  private maxRetries: number = 3;
   /** Delay between retries in milliseconds */
-  private retryDelay: number;
+  private retryDelay: number = 1000;
   
   /** 
    * Integration Content API client
