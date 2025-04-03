@@ -3,6 +3,9 @@
  * 
  * This module provides a client for interacting with the SAP Cloud Platform Integration API.
  * It handles authentication, request management, and provides type-safe access to all SAP API endpoints.
+ * 
+ * @module sap-integration-suite-client
+ * @packageDocumentation
  */
 
 import axios, { AxiosInstance } from 'axios';
@@ -19,6 +22,8 @@ config();
 
 /**
  * OAuth token interface representing the token structure returned by SAP OAuth service
+ * 
+ * @interface OAuthToken
  */
 interface OAuthToken {
   /** The access token string */
@@ -33,15 +38,37 @@ interface OAuthToken {
 
 /**
  * Configuration interface for SapClient
+ * 
+ * @interface SapClientConfig
+ * @example
+ * // Create a client with explicit configuration
+ * const client = new SapClient({
+ *   baseUrl: 'https://my-tenant.sap-api.com/api/v1',
+ *   oauthClientId: 'my-client-id',
+ *   oauthClientSecret: 'my-client-secret',
+ *   oauthTokenUrl: 'https://my-tenant.authentication.sap.hana.ondemand.com/oauth/token'
+ * });
  */
 export interface SapClientConfig {
-  /** Base URL of the SAP API (e.g. https://tenant.sap-api.com/api/v1) */
+  /** 
+   * Base URL of the SAP API (e.g. https://tenant.sap-api.com/api/v1)
+   * If not provided, the SAP_BASE_URL environment variable will be used
+   */
   baseUrl?: string;
-  /** OAuth client ID for authentication */
+  /** 
+   * OAuth client ID for authentication
+   * If not provided, the SAP_OAUTH_CLIENT_ID environment variable will be used
+   */
   oauthClientId?: string;
-  /** OAuth client secret for authentication */
+  /** 
+   * OAuth client secret for authentication
+   * If not provided, the SAP_OAUTH_CLIENT_SECRET environment variable will be used
+   */
   oauthClientSecret?: string;
-  /** OAuth token URL for retrieving tokens */
+  /** 
+   * OAuth token URL for retrieving tokens
+   * If not provided, the SAP_OAUTH_TOKEN_URL environment variable will be used
+   */
   oauthTokenUrl?: string;
 }
 
@@ -54,6 +81,25 @@ export interface SapClientConfig {
  * - CSRF token handling for write operations
  * - Type-safe API access through generated API clients
  * - Error handling
+ * 
+ * @example
+ * // Basic usage with environment variables
+ * import SapClient from 'sap-integration-suite-client';
+ * const client = new SapClient();
+ * 
+ * // With explicit configuration
+ * const client = new SapClient({
+ *   baseUrl: 'https://tenant.sap-api.com/api/v1',
+ *   oauthClientId: 'client-id',
+ *   oauthClientSecret: 'client-secret',
+ *   oauthTokenUrl: 'https://tenant.authentication.sap.hana.ondemand.com/oauth/token'
+ * });
+ * 
+ * // Making API calls
+ * async function getPackages() {
+ *   const response = await client.integrationContent.integrationPackages.integrationPackagesList();
+ *   return response.data;
+ * }
  */
 class SapClient {
   /** Axios instance used for HTTP requests */
@@ -71,20 +117,50 @@ class SapClient {
   /** OAuth token URL */
   private oauthTokenUrl: string;
   
-  /** Integration Content API client */
+  /** 
+   * Integration Content API client
+   * Provides access to integration packages, artifacts, and related operations
+   */
   public integrationContent: IntegrationContentApi<unknown>;
-  /** Log Files API client */
+  /** 
+   * Log Files API client
+   * Access system logs and log archives
+   */
   public logFiles: LogFilesApi<unknown>;
-  /** Message Processing Logs API client */
+  /** 
+   * Message Processing Logs API client
+   * Access and query message processing logs
+   */
   public messageProcessingLogs: MessageProcessingLogsApi<unknown>;
-  /** Message Store API client */
+  /** 
+   * Message Store API client
+   * Access stored messages and attachments
+   */
   public messageStore: MessageStoreApi<unknown>;
-  /** Security Content API client */
+  /** 
+   * Security Content API client
+   * Manage security artifacts like credentials and certificates
+   */
   public securityContent: SecurityContentApi<unknown>;
 
   /**
    * Creates a new SAP Client instance
-   * @param config Configuration options
+   * 
+   * @param {SapClientConfig} [config] - Configuration options for the client
+   * @throws {Error} If required configuration is missing
+   * 
+   * @example
+   * // Using environment variables
+   * const client = new SapClient();
+   * 
+   * @example
+   * // Using explicit configuration
+   * const client = new SapClient({
+   *   baseUrl: 'https://tenant.sap-api.com/api/v1',
+   *   oauthClientId: 'client-id',
+   *   oauthClientSecret: 'client-secret',
+   *   oauthTokenUrl: 'https://tenant.authentication.sap.hana.ondemand.com/oauth/token'
+   * });
    */
   constructor(config?: SapClientConfig) {
     // Load configuration with priority: passed config > environment variables > empty string
@@ -146,15 +222,18 @@ class SapClient {
   
   /**
    * Validates that the required configuration is provided
-   * @throws Error if required configuration is missing
+   * 
+   * @private
+   * @throws {Error} If baseUrl is missing
+   * @throws {Error} If any OAuth configuration is incomplete
    */
   private validateConfig() {
     if (!this.baseUrl) {
-      throw new Error('Base URL is required. Provide it via constructor parameter or SAP_BASE_URL environment variable.');
+      throw new Error('Base URL is required. Provide it via constructor parameter (baseUrl) or SAP_BASE_URL environment variable.');
     }
 
     if (!this.oauthClientId || !this.oauthClientSecret || !this.oauthTokenUrl) {
-      throw new Error('OAuth configuration is incomplete. Provide client ID, client secret, and token URL via constructor parameters or environment variables.');
+      throw new Error('OAuth configuration is incomplete. Provide client ID (oauthClientId), client secret (oauthClientSecret), and token URL (oauthTokenUrl) via constructor parameters or environment variables.');
     }
   }
 
@@ -164,8 +243,9 @@ class SapClient {
    * - Fetches a new token if the current one is expired or doesn't exist
    * - Adds expiration timestamp to the token
    * 
-   * @returns Promise resolving to the OAuth token
-   * @throws Error if token cannot be obtained
+   * @private
+   * @returns {Promise<OAuthToken>} Promise resolving to the OAuth token
+   * @throws {Error} If token cannot be obtained
    */
   private async getOAuthToken(): Promise<OAuthToken> {
     const now = Date.now();
@@ -210,9 +290,11 @@ class SapClient {
    * - Adds OAuth token to requests
    * - Transforms axios responses to fetch API Response objects
    * 
-   * @param input URL or Request object
-   * @param init Request initialization options
-   * @returns Promise resolving to a Response object
+   * @private
+   * @param {string | URL | Request} input - URL or Request object
+   * @param {RequestInit} [init] - Request initialization options
+   * @returns {Promise<Response>} Promise resolving to a Response object
+   * @throws {Error} If the request fails
    */
   private async customFetch(input: string | URL | Request, init?: RequestInit): Promise<Response> {
     try {
@@ -267,6 +349,10 @@ class SapClient {
    * Ensures a CSRF token is available for write operations
    * - Fetches a new token if one doesn't exist
    * - Uses OAuth token for authentication
+   * 
+   * @private
+   * @returns {Promise<void>}
+   * @throws {Error} If the CSRF token cannot be fetched
    */
   private async ensureCsrfToken(): Promise<void> {
     if (!this.csrfToken) {
@@ -289,5 +375,7 @@ class SapClient {
   }
 }
 
-// Export the SapClient class instead of an instance
+/**
+ * Export the SapClient class as default export
+ */
 export default SapClient; 
