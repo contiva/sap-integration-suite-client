@@ -1,0 +1,6 @@
+.env
+node_modules
+logs
+dist
+sap
+package-lock.json
