@@ -3,8 +3,8 @@ import { config } from 'dotenv';
 import { Api as IntegrationContentApi } from '../../src/types/sap.IntegrationContent';
 import { Api as LogFilesApi } from '../../src/types/sap.LogFiles';
 import { Api as MessageProcessingLogsApi } from '../../src/types/sap.MessageProcessingLogs';
-import { Api as SecurityContentApi } from '../../src/types/sap.SecurityContent';
 import { Api as MessageStoreApi } from '../../src/types/sap.MessageStore';
+import { Api as SecurityContentApi } from '../../src/types/sap.SecurityContent';
 import logger from '../utils/logger';
 import qs from 'querystring';
 
@@ -29,8 +29,8 @@ class SapClient {
   public integrationContent: IntegrationContentApi<unknown>;
   public logFiles: LogFilesApi<unknown>;
   public messageProcessingLogs: MessageProcessingLogsApi<unknown>;
-  public securityContent: SecurityContentApi<unknown>;
   public messageStore: MessageStoreApi<unknown>;
+  public securityContent: SecurityContentApi<unknown>;
 
   constructor() {
     this.baseUrl = process.env.SAP_BASE_URL || '';
@@ -83,12 +83,12 @@ class SapClient {
       customFetch: this.customFetch.bind(this),
     });
 
-    this.securityContent = new SecurityContentApi({
+    this.messageStore = new MessageStoreApi({
       baseUrl: this.baseUrl,
       customFetch: this.customFetch.bind(this),
     });
 
-    this.messageStore = new MessageStoreApi({
+    this.securityContent = new SecurityContentApi({
       baseUrl: this.baseUrl,
       customFetch: this.customFetch.bind(this),
     });

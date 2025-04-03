@@ -1,6 +1,6 @@
-# SAP Middleware API
+# SAP CPI API Client
 
-Eine Node.js Express Middleware für SAP Cloud Integration APIs mit OAuth-Authentifizierung.
+Eine Bibliothek für die Interaktion mit den SAP Cloud Platform Integration APIs.
 
 ## Features
 
@@ -21,107 +21,113 @@ Eine Node.js Express Middleware für SAP Cloud Integration APIs mit OAuth-Authen
 
 ## Installation
 
-1. Repository klonen
-2. Abhängigkeiten installieren:
-
 ```bash
-npm install
+npm install sap-cpi-api-client
 ```
 
-3. Eine `.env`-Datei mit Ihrer SAP-Konfiguration erstellen:
+## Konfiguration
 
-```
-PORT=3000
-NODE_ENV=development
+Die Bibliothek nutzt Umgebungsvariablen für die Konfiguration. Lege folgende Variablen in deiner .env-Datei fest:
 
-# SAP API Connection (OAuth)
-SAP_BASE_URL=https://contiva-cis-dev.it-cpi024.cfapps.eu10-002.hana.ondemand.com/api/v1
-SAP_OAUTH_CLIENT_ID=sb-a2b6f591-f015-49b5-824c-f1fc3013766d!b368029|it!b182722
-SAP_OAUTH_CLIENT_SECRET=47173692-fa52-4f7e-a2a8-e9bb4e477f73$fUHp-UmQOlejKWOMYH336TXoD64G5zn3LlHoScFk16o=
-SAP_OAUTH_TOKEN_URL=https://contiva-cis-dev.authentication.eu10.hana.ondemand.com/oauth/token
-
-# Optional: Logging
-LOG_LEVEL=info
+```env
+SAP_BASE_URL=https://your-tenant.sap-api.com
+SAP_OAUTH_CLIENT_ID=your-client-id
+SAP_OAUTH_CLIENT_SECRET=your-client-secret
+SAP_OAUTH_TOKEN_URL=https://your-tenant.authentication.sap.hana.ondemand.com/oauth/token
 ```
 
-4. Projekt bauen:
+## Grundlegende Nutzung
 
-```bash
-npm run build
+```typescript
+// Importiere den SAP Client
+import SapClient from 'sap-cpi-api-client';
+
+// Verwende den Client, um API Aufrufe zu tätigen
+async function getIntegrationPackages() {
+  try {
+    const response = await SapClient.integrationContent.integrationPackages.integrationPackagesList();
+    console.log(response.data);
+  } catch (error) {
+    console.error('Fehler beim Abrufen der Integrationspakete:', error);
+  }
+}
 ```
 
-## Verwendung
+## Nutzung mit Express
 
-### Entwicklungsmodus
+```typescript
+import express from 'express';
+import { createIntegrationContentRoutes, createMessageProcessingLogsRoutes } from 'sap-cpi-api-client';
 
-```bash
-npm run dev
+const app = express();
+
+// Füge die vorgefertigten Routen hinzu
+app.use('/api/integration-content', createIntegrationContentRoutes());
+app.use('/api/message-processing-logs', createMessageProcessingLogsRoutes());
+
+app.listen(3000, () => {
+  console.log('Server läuft auf Port 3000');
+});
 ```
 
-### Produktionsmodus
+### Anpassung des SAP Clients
 
-```bash
-npm start
+```typescript
+import express from 'express';
+import SapClient from 'sap-cpi-api-client';
+import { createSecurityContentRoutes } from 'sap-cpi-api-client';
+
+// Client mit benutzerdefinierten Einstellungen
+const customSapClient = new SapClient({
+  baseUrl: process.env.CUSTOM_SAP_URL,
+  // Weitere Optionen...
+});
+
+const app = express();
+
+// Übergebe den benutzerdefinierten Client an die Router
+app.use('/api/security-content', createSecurityContentRoutes({ 
+  customSapClient 
+}));
+
+app.listen(3000);
 ```
 
-## API-Endpunkte
+## Verfügbare API Endpunkte
 
-### Integration Content API
+Die Bibliothek bietet Zugriff auf folgende SAP API-Gruppen:
 
-- `GET /api/integration-content/packages` - Alle Integrationspakete abrufen
-- `GET /api/integration-content/packages/:id` - Integrationspaket nach ID abrufen
-- `GET /api/integration-content/packages/:id/flows` - Integrationsflows für ein Paket abrufen
-- `GET /api/integration-content/flows/:id/versions/:version` - Integrationsflow nach ID und Version abrufen
-- `POST /api/integration-content/flows/:id/versions/:version/deploy` - Integrationsflow deployen
-- `GET /api/integration-content/endpoints` - Service-Endpunkte abrufen
+- **Integration Content**: Pakete, Flows, Artefakte
+- **Message Processing Logs**: Verarbeitungsprotokolle, Fehlerinformationen
+- **Message Store**: Nachrichtenspeicher, Anhänge
+- **Security Content**: Anmeldeinformationen, Zertifikate, Zugriffspolitiken
+- **Log Files**: Protokolldateien
 
-### Message Processing Logs API
+## Typsicherheit
 
-- `GET /api/message-processing-logs` - Alle Message Processing Logs abrufen
-- `GET /api/message-processing-logs/:messageGuid` - Message Processing Log nach Message GUID abrufen
-- `GET /api/message-processing-logs/:messageGuid/adapter-attributes` - Adapter-Attribute für ein Message Processing Log abrufen
-- `GET /api/message-processing-logs/:messageGuid/attachments` - Anhänge für ein Message Processing Log abrufen
-- `GET /api/message-processing-logs/:messageGuid/error-information` - Fehlerinformationen für ein Message Processing Log abrufen
-- `GET /api/message-processing-logs/:messageGuid/error-details` - Fehlerdetails-Text für ein Message Processing Log abrufen
+Alle API-Antworten sind vollständig typisiert, basierend auf der SAP API-Dokumentation:
 
-### Log Files API
+```typescript
+import { IntegrationContentTypes } from 'sap-cpi-api-client';
 
-- `GET /api/log-files/archives` - Alle Log-Datei-Archive abrufen
-- `GET /api/log-files/archives/:scope/:logFileType` - Log-Datei-Archiv nach Scope und Typ abrufen
-- `GET /api/log-files/archives/:scope/:logFileType/download` - Log-Datei-Archiv herunterladen
-- `GET /api/log-files/files` - Alle Log-Dateien abrufen
-- `GET /api/log-files/files/:name/:application` - Log-Datei nach Name und Anwendung abrufen
-- `GET /api/log-files/files/:name/:application/download` - Log-Datei herunterladen
+// Typsichere Verwendung von Antwortdaten
+const packages: IntegrationContentTypes.ComSapHciApiIntegrationPackage[] = 
+  response.data.d.results;
+```
 
-## Query-Parameter
+## Hilfsutilities
 
-Viele Endpunkte unterstützen OData-Query-Parameter:
+Die Bibliothek enthält nützliche Hilfsfunktionen:
 
-- `$top` - Anzahl der Ergebnisse begrenzen
-- `$skip` - Anzahl der Ergebnisse überspringen
-- `$filter` - Ergebnisse filtern
-- `$orderby` - Ergebnisse sortieren
-- `$select` - Bestimmte Felder auswählen
-- `$expand` - Verwandte Entitäten erweitern
-- `$inlinecount` - Anzahl in die Antwort einschließen
+```typescript
+import { formatSapTimestampsInObject, Logger } from 'sap-cpi-api-client';
 
-Beispiel: `/api/message-processing-logs?$top=10&$filter=Status eq 'FAILED'`
+// Formatieren von SAP-Zeitstempeln
+const formattedData = formatSapTimestampsInObject(response.data);
 
-## Fehlerbehandlung
-
-Alle Endpunkte geben standardmäßige HTTP-Statuscodes zurück:
-
-- `200 OK` - Erfolg
-- `400 Bad Request` - Ungültige Parameter
-- `401 Unauthorized` - Fehlende oder ungültige Authentifizierung
-- `404 Not Found` - Ressource nicht gefunden
-- `500 Internal Server Error` - Serverfehler
-
-Fehlerantworten enthalten ein JSON-Objekt mit einem `error`-Feld.
-
-## OAuth-Authentifizierung
-
-Der SAP-Client verwendet OAuth-Authentifizierung mit Client Credentials. Das Token wird automatisch abgerufen und erneuert, wenn es abläuft. Die OAuth-Konfiguration wird aus der `.env`-Datei gelesen.
+// Logging
+Logger.info('Operation erfolgreich');
+```
 
 ## Lizenz
 
