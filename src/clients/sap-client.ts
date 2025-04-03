@@ -8,7 +8,7 @@
  * @packageDocumentation
  */
 
-import axios, { AxiosInstance } from 'axios';
+import axios, { AxiosInstance, AxiosResponse } from 'axios';
 import { config } from 'dotenv';
 import { Api as IntegrationContentApi } from '../types/sap.IntegrationContent';
 import { Api as LogFilesApi } from '../types/sap.LogFiles';
@@ -70,6 +70,22 @@ export interface SapClientConfig {
    * If not provided, the SAP_OAUTH_TOKEN_URL environment variable will be used
    */
   oauthTokenUrl?: string;
+  /**
+   * Enable response format normalization
+   * If true, the client will attempt to normalize different SAP API response formats
+   * Default: true
+   */
+  normalizeResponses?: boolean;
+  /**
+   * Maximum number of retries for failed requests
+   * Default: 0 (no retries)
+   */
+  maxRetries?: number;
+  /**
+   * Delay between retries in milliseconds
+   * Default: 1000 (1 second)
+   */
+  retryDelay?: number;
 }
 
 /**
@@ -81,6 +97,7 @@ export interface SapClientConfig {
  * - CSRF token handling for write operations
  * - Type-safe API access through generated API clients
  * - Error handling
+ * - Response format normalization
  * 
  * @example
  * // Basic usage with environment variables
@@ -116,6 +133,12 @@ class SapClient {
   private oauthClientSecret: string;
   /** OAuth token URL */
   private oauthTokenUrl: string;
+  /** Whether to normalize API responses */
+  private normalizeResponses: boolean;
+  /** Maximum number of retries for failed requests */
+  private maxRetries: number;
+  /** Delay between retries in milliseconds */
+  private retryDelay: number;
   
   /** 
    * Integration Content API client
@@ -168,6 +191,9 @@ class SapClient {
     this.oauthClientId = config?.oauthClientId || process.env.SAP_OAUTH_CLIENT_ID || '';
     this.oauthClientSecret = config?.oauthClientSecret || process.env.SAP_OAUTH_CLIENT_SECRET || '';
     this.oauthTokenUrl = config?.oauthTokenUrl || process.env.SAP_OAUTH_TOKEN_URL || '';
+    this.normalizeResponses = config?.normalizeResponses !== undefined ? config.normalizeResponses : true;
+    this.maxRetries = config?.maxRetries || 0;
+    this.retryDelay = config?.retryDelay || 1000;
     
     // Validate required configuration
     this.validateConfig();
@@ -192,6 +218,20 @@ class SapClient {
         return Promise.reject(error);
       }
     );
+
+    // Add response interceptor to normalize response format if enabled
+    if (this.normalizeResponses) {
+      this.axiosInstance.interceptors.response.use(
+        (response) => {
+          // Normalize response data format
+          response.data = this.normalizeResponseFormat(response.data);
+          return response;
+        },
+        (error) => {
+          return Promise.reject(this.enhanceError(error));
+        }
+      );
+    }
 
     // Initialize API clients
     this.integrationContent = new IntegrationContentApi({
@@ -285,7 +325,100 @@ class SapClient {
       
       return token;
     } catch (error) {
-      throw new Error('Failed to obtain OAuth token');
+      throw this.enhanceError(error, 'Failed to obtain OAuth token');
+    }
+  }
+
+  /**
+   * Normalizes different SAP API response formats into a consistent structure
+   * 
+   * @private
+   * @param {any} data - The response data to normalize
+   * @returns {any} Normalized response data
+   */
+  private normalizeResponseFormat(data: any): any {
+    if (!data) return data;
+
+    // Handle array responses (already normalized)
+    if (Array.isArray(data)) {
+      return data;
+    }
+
+    // Handle OData v2 format (d.results)
+    if (data.d && Array.isArray(data.d.results)) {
+      return data.d.results;
+    }
+
+    // Handle OData v4 format (value array)
+    if (data.value && Array.isArray(data.value)) {
+      return data.value;
+    }
+
+    // Handle IntegrationPackages format
+    if (data.IntegrationPackages && Array.isArray(data.IntegrationPackages)) {
+      return data.IntegrationPackages;
+    }
+
+    // If we can't normalize, return the original data
+    return data;
+  }
+
+  /**
+   * Enhances error objects with more detailed information
+   * 
+   * @private
+   * @param {any} error - The error object
+   * @param {string} [message] - Optional message to prefix the error
+   * @returns {any} Enhanced error object
+   */
+  private enhanceError(error: any, message?: string): any {
+    // Create a new error with a more descriptive message
+    const enhancedError = new Error(
+      message 
+        ? `${message}: ${error.message}`
+        : error.message
+    );
+
+    // Copy all properties from the original error
+    Object.assign(enhancedError, error);
+
+    // Add additional helpful properties if they exist
+    if (error.response) {
+      (enhancedError as any).statusCode = error.response.status;
+      (enhancedError as any).statusText = error.response.statusText;
+      (enhancedError as any).responseData = error.response.data;
+    }
+
+    return enhancedError;
+  }
+
+  /**
+   * Performs an HTTP request with retry logic for transient errors
+   * 
+   * @private
+   * @param {Function} requestFn - Function that performs the request
+   * @param {number} retries - Number of retries left
+   * @returns {Promise<any>} Promise resolving to the response
+   */
+  private async requestWithRetry(requestFn: () => Promise<any>, retries: number = this.maxRetries): Promise<any> {
+    try {
+      return await requestFn();
+    } catch (error: any) {
+      // Only retry if we have retries left and it's a retryable error
+      const isRetryable = 
+        error.response && 
+        (error.response.status >= 500 || // Server errors
+         error.response.status === 429);  // Rate limiting
+
+      if (retries > 0 && isRetryable) {
+        // Wait before retrying
+        await new Promise(resolve => setTimeout(resolve, this.retryDelay));
+        // Retry with one less retry attempt
+        return this.requestWithRetry(requestFn, retries - 1);
+      }
+      
+      // If we can't retry, re-throw the error
+      throw error;
     }
   }
 
@@ -294,6 +427,8 @@ class SapClient {
    * - Handles CSRF token for write operations
    * - Adds OAuth token to requests
    * - Transforms axios responses to fetch API Response objects
+   * - Implements retry logic
+   * - Normalizes response formats
    * 
    * @private
    * @param {string | URL | Request} input - URL or Request object
@@ -332,12 +467,20 @@ class SapClient {
         'Authorization': `Bearer ${token.access_token}`
       };
 
-      const response = await this.axiosInstance.request({
-        url,
-        method,
-        headers: authHeaders,
-        data: body,
-      });
+      // Use retry logic for the request
+      const response = await this.requestWithRetry(() => 
+        this.axiosInstance.request({
+          url,
+          method,
+          headers: authHeaders,
+          data: body,
+        })
+      );
+
+      // Normalize response if enabled (should be handled by interceptor, this is a safeguard)
+      if (this.normalizeResponses && response.data) {
+        response.data = this.normalizeResponseFormat(response.data);
+      }
 
       // Convert axios response to fetch Response
       return new Response(JSON.stringify(response.data), {
@@ -345,8 +488,14 @@ class SapClient {
         statusText: response.statusText,
         headers: new Headers(response.headers as Record<string, string>),
       });
-    } catch (error) {
-      throw error;
+    } catch (error: any) {
+      const requestMethod = init?.method || 'GET';
+      const requestUrl = typeof input === 'string' 
+        ? input 
+        : input instanceof URL 
+          ? input.toString() 
+          : input.url;
+      throw this.enhanceError(error, `Request failed: ${requestMethod} ${requestUrl}`);
     }
   }
 
@@ -365,7 +514,7 @@ class SapClient {
         // Get OAuth token first
         const token = await this.getOAuthToken();
         
-        const response = await axios.get(`${this.baseUrl}/`, {
+        const response = await this.axiosInstance.get(`${this.baseUrl}/`, {
           headers: {
             'X-CSRF-Token': 'Fetch',
             'Authorization': `Bearer ${token.access_token}`
@@ -374,7 +523,7 @@ class SapClient {
         
         this.csrfToken = response.headers['x-csrf-token'];
       } catch (error) {
-        throw error;
+        throw this.enhanceError(error, 'Failed to fetch CSRF token');
       }
     }
   }

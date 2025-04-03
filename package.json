@@ -14,7 +14,9 @@
     "prebuild": "npm run clean",
     "prepare": "npm run build",
     "test": "jest",
-    "lint": "eslint src --ext .ts"
+    "lint": "eslint src --ext .ts",
+    "test:connection": "node tests/sap-connection.test.js",
+    "verify": "npm run build && npm run test:connection"
   },
   "keywords": [
     "sap",
@@ -41,10 +43,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yourusername/sap-cpi-api-client.git"
+    "url": "git+https://github.com/contiva/sap-integration-suite-client.git"
   },
   "bugs": {
-    "url": "https://github.com/yourusername/sap-cpi-api-client/issues"
+    "url": "https://github.com/contiva/sap-integration-suite-client/issues"
   },
-  "homepage": "https://github.com/yourusername/sap-cpi-api-client#readme"
+  "homepage": "https://github.com/contiva/sap-integration-suite-client#readme"
 }

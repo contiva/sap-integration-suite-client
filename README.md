@@ -18,6 +18,9 @@ A professional TypeScript library for interacting with SAP Cloud Integration API
 - **Formatting**: Automatic conversion of SAP-specific data formats (e.g. timestamps)
 - **Flexible Configuration**: Configure via environment variables or direct parameters
 - **Multi-Tenant Support**: Create multiple client instances for different SAP tenants
+- **Response Format Normalization**: Automatically handles different SAP API response formats
+- **Enhanced Error Handling**: Detailed error information with context
+- **Automatic Retry Logic**: Retry capability for transient errors
 - **Lightweight**: No external dependencies beyond the essentials
 
 ## 📋 Prerequisites
@@ -55,10 +58,16 @@ Pass configuration directly when instantiating the client:
 import SapClient from 'sap-integration-suite-client';
 
 const client = new SapClient({
+  // Required Configuration
   baseUrl: 'https://your-tenant.sap-api.com/api/v1',
   oauthClientId: 'your-client-id',
   oauthClientSecret: 'your-client-secret',
-  oauthTokenUrl: 'https://your-tenant.authentication.sap.hana.ondemand.com/oauth/token'
+  oauthTokenUrl: 'https://your-tenant.authentication.sap.hana.ondemand.com/oauth/token',
+  
+  // Advanced Options (all optional)
+  normalizeResponses: true,  // Normalize response formats (default: true)
+  maxRetries: 3,             // Number of retry attempts for failed requests (default: 0)
+  retryDelay: 1000           // Delay between retries in milliseconds (default: 1000)
 });
 ```
 
@@ -97,7 +106,9 @@ const productionClient = new SapClient({
   baseUrl: 'https://production-tenant.sap-api.com/api/v1',
   oauthClientId: 'production-client-id',
   oauthClientSecret: 'production-client-secret',
-  oauthTokenUrl: 'https://production-tenant.authentication.sap.hana.ondemand.com/oauth/token'
+  oauthTokenUrl: 'https://production-tenant.authentication.sap.hana.ondemand.com/oauth/token',
+  // Enable retries for production environment
+  maxRetries: 3
 });
 
 const testClient = new SapClient({
@@ -158,6 +169,50 @@ async function deployIntegrationFlow(id, version) {
 }
 ```
 
+### Using Enhanced Error Handling
+
+The client provides improved error handling with detailed context:
+
+```typescript
+try {
+  const response = await client.integrationContent.integrationPackages.integrationPackagesList();
+  return response.data;
+} catch (error) {
+  // Enhanced error information
+  console.error('Status Code:', error.statusCode);
+  console.error('Status Text:', error.statusText);
+  console.error('Response Data:', error.responseData);
+  
+  // Original error message is still available
+  console.error('Error Message:', error.message);
+  
+  throw error;
+}
+```
+
+### Working with Normalized Responses
+
+The client automatically normalizes responses from different SAP API formats:
+
+```typescript
+// This works consistently regardless of the response format the API returns
+async function getPackages() {
+  const response = await client.integrationContent.integrationPackages.integrationPackagesList();
+  
+  // The data will be normalized to an array, regardless of whether the API returns:
+  // - A direct array
+  // - {IntegrationPackages: [...]}
+  // - {d: {results: [...]}} (OData v2)
+  // - {value: [...]} (OData v4)
+  const packages = response.data;
+  
+  return packages.map(pkg => ({
+    id: pkg.Id || pkg.id,
+    name: pkg.Name || pkg.name
+  }));
+}
+```
+
 ## 📚 API Reference
 
 ### Available API Groups
@@ -193,6 +248,32 @@ async function getFailedMessages() {
     time: new Date(log.LogEnd || log.LogStart)
   }));
 }
+```
+
+### Advanced Configuration Options
+
+The client supports several advanced configuration options:
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `normalizeResponses` | boolean | `true` | Normalizes different SAP API response formats into a consistent structure |
+| `maxRetries` | number | `0` | Maximum number of retry attempts for failed requests |
+| `retryDelay` | number | `1000` | Delay between retry attempts in milliseconds |
+
+```typescript
+// Client with advanced configuration
+const client = new SapClient({
+  // Basic configuration
+  baseUrl: 'https://your-tenant.sap-api.com/api/v1',
+  oauthClientId: 'your-client-id',
+  oauthClientSecret: 'your-client-secret',
+  oauthTokenUrl: 'https://your-tenant.authentication.sap.hana.ondemand.com/oauth/token',
+  
+  // Advanced configuration
+  normalizeResponses: true,  // Normalize response formats
+  maxRetries: 3,             // Retry failed requests up to 3 times
+  retryDelay: 2000           // Wait 2 seconds between retries
+});
 ```
 
 ## 🧰 Library Architecture
@@ -241,6 +322,15 @@ npm link sap-integration-suite-client
 import SapClient from 'sap-integration-suite-client';
 ```
 
+### Verifying SAP Connectivity
+
+The library includes a connection test script to verify your SAP credentials and connectivity:
+
+```bash
+# Build the project and run the connection test
+npm run verify
+```
+
 ## ❓ Troubleshooting
 
 ### OAuth Errors
@@ -250,6 +340,14 @@ If you encounter authentication errors, check:
 1. Are your OAuth credentials correct?
 2. Does your client have the appropriate permissions?
 3. Is the token URL correct?
+
+### API Response Format Issues
+
+If you're having trouble with API response formats:
+
+1. The client attempts to normalize response formats automatically (enabled by default)
+2. If you need the original response format, disable normalization: `normalizeResponses: false`
+3. Examine the raw response with `console.log(JSON.stringify(response.data))` to understand its structure
 
 ### CORS Issues
 
