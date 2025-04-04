@@ -188,6 +188,15 @@ class SapClient {
   constructor(config?: SapClientConfig) {
     // Load configuration with priority: passed config > environment variables > empty string
     this.baseUrl = config?.baseUrl || process.env.SAP_BASE_URL || '';
+    
+    // Ensure the base URL includes the API path '/api/v1'
+    if (this.baseUrl && !this.baseUrl.endsWith('/api/v1') && !this.baseUrl.includes('/api/v1/')) {
+      // Remove trailing slash if present
+      this.baseUrl = this.baseUrl.endsWith('/') ? this.baseUrl.slice(0, -1) : this.baseUrl;
+      // Add /api/v1
+      this.baseUrl += '/api/v1';
+    }
+    
     this.oauthClientId = config?.oauthClientId || process.env.SAP_OAUTH_CLIENT_ID || '';
     this.oauthClientSecret = config?.oauthClientSecret || process.env.SAP_OAUTH_CLIENT_SECRET || '';
     this.oauthTokenUrl = config?.oauthTokenUrl || process.env.SAP_OAUTH_TOKEN_URL || '';
@@ -232,6 +241,42 @@ class SapClient {
         }
       );
     }
+    
+    // Add response interceptor to handle token expiration (401 Unauthorized)
+    this.axiosInstance.interceptors.response.use(
+      (response) => response,
+      async (error) => {
+        const originalRequest = error.config;
+        
+        // Check if error is due to invalid token (401) and this request hasn't been retried yet
+        if (error.response?.status === 401 && !originalRequest._retry) {
+          console.debug('Token expired or invalid, attempting to refresh...');
+          
+          // Mark request as retried to prevent infinite loops
+          originalRequest._retry = true;
+          
+          // Invalidate current token
+          this.oauthToken = null;
+          
+          try {
+            // Get a fresh token
+            const token = await this.getOAuthToken();
+            
+            // Update the Authorization header with the new token
+            originalRequest.headers.Authorization = `Bearer ${token.access_token}`;
+            
+            // Retry the original request with the new token
+            return this.axiosInstance(originalRequest);
+          } catch (tokenError) {
+            // If token refresh also fails, reject with the token error
+            return Promise.reject(this.enhanceError(tokenError, 'Failed to refresh token after 401 Unauthorized'));
+          }
+        }
+        
+        // For other errors, just reject with the original error
+        return Promise.reject(error);
+      }
+    );
 
     // Initialize API clients
     this.integrationContent = new IntegrationContentApi({
@@ -303,16 +348,18 @@ class SapClient {
 
     // Otherwise, get a new token
     try {
+      // Create base64 encoded credentials for basic auth
+      const authString = Buffer.from(`${this.oauthClientId}:${this.oauthClientSecret}`).toString('base64');
+      
       const tokenResponse = await axios.post(
         this.oauthTokenUrl,
         qs.stringify({
-          grant_type: 'client_credentials',
-          client_id: this.oauthClientId,
-          client_secret: this.oauthClientSecret,
+          grant_type: 'client_credentials'
         }),
         {
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
+            'Authorization': `Basic ${authString}`
           },
         }
       );
@@ -514,7 +561,10 @@ class SapClient {
         // Get OAuth token first
         const token = await this.getOAuthToken();
         
-        const response = await this.axiosInstance.get(`${this.baseUrl}/`, {
+        // Extract base URL without /api/v1 for CSRF token request
+        const baseUrlWithoutApiPath = this.baseUrl.replace(/\/api\/v1\/?$/, '');
+        
+        const response = await axios.get(`${baseUrlWithoutApiPath}/`, {
           headers: {
             'X-CSRF-Token': 'Fetch',
             'Authorization': `Bearer ${token.access_token}`
