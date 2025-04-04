@@ -15,6 +15,8 @@ import {
   // AuditLog is not directly exposed via specific endpoints in this API version
 } from '../types/sap.LogFiles';
 
+import { ResponseNormalizer } from '../utils/response-normalizer';
+
 /**
  * SAP Log Files Client
  * 
@@ -22,6 +24,7 @@ import {
  */
 export class LogFilesClient {
   private api: LogFilesApi<unknown>;
+  private normalizer: ResponseNormalizer;
 
   /**
    * Creates a new LogFilesClient
@@ -30,6 +33,7 @@ export class LogFilesClient {
    */
   constructor(api: LogFilesApi<unknown>) {
     this.api = api;
+    this.normalizer = new ResponseNormalizer();
   }
 
   /**
@@ -42,7 +46,7 @@ export class LogFilesClient {
    */
   async getLogFileArchives(): Promise<ComSapHciApiLogFileArchive[]> {
     const response = await this.api.logFileArchives.logFileArchivesList();
-    return response.data?.d?.results || [];
+    return this.normalizer.normalizeArrayResponse(response.data, 'getLogFileArchives');
   }
 
   /**
@@ -65,7 +69,7 @@ export class LogFilesClient {
   ): Promise<ComSapHciApiLogFileArchive[]> {
     const response = await this.api.logFileArchivesScopeScopeLogFileTypeLogFileTypeNodeScopeWorker
       .logFileArchivesScopeLogFileTypeNodeScopeWorkerList([scope], [logFileType], { ModifiedAfter: modifiedAfter });
-    return response.data?.d?.results || [];
+    return this.normalizer.normalizeArrayResponse(response.data, 'getLogFileArchiveCollection');
   }
 
   /**
@@ -126,7 +130,7 @@ export class LogFilesClient {
       $orderby: options.orderby,
       $select: options.select,
     });
-    return response.data?.d?.results || [];
+    return this.normalizer.normalizeArrayResponse(response.data, 'getLogFiles');
   }
 
   /**
@@ -142,8 +146,9 @@ export class LogFilesClient {
    */
   async getLogFileByNameAndApp(name: string, application: string): Promise<ComSapHciApiLogFile | undefined> {
     const response = await this.api.logFilesNameNameApplicationApplication.logFilesNameApplicationList(name, application);
-    // API seems to return an array even for a single file lookup
-    return response.data?.d?.results?.[0]; 
+    // API seems to return an array even for a single file lookup, so we use normalizeArrayResponse and take the first element
+    const files = this.normalizer.normalizeArrayResponse(response.data, 'getLogFileByNameAndApp');
+    return files[0]; 
   }
 
   /**

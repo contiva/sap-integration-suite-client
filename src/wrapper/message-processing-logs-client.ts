@@ -21,6 +21,8 @@ import {
   ComSapHciApiArchivingKeyPerformanceIndicators
 } from '../types/sap.MessageProcessingLogs';
 
+import { ResponseNormalizer } from '../utils/response-normalizer';
+
 /**
  * SAP Message Processing Logs Client
  * 
@@ -28,6 +30,7 @@ import {
  */
 export class MessageProcessingLogsClient {
   private api: MessageProcessingLogsApi<unknown>;
+  private normalizer: ResponseNormalizer;
 
   /**
    * Creates a new MessageProcessingLogsClient
@@ -36,6 +39,7 @@ export class MessageProcessingLogsClient {
    */
   constructor(api: MessageProcessingLogsApi<unknown>) {
     this.api = api;
+    this.normalizer = new ResponseNormalizer();
   }
 
   /**
@@ -82,7 +86,7 @@ export class MessageProcessingLogsClient {
       $inlinecount: options.inlinecount ? ['allpages'] : undefined,
     });
     
-    const logs = response.data?.d?.results || [];
+    const logs = this.normalizer.normalizeArrayResponse(response.data, 'getMessageProcessingLogs');
     // The count is returned as string property __count if $inlinecount is used
     const countString = (response.data?.d as any)?.__count;
     const count = countString ? parseInt(countString, 10) : undefined;
@@ -136,7 +140,7 @@ export class MessageProcessingLogsClient {
       $select: options.select,
       $expand: options.expand,
     });
-    return response.data?.d;
+    return this.normalizer.normalizeEntityResponse(response.data, 'getMessageProcessingLogById');
   }
 
   /**
@@ -156,7 +160,7 @@ export class MessageProcessingLogsClient {
     const response = await this.api.messageProcessingLogsMessageGuid.adapterAttributesList(messageGuid, {
       $select: select,
     });
-    return response.data?.d?.results || [];
+    return this.normalizer.normalizeArrayResponse(response.data, 'getLogAdapterAttributes');
   }
 
   /**
@@ -170,7 +174,7 @@ export class MessageProcessingLogsClient {
    */
   async getLogAttachments(messageGuid: string): Promise<ComSapHciApiMessageProcessingLogAttachment[]> {
     const response = await this.api.messageProcessingLogsMessageGuid.attachmentsList(messageGuid);
-    return response.data?.d?.results || [];
+    return this.normalizer.normalizeArrayResponse(response.data, 'getLogAttachments');
   }
 
   /**
@@ -205,7 +209,7 @@ export class MessageProcessingLogsClient {
       $orderby: options.orderby,
       $select: options.select,
     });
-    return response.data?.d?.results || [];
+    return this.normalizer.normalizeArrayResponse(response.data, 'getLogCustomHeaderProperties');
   }
 
   /**
@@ -222,7 +226,7 @@ export class MessageProcessingLogsClient {
    */
   async getLogErrorInformation(messageGuid: string): Promise<ComSapHciApiMessageProcessingLogErrorInformation | undefined> {
     const response = await this.api.messageProcessingLogsMessageGuid.errorInformationList(messageGuid);
-    return response.data?.d;
+    return this.normalizer.normalizeEntityResponse(response.data, 'getLogErrorInformation');
   }
 
   /**
@@ -259,7 +263,7 @@ export class MessageProcessingLogsClient {
    */
   async getIdMapperTargetIds(sourceId: string): Promise<ComSapHciApiIdMapToId[]> {
     const response = await this.api.idMapFromIdsSourceId.toIdsList(sourceId);
-    return response.data?.d?.results || [];
+    return this.normalizer.normalizeArrayResponse(response.data, 'getIdMapperTargetIds');
   }
 
   /**
@@ -273,7 +277,7 @@ export class MessageProcessingLogsClient {
    */
   async getIdMapperSourceIds(targetId: string): Promise<ComSapHciApiIdMapFromId2[]> {
     const response = await this.api.idMapToIdsTargetId.fromId2SList(targetId);
-    return response.data?.d?.results || [];
+    return this.normalizer.normalizeArrayResponse(response.data, 'getIdMapperSourceIds');
   }
 
   // --- Idempotent Repository Methods ---
@@ -289,7 +293,7 @@ export class MessageProcessingLogsClient {
    */
   async getIdempotentRepositoryEntriesById(entryId: string): Promise<ComSapHciApiIdempotentRepositoryEntry[]> {
     const response = await this.api.idempotentRepositoryEntries.idempotentRepositoryEntriesList({ id: entryId });
-    return response.data?.d?.results || [];
+    return this.normalizer.normalizeArrayResponse(response.data, 'getIdempotentRepositoryEntriesById');
   }
 
   /**
@@ -333,7 +337,7 @@ export class MessageProcessingLogsClient {
    */
   async getGenericIdempotentRepositoryEntriesById(entryId: string): Promise<ComSapHciApiGenericIdempotentRepositoryEntry[]> {
     const response = await this.api.genericIdempotentRepositoryEntries.genericIdempotentRepositoryEntriesList({ id: entryId });
-    return response.data?.d?.results || [];
+    return this.normalizer.normalizeArrayResponse(response.data, 'getGenericIdempotentRepositoryEntriesById');
   }
 
   /**
@@ -487,7 +491,7 @@ export class MessageProcessingLogsClient {
    */
   async getArchivingKpis(filter?: string): Promise<ComSapHciApiArchivingKeyPerformanceIndicators[]> {
     const response = await this.api.archivingKeyPerformanceIndicators.archivingKeyPerformanceIndicatorsList({ $filter: filter });
-    return response.data?.d?.results || [];
+    return this.normalizer.normalizeArrayResponse(response.data, 'getArchivingKpis');
   }
 
 }

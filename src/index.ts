@@ -26,11 +26,11 @@
 
 // Core Client and Config
 import SapClient, { SapClientConfig } from './clients/sap-client';
-import { IntegrationContentClient } from './clients/integration-content-client';
-import { LogFilesClient } from './clients/log-files-client';
-import { MessageProcessingLogsClient } from './clients/message-processing-logs-client';
-import { MessageStoreClient } from './clients/message-store-client';
-import { SecurityContentClient } from './clients/security-content-client';
+import { IntegrationContentClient } from './wrapper/integration-content-client';
+import { LogFilesClient } from './wrapper/log-files-client';
+import { MessageProcessingLogsClient } from './wrapper/message-processing-logs-client';
+import { MessageStoreClient } from './wrapper/message-store-client';
+import { SecurityContentClient } from './wrapper/security-content-client';
 
 // Utilities
 import { formatSapTimestampsInObject } from './utils/date-formatter';

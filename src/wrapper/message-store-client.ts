@@ -23,6 +23,8 @@ import {
   ComSapHciApiVariables,
 } from '../types/sap.MessageStore';
 
+import { ResponseNormalizer } from '../utils/response-normalizer';
+
 /**
  * SAP Message Store Client
  * 
@@ -30,6 +32,7 @@ import {
  */
 export class MessageStoreClient {
   private api: MessageStoreApi<unknown>;
+  private normalizer: ResponseNormalizer;
 
   /**
    * Creates a new MessageStoreClient
@@ -38,6 +41,7 @@ export class MessageStoreClient {
    */
   constructor(api: MessageStoreApi<unknown>) {
     this.api = api;
+    this.normalizer = new ResponseNormalizer();
   }
 
   // --- Message Store Entry Methods ---
@@ -53,7 +57,7 @@ export class MessageStoreClient {
    */
   async getMessageStoreEntriesForMessage(messageGuid: string): Promise<ComSapHciApiMessageStoreEntry[]> {
     const response = await this.api.messageProcessingLogsMessageGuid.messageStoreEntriesList(messageGuid);
-    return response.data?.d?.results || [];
+    return this.normalizer.normalizeArrayResponse(response.data, 'getMessageStoreEntriesForMessage');
   }
 
   /**
@@ -67,7 +71,7 @@ export class MessageStoreClient {
    */
   async getMessageStoreEntryById(entryId: string): Promise<ComSapHciApiMessageStoreEntry | undefined> {
     const response = await this.api.messageStoreEntriesMessageStoreEntryId.messageStoreEntriesList(entryId);
-    return response.data?.d;
+    return this.normalizer.normalizeEntityResponse(response.data, 'getMessageStoreEntryById');
   }
 
   /**
@@ -108,7 +112,7 @@ export class MessageStoreClient {
    */
   async getMessageStoreEntryAttachments(entryId: string): Promise<ComSapHciApiMessageStoreEntryAttachment[]> {
     const response = await this.api.messageStoreEntriesMessageStoreEntryId.attachmentsList(entryId);
-    return response.data?.d?.results || [];
+    return this.normalizer.normalizeArrayResponse(response.data, 'getMessageStoreEntryAttachments');
   }
 
   /**
@@ -122,7 +126,7 @@ export class MessageStoreClient {
    */
   async getMessageStoreEntryAttachmentById(attachmentId: string): Promise<ComSapHciApiMessageStoreEntryAttachment | undefined> {
     const response = await this.api.messageStoreEntryAttachmentsMessageStoreEntryAttachmentId.messageStoreEntryAttachmentsList(attachmentId);
-    return response.data?.d;
+    return this.normalizer.normalizeEntityResponse(response.data, 'getMessageStoreEntryAttachmentById');
   }
 
   /**
@@ -154,7 +158,7 @@ export class MessageStoreClient {
    */
   async getMessageStoreEntryAttachmentProperties(attachmentId: string): Promise<ComSapHciApiMessageStoreEntryAttachmentProperty[]> {
     const response = await this.api.messageStoreEntryAttachmentsMessageStoreEntryAttachmentId.propertiesList(attachmentId);
-    return response.data?.d?.results || [];
+    return this.normalizer.normalizeArrayResponse(response.data, 'getMessageStoreEntryAttachmentProperties');
   }
 
   /**
@@ -170,7 +174,7 @@ export class MessageStoreClient {
   async getMessageStoreEntryAttachmentPropertyByName(attachmentId: string, propertyName: string): Promise<ComSapHciApiMessageStoreEntryAttachmentProperty | undefined> {
     const response = await this.api.messageStoreEntryAttachmentPropertiesAttachmentIdMessageStoreEntryAttachmentIdNameName
       .messageStoreEntryAttachmentPropertiesAttachmentIdNameList(attachmentId, propertyName);
-    return response.data?.d;
+    return this.normalizer.normalizeEntityResponse(response.data, 'getMessageStoreEntryAttachmentPropertyByName');
   }
 
   /**
@@ -184,7 +188,7 @@ export class MessageStoreClient {
    */
   async getMessageStoreEntryProperties(entryId: string): Promise<ComSapHciApiMessageStoreEntryProperty[]> {
     const response = await this.api.messageStoreEntriesMessageStoreEntryId.propertiesList(entryId);
-    return response.data?.d?.results || [];
+    return this.normalizer.normalizeArrayResponse(response.data, 'getMessageStoreEntryProperties');
   }
 
   /**
@@ -200,7 +204,7 @@ export class MessageStoreClient {
   async getMessageStoreEntryPropertyByName(entryId: string, propertyName: string): Promise<ComSapHciApiMessageStoreEntryProperty | undefined> {
     const response = await this.api.messageStoreEntryPropertiesMessageIdMessageStoreEntryIdNamePropertyName
       .messageStoreEntryPropertiesMessageIdNameList(entryId, propertyName);
-    return response.data?.d;
+    return this.normalizer.normalizeEntityResponse(response.data, 'getMessageStoreEntryPropertyByName');
   }
 
   // --- JMS Resource Methods ---
@@ -246,7 +250,7 @@ export class MessageStoreClient {
    */
   async getNumberRanges(): Promise<ComSapHciApiNumberRanges[]> {
     const response = await this.api.numberRanges.numberRangesList();
-    return response.data?.d?.results || [];
+    return this.normalizer.normalizeArrayResponse(response.data, 'getNumberRanges');
   }
 
   /**
@@ -326,7 +330,7 @@ export class MessageStoreClient {
     const response = await this.api.dataStores.dataStoresList({ 
       overdueonly: overdueOnly ? ['true'] : undefined 
     });
-    return response.data?.d?.results || [];
+    return this.normalizer.normalizeArrayResponse(response.data, 'getDataStores');
   }
 
   /**
@@ -397,7 +401,7 @@ export class MessageStoreClient {
         overdueonly: overdueOnly ? ['true'] : undefined,
         messageid: messageId ? [messageId] : undefined
       });
-    return response.data?.d?.results || [];
+    return this.normalizer.normalizeArrayResponse(response.data, 'getDataStoreEntriesForStore');
   }
 
   /**
@@ -418,7 +422,7 @@ export class MessageStoreClient {
       overdueonly: overdueOnly ? ['true'] : undefined, 
       messageid: messageId ? [messageId] : undefined
     });
-    return response.data?.d?.results || [];
+    return this.normalizer.normalizeArrayResponse(response.data, 'getAllDataStoreEntries');
   }
 
   /**
@@ -507,7 +511,7 @@ export class MessageStoreClient {
    */
   async getVariables(): Promise<ComSapHciApiVariables[]> {
     const response = await this.api.variables.variablesList();
-    return response.data?.d?.results || [];
+    return this.normalizer.normalizeArrayResponse(response.data, 'getVariables');
   }
 
   /**

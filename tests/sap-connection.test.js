@@ -228,95 +228,35 @@ async function testSapConnection() {
     console.log('\n🔄 STEP 2: Fetch Integration Packages');
     
     // If direct API test succeeded, but SapClient test fails, we'll extract and use data from the direct test
-    let packages;
     let packageList = [];
     
     try {
-      const response = await client.integrationContent.integrationPackages.integrationPackagesList();
+      // Use the wrapper method
+      packageList = await client.integrationContent.getIntegrationPackages();
       
-      if (!response) {
-        throw new Error('No response received from SAP API');
+      // Wrapper should always return an array or throw an error
+      if (!Array.isArray(packageList)) {
+        console.error('❌ Wrapper did not return an array for packages:', packageList);
+        throw new Error('Invalid response format from getIntegrationPackages wrapper');
       }
-      
-      packages = response.data;
-      
-      // Log the response structure for debugging
-      console.log('\n📋 API Response Structure:');
-      console.log('Response type:', typeof packages);
-      console.log('Response keys:', Object.keys(packages));
-      console.log('Response sample:', JSON.stringify(packages).substring(0, 200) + '...');
-      
-      // Different SAP API versions may have different response structures
-      // Try to handle common variations
-      if (Array.isArray(packages)) {
-        packageList = packages;
-        console.log('✅ Response is a direct array of packages');
-        sapClientWorks = true;
-      } else if (packages && Array.isArray(packages.IntegrationPackages)) {
-        packageList = packages.IntegrationPackages;
-        console.log('✅ Response contains IntegrationPackages array');
-        sapClientWorks = true;
-      } else if (packages && packages.d && Array.isArray(packages.d.results)) {
-        // OData v2 format
-        packageList = packages.d.results;
-        console.log('✅ Response is in OData v2 format (d.results)');
-        sapClientWorks = true;
-      } else if (packages && packages.value && Array.isArray(packages.value)) {
-        // OData v4 format
-        packageList = packages.value;
-        console.log('✅ Response is in OData v4 format (value array)');
-        sapClientWorks = true;
-      } else {
-        console.error('❌ Unrecognized response structure from SapClient. Using direct API data instead.');
-        
-        // Use data from direct API call if available
-        if (directApiResult && directApiResult.data) {
-          packages = directApiResult.data;
-          console.log('Using data from direct API call instead.');
-          
-          if (packages.d && Array.isArray(packages.d.results)) {
-            packageList = packages.d.results;
-            console.log('✅ Direct API response is in OData v2 format (d.results)');
-            sapClientWorks = false;
-          } else if (packages.value && Array.isArray(packages.value)) {
-            packageList = packages.value;
-            console.log('✅ Direct API response is in OData v4 format (value array)');
-            sapClientWorks = false;
-          } else if (Array.isArray(packages)) {
-            packageList = packages;
-            console.log('✅ Direct API response is a direct array of packages');
-            sapClientWorks = false;
-          } else if (packages.IntegrationPackages && Array.isArray(packages.IntegrationPackages)) {
-            packageList = packages.IntegrationPackages;
-            console.log('✅ Direct API response contains IntegrationPackages array');
-            sapClientWorks = false;
-          } else {
-            console.error('❌ Unrecognized response structure from direct API call as well.');
-            console.error('Full direct API response:', JSON.stringify(packages, null, 2));
-            throw new Error('Invalid response format from both SapClient and direct API call');
-          }
-        } else {
-          console.error('Full response:', JSON.stringify(packages, null, 2));
-          throw new Error('Invalid response format from SAP API');
-        }
-      }
+      sapClientWorks = true; // Mark as working if it returns an array
     } catch (error) {
       if (directApiResult && directApiResult.data) {
         console.error('❌ SapClient API call failed, but direct API call succeeded. Using direct API data.');
-        packages = directApiResult.data;
+        packageList = directApiResult.data;
         sapClientWorks = false;
         
-        if (packages.d && Array.isArray(packages.d.results)) {
-          packageList = packages.d.results;
+        if (packageList.d && Array.isArray(packageList.d.results)) {
+          packageList = packageList.d.results;
           console.log('✅ Direct API response is in OData v2 format (d.results)');
-        } else if (packages.value && Array.isArray(packages.value)) {
-          packageList = packages.value;
+        } else if (packageList.value && Array.isArray(packageList.value)) {
+          packageList = packageList.value;
           console.log('✅ Direct API response is in OData v4 format (value array)');
-        } else if (Array.isArray(packages)) {
-          packageList = packages;
+        } else if (Array.isArray(packageList)) {
+          packageList = packageList;
           console.log('✅ Direct API response is a direct array of packages');
-        } else if (packages.IntegrationPackages && Array.isArray(packages.IntegrationPackages)) {
-          packageList = packages.IntegrationPackages;
+        } else if (packageList.IntegrationPackages && Array.isArray(packageList.IntegrationPackages)) {
+          packageList = packageList.IntegrationPackages;
           console.log('✅ Direct API response contains IntegrationPackages array');
         } else {
           console.error('❌ Unrecognized response structure from direct API call.');
@@ -369,14 +309,13 @@ async function testSapConnection() {
         
         if (sapClientWorks) {
           try {
-            // Try using the SapClient first
-            const singlePackageResponse = await client.integrationContent.integrationPackagesId.integrationPackagesList(packageId);
+            // Use wrapper method
+            singlePackage = await client.integrationContent.getIntegrationPackageById(packageId);
             
-            if (!singlePackageResponse || !singlePackageResponse.data) {
-              throw new Error('No response received when fetching single package');
+            if (!singlePackage) {
+              // Handle case where package is not found (returns undefined)
+              console.warn(`⚠️ Package with ID ${packageId} not found via wrapper.`);
             }
-            
-            singlePackage = singlePackageResponse.data;
             
             // Debug: Log the full response structure to understand the data
             console.log('\n📋 Single Package Response Structure:');
@@ -428,16 +367,9 @@ async function testSapConnection() {
         let pkgName = 'Unknown';
         let pkgId = 'Unknown';
         
-        // Try different property paths based on common API patterns
-        if (singlePackage.Name) pkgName = singlePackage.Name;
-        else if (singlePackage.name) pkgName = singlePackage.name;
-        else if (singlePackage.d && singlePackage.d.Name) pkgName = singlePackage.d.Name;
-        else if (singlePackage.d && singlePackage.d.name) pkgName = singlePackage.d.name;
-        
-        if (singlePackage.Id) pkgId = singlePackage.Id;
-        else if (singlePackage.id) pkgId = singlePackage.id;
-        else if (singlePackage.d && singlePackage.d.Id) pkgId = singlePackage.d.Id;
-        else if (singlePackage.d && singlePackage.d.name) pkgId = singlePackage.d.id;
+        // Wrapper returns the direct object
+        if (singlePackage?.Name) pkgName = singlePackage.Name;
+        if (singlePackage?.Id) pkgId = singlePackage.Id;
         
         console.log(`✅ Successfully retrieved single package: ${pkgName} (ID: ${pkgId})`);
         
@@ -457,28 +389,16 @@ async function testSapConnection() {
       console.log('\n🔄 STEP 4: Fetch Integration Flows in the package');
       
       try {
-        const flowsResponse = await client.integrationContent.integrationPackagesId.integrationDesigntimeArtifactsList(packageId);
+        // Use wrapper method
+        let flowsList = await client.integrationContent.getIntegrationFlows(packageId);
         
-        if (!flowsResponse || !flowsResponse.data) {
-          throw new Error('No response received when fetching integration flows');
+        // Wrapper should always return an array
+        if (!Array.isArray(flowsList)) {
+          console.error('❌ Wrapper did not return an array for flows:', flowsList);
+          throw new Error('Invalid response format from getIntegrationFlows wrapper');
         }
         
-        const flowsData = flowsResponse.data;
-        
-        // Debug log structure
-        console.log('\n📋 Integration Flows Response Structure:');
-        console.log('Response type:', typeof flowsData);
-        console.log('Response keys:', Object.keys(flowsData));
-        
-        // Extract the flows list
-        let flowsList = [];
-        if (Array.isArray(flowsData)) {
-          flowsList = flowsData;
-        } else if (flowsData.value && Array.isArray(flowsData.value)) {
-          flowsList = flowsData.value;
-        } else if (flowsData.d && flowsData.d.results && Array.isArray(flowsData.d.results)) {
-          flowsList = flowsData.d.results;
-        }
+        sapClientWorks = true; // Mark as working if wrapper call succeeds
         
         console.log(`✅ Successfully retrieved ${flowsList.length} integration flows from package`);
         testSuccessCount++;
@@ -507,28 +427,16 @@ async function testSapConnection() {
       console.log('\n🔄 STEP 5: Fetch Service Endpoints');
       
       try {
-        const endpointsResponse = await client.integrationContent.serviceEndpoints.serviceEndpointsList();
+        // Use wrapper method
+        let endpointsList = await client.integrationContent.getServiceEndpoints();
         
-        if (!endpointsResponse || !endpointsResponse.data) {
-          throw new Error('No response received when fetching service endpoints');
+        // Wrapper should always return an array
+        if (!Array.isArray(endpointsList)) {
+          console.error('❌ Wrapper did not return an array for endpoints:', endpointsList);
+          throw new Error('Invalid response format from getServiceEndpoints wrapper');
         }
         
-        const endpointsData = endpointsResponse.data;
-        
-        // Debug log structure
-        console.log('\n📋 Service Endpoints Response Structure:');
-        console.log('Response type:', typeof endpointsData);
-        console.log('Response keys:', Object.keys(endpointsData));
-        
-        // Extract the endpoints list
-        let endpointsList = [];
-        if (Array.isArray(endpointsData)) {
-          endpointsList = endpointsData;
-        } else if (endpointsData.value && Array.isArray(endpointsData.value)) {
-          endpointsList = endpointsData.value;
-        } else if (endpointsData.d && endpointsData.d.results && Array.isArray(endpointsData.d.results)) {
-          endpointsList = endpointsData.d.results;
-        }
+        sapClientWorks = true; // Mark as working if wrapper call succeeds
         
         console.log(`✅ Successfully retrieved ${endpointsList.length} service endpoints`);
         testSuccessCount++;
@@ -547,6 +455,87 @@ async function testSapConnection() {
         if (endpointsError.response) {
           console.error('Status:', endpointsError.response.status);
           console.error('Error details:', JSON.stringify(endpointsError.response.data, null, 2));
+        }
+        testFailCount++;
+      }
+
+      // ------------------------------------------------
+      // STEP 6: Test getPackagesWithArtifacts method
+      // ------------------------------------------------
+      console.log('\n🔄 STEP 6: Test getPackagesWithArtifacts method');
+      
+      try {
+        // Use wrapper method with options to limit results
+        let packagesWithArtifacts = await client.integrationContent.getPackagesWithArtifacts({
+          top: 20, // Limit to first 5 packages for faster test
+          includeEmpty: false // Only include packages with artifacts
+        });
+        
+        // Wrapper should always return an array
+        if (!Array.isArray(packagesWithArtifacts)) {
+          console.error('❌ Wrapper did not return an array for packagesWithArtifacts:', packagesWithArtifacts);
+          throw new Error('Invalid response format from getPackagesWithArtifacts wrapper');
+        }
+        
+        sapClientWorks = true; // Mark as working if wrapper call succeeds
+        
+        console.log(`✅ Successfully retrieved ${packagesWithArtifacts.length} packages with artifacts`);
+        testSuccessCount++;
+        
+        // Display summary of packages and their artifacts
+        if (packagesWithArtifacts.length > 0) {
+          console.log('\nPackages with artifacts summary:');
+          packagesWithArtifacts.forEach((pkg, index) => {
+            const packageName = pkg.package.Name || 'Unknown';
+            const packageId = pkg.package.Id || 'Unknown';
+            console.log(`${index + 1}. ${packageName} (ID: ${packageId}):`);
+            console.log(`   - Integration Flows: ${pkg.integrationFlows.length}`);
+            console.log(`   - Message Mappings: ${pkg.messageMappings.length}`);
+            console.log(`   - Value Mappings: ${pkg.valueMappings.length}`);
+            console.log(`   - Script Collections: ${pkg.scriptCollections.length}`);
+          });
+        }
+        
+        // Validate structure of returned packages
+        if (packagesWithArtifacts.length > 0) {
+          const firstPkg = packagesWithArtifacts[0];
+          let structureValid = true;
+          
+          // Check required properties
+          if (!firstPkg.package) {
+            console.error('❌ Missing package property');
+            structureValid = false;
+          }
+          if (!Array.isArray(firstPkg.integrationFlows)) {
+            console.error('❌ Missing or invalid integrationFlows property');
+            structureValid = false;
+          }
+          if (!Array.isArray(firstPkg.messageMappings)) {
+            console.error('❌ Missing or invalid messageMappings property');
+            structureValid = false;
+          }
+          if (!Array.isArray(firstPkg.valueMappings)) {
+            console.error('❌ Missing or invalid valueMappings property');
+            structureValid = false;
+          }
+          if (!Array.isArray(firstPkg.scriptCollections)) {
+            console.error('❌ Missing or invalid scriptCollections property');
+            structureValid = false;
+          }
+          
+          if (structureValid) {
+            console.log('✅ Package structure validation passed');
+            testSuccessCount++;
+          } else {
+            console.error('❌ Package structure validation failed');
+            testFailCount++;
+          }
+        }
+      } catch (packagesError) {
+        console.error('❌ Failed to retrieve packages with artifacts:', packagesError.message);
+        if (packagesError.response) {
+          console.error('Status:', packagesError.response.status);
+          console.error('Error details:', JSON.stringify(packagesError.response.data, null, 2));
         }
         testFailCount++;
       }

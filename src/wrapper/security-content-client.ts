@@ -40,6 +40,8 @@ import {
   // Add other necessary types as methods are implemented
 } from '../types/sap.SecurityContent';
 
+import { ResponseNormalizer } from '../utils/response-normalizer';
+
 /**
  * SAP Security Content Client
  * 
@@ -47,6 +49,7 @@ import {
  */
 export class SecurityContentClient {
   private api: SecurityContentApi<unknown>;
+  private normalizer: ResponseNormalizer;
 
   /**
    * Creates a new SecurityContentClient
@@ -55,6 +58,7 @@ export class SecurityContentClient {
    */
   constructor(api: SecurityContentApi<unknown>) {
     this.api = api;
+    this.normalizer = new ResponseNormalizer();
   }
 
   // --- User Credential Methods ---
@@ -69,7 +73,7 @@ export class SecurityContentClient {
    */
   async getUserCredentials(): Promise<ComSapHciApiUserCredential[]> {
     const response = await this.api.userCredentials.userCredentialsList();
-    return response.data?.d?.results || [];
+    return this.normalizer.normalizeArrayResponse(response.data, 'getUserCredentials');
   }
 
   /**
@@ -101,7 +105,7 @@ export class SecurityContentClient {
    */
   async getUserCredentialByName(name: string): Promise<ComSapHciApiUserCredential | undefined> {
     const response = await this.api.userCredentialsName.userCredentialsList(name);
-    return response.data?.d;
+    return this.normalizer.normalizeEntityResponse(response.data, 'getUserCredentialByName');
   }
 
   /**
@@ -145,7 +149,7 @@ export class SecurityContentClient {
   async getSecureParameters(): Promise<ComSapHciApiSecureParameter[]> {
     try {
       const response = await this.api.secureParameters.secureParametersList();
-      return response.data?.d?.results || [];
+      return this.normalizer.normalizeArrayResponse(response.data, 'getSecureParameters');
     } catch (error) {
       // Handle potential 404 if API doesn't exist in CF
       if ((error as any)?.statusCode === 404) {
@@ -183,7 +187,7 @@ export class SecurityContentClient {
   async getSecureParameterByName(name: string): Promise<ComSapHciApiSecureParameter | undefined> {
     try {
       const response = await this.api.secureParametersName.secureParametersList(name);
-      return response.data?.d;
+      return this.normalizer.normalizeEntityResponse(response.data, 'getSecureParameterByName');
     } catch (error) {
       if ((error as any)?.statusCode === 404) {
         return undefined; // Not found is a valid case
@@ -237,7 +241,7 @@ export class SecurityContentClient {
     const response = await this.api.oAuth2ClientCredentials.oAuth2ClientCredentialsList({
       $expand: expandCustomParameters ? ['CustomParameters'] : undefined,
     });
-    return response.data?.d?.results || [];
+    return this.normalizer.normalizeArrayResponse(response.data, 'getOAuth2ClientCredentials');
   }
 
   /**
@@ -272,7 +276,7 @@ export class SecurityContentClient {
     const response = await this.api.oAuth2ClientCredentialsName.oAuth2ClientCredentialsList(name, {
       $expand: expandCustomParameters ? ['CustomParameters'] : undefined,
     });
-    return response.data?.d;
+    return this.normalizer.normalizeEntityResponse(response.data, 'getOAuth2ClientCredentialByName');
   }
 
   /**
@@ -496,7 +500,7 @@ export class SecurityContentClient {
     select?: ('Alias' | 'Hexalias' | 'KeyType' | 'LastModifiedBy' | 'LastModifiedTime' | 'Owner' | 'Validity')[]
   ): Promise<ComSapHciApiHistoryKeystoreEntry[]> {
     const response = await this.api.historyKeystoreEntries.historyKeystoreEntriesList({ $select: select });
-    return response.data?.d?.results || [];
+    return this.normalizer.normalizeArrayResponse(response.data, 'getKeystoreHistoryEntries');
   }
 
   /**
@@ -514,7 +518,7 @@ export class SecurityContentClient {
     select?: ('Alias' | 'KeyType' | 'LastModifiedBy' | 'LastModifiedTime' | 'Owner' | 'Validity')[]
   ): Promise<ComSapHciApiHistoryKeystoreEntry | undefined> {
     const response = await this.api.historyKeystoreEntriesHexalias.historyKeystoreEntriesList(hexAlias, { $select: select });
-    return response.data?.d;
+    return this.normalizer.normalizeEntityResponse(response.data, 'getKeystoreHistoryEntry');
   }
 
   /**
@@ -567,7 +571,7 @@ export class SecurityContentClient {
         $orderby: options.orderby,
         $select: options.select,
       });
-      return response.data?.d?.results || [];
+      return this.normalizer.normalizeArrayResponse(response.data, 'getCertificateUserMappings');
     } catch (error) {
       if ((error as any)?.statusCode === 404) {
         console.warn('CertificateUserMappings API might not be available in this environment (Cloud Foundry?). Returning empty array.');
@@ -590,7 +594,7 @@ export class SecurityContentClient {
    */
   async createCertificateUserMapping(mappingData: ComSapHciApiCertificateUserMappingCreate): Promise<ComSapHciApiCertificateUserMapping | undefined> {
     const response = await this.api.certificateUserMappings.certificateUserMappingsCreate(mappingData);
-    return response.data?.d;
+    return this.normalizer.normalizeEntityResponse(response.data, 'createCertificateUserMapping');
   }
 
   /**
@@ -610,7 +614,7 @@ export class SecurityContentClient {
   ): Promise<ComSapHciApiCertificateUserMapping | undefined> {
     try {
       const response = await this.api.certificateUserMappingsId.certificateUserMappingsList(id, { $select: select });
-      return response.data?.d;
+      return this.normalizer.normalizeEntityResponse(response.data, 'getCertificateUserMappingById');
     } catch (error) {
       if ((error as any)?.statusCode === 404) {
         return undefined;
@@ -669,7 +673,8 @@ export class SecurityContentClient {
       $expand: options.expandArtifactReferences ? ['ArtifactReferences'] : undefined,
       $inlinecount: options.inlinecount ? ['allpages'] : undefined,
     });
-    const policies = response.data?.d?.results || [];
+    
+    const policies = this.normalizer.normalizeArrayResponse(response.data, 'getAccessPolicies');
     const countString = (response.data?.d as any)?.__count;
     const count = countString ? parseInt(countString, 10) : undefined;
     return { policies, count };
@@ -758,7 +763,8 @@ export class SecurityContentClient {
       $select: options.select,
       $inlinecount: options.inlinecount ? ['allpages'] : undefined,
     });
-    const references = response.data?.d?.results || [];
+    
+    const references = this.normalizer.normalizeArrayResponse(response.data, 'getArtifactReferences');
     const countString = (response.data?.d as any)?.__count;
     const count = countString ? parseInt(countString, 10) : undefined;
     return { references, count };
@@ -817,8 +823,7 @@ export class SecurityContentClient {
       keystoreName: [keystoreName], 
       $select: select 
     });
-    const entries: ComSapHciApiKeystoreEntry[] = response.data?.d?.results || []; // Explicit annotation
-    return entries;
+    return this.normalizer.normalizeArrayResponse(response.data, 'getKeystoreEntries');
   }
 
   /**
@@ -841,8 +846,7 @@ export class SecurityContentClient {
       keystoreName: [keystoreName], 
       $select: select 
     });
-    const entry: ComSapHciApiKeystoreEntry | undefined = response.data?.d; // Explicit annotation
-    return entry;
+    return this.normalizer.normalizeEntityResponse(response.data, 'getKeystoreEntry');
   }
 
   // --- Key Pair Generation Methods ---
@@ -963,8 +967,6 @@ export class SecurityContentClient {
       keystoreName: [keystoreName],
       $select: select 
     });
-    // return response.data?.d?.results || [];
-    const chainCertificates: ComSapHciApiChainCertificate[] = response.data?.d?.results || []; // Explicit annotation
-    return chainCertificates;
+    return this.normalizer.normalizeArrayResponse(response.data, 'getCertificateChain');
   }
 }

@@ -42,6 +42,8 @@ import {
   ComSapHciApiMDIDeltaToken
 } from '../types/sap.IntegrationContent';
 
+import { ResponseNormalizer } from '../utils/response-normalizer';
+
 /**
  * Struktur für ein Paket mit allen zugehörigen Artefakten
  */
@@ -66,6 +68,7 @@ export interface PackageWithArtifacts {
  */
 export class IntegrationContentClient {
   private api: IntegrationContentApi<unknown>;
+  private normalizer: ResponseNormalizer;
 
   /**
    * Erstellt einen neuen IntegrationContentClient
@@ -74,6 +77,7 @@ export class IntegrationContentClient {
    */
   constructor(api: IntegrationContentApi<unknown>) {
     this.api = api;
+    this.normalizer = new ResponseNormalizer();
   }
 
   /**
@@ -101,7 +105,8 @@ export class IntegrationContentClient {
       Author: options.author,
       LoB: options.lob
     });
-    return response.data?.value || [];
+    
+    return this.normalizer.normalizeArrayResponse(response.data, 'getIntegrationPackages', 'IntegrationPackages');
   }
 
   /**
@@ -164,7 +169,7 @@ export class IntegrationContentClient {
    */
   async getIntegrationFlows(packageId: string): Promise<ComSapHciApiIntegrationDesigntimeArtifact[]> {
     const response = await this.api.integrationPackagesId.integrationDesigntimeArtifactsList(packageId);
-    return response.data?.value || [];
+    return this.normalizer.normalizeArrayResponse(response.data, 'getIntegrationFlows', 'IntegrationDesigntimeArtifacts');
   }
 
   /**
@@ -182,7 +187,7 @@ export class IntegrationContentClient {
       flowId, 
       version
     );
-    return response.data?.d;
+    return this.normalizer.normalizeEntityResponse(response.data, 'getIntegrationFlowById');
   }
 
   /**
@@ -201,7 +206,7 @@ export class IntegrationContentClient {
    */
   async createIntegrationFlow(flowData: ComSapHciApiIntegrationDesigntimeArtifactCreate): Promise<ComSapHciApiIntegrationDesigntimeArtifact | undefined> {
     const response = await this.api.integrationDesigntimeArtifacts.integrationDesigntimeArtifactsCreate(flowData);
-    return response.data?.d;
+    return this.normalizer.normalizeEntityResponse(response.data, 'createIntegrationFlow');
   }
 
   /**
@@ -321,7 +326,7 @@ export class IntegrationContentClient {
       $skip: options.skip,
       $filter: options.filter
     });
-    return response.data?.d?.results || [];
+    return this.normalizer.normalizeArrayResponse(response.data, 'getDeployedArtifacts');
   }
 
   /**
@@ -341,7 +346,7 @@ export class IntegrationContentClient {
       version,
       { $filter: filter }
     );
-    return response.data?.d?.results || [];
+    return this.normalizer.normalizeArrayResponse(response.data, 'getIntegrationFlowConfigurations');
   }
 
   /**
@@ -421,13 +426,16 @@ export class IntegrationContentClient {
    * const endpoints = await client.getServiceEndpoints();
    */
   async getServiceEndpoints(options: { top?: number; skip?: number; filter?: string } = {}): Promise<ComSapHciApiServiceEndpoint[]> {
+    // Korrektur: OData-konforme Parameter für $expand
+    // Bei OData werden mehrere expand-Werte durch Kommas getrennt in einem Parameter übergeben
     const response = await this.api.serviceEndpoints.serviceEndpointsList({
       $top: options.top,
       $skip: options.skip,
       $filter: options.filter,
-      $expand: ["EntryPoints", "ApiDefinitions"]
+      $expand: "EntryPoints,ApiDefinitions" as any // Type Assertion, damit der TypeScript-Compiler dies akzeptiert
     });
-    return response.data?.value || [];
+    
+    return this.normalizer.normalizeArrayResponse(response.data, 'getServiceEndpoints');
   }
 
   /**
@@ -455,7 +463,7 @@ export class IntegrationContentClient {
    */
   async getValueMappings(packageId: string): Promise<ComSapHciApiValueMappingDesigntimeArtifact[]> {
     const response = await this.api.integrationPackagesId.valueMappingDesigntimeArtifactsList(packageId);
-    return response.data?.value || [];
+    return this.normalizer.normalizeArrayResponse(response.data, 'getValueMappings');
   }
 
   /**
@@ -469,7 +477,7 @@ export class IntegrationContentClient {
    */
   async getMessageMappings(packageId: string): Promise<ComSapHciApiMessageMappingDesigntimeArtifact[]> {
     const response = await this.api.integrationPackagesId.messageMappingDesigntimeArtifactsList(packageId);
-    return response.data?.value || [];
+    return this.normalizer.normalizeArrayResponse(response.data, 'getMessageMappings');
   }
 
   /**
@@ -625,7 +633,7 @@ export class IntegrationContentClient {
    */
   async getDeployedArtifactById(artifactId: string): Promise<ComSapHciApiIntegrationRuntimeArtifact | undefined> {
     const response = await this.api.integrationRuntimeArtifactsId.integrationRuntimeArtifactsList(artifactId);
-    return response.data?.d;
+    return this.normalizer.normalizeEntityResponse(response.data, 'getDeployedArtifactById');
   }
 
   /**
@@ -659,7 +667,6 @@ export class IntegrationContentClient {
    */
   async getBuildAndDeployStatus(taskId: string): Promise<ComSapHciApiBuildAndDeployStatus['d'] | undefined> {
     const response = await this.api.buildAndDeployStatusTaskIdTaskId.buildAndDeployStatusTaskIdList(taskId);
-    // Access the nested 'd' property for the actual status object
     return response.data?.d?.d;
   }
 
@@ -688,7 +695,7 @@ export class IntegrationContentClient {
       $select: options.select,
       $orderby: options.orderby
     });
-    return response.data?.value || [];
+    return this.normalizer.normalizeArrayResponse(response.data, 'getAllMessageMappings');
   }
 
   /**
@@ -711,122 +718,7 @@ export class IntegrationContentClient {
       // Der generierte Client erwartet hier fälschlicherweise ValueMappingCreate, wir casten es.
       mappingData as unknown as ComSapHciApiValueMappingDesigntimeArtifactCreate 
     );
-    // Die Antwortstruktur ist { d: mappingObject }, wir extrahieren d.
-    return response.data?.d;
-  }
-
-  /**
-   * Gibt ein bestimmtes Message Mapping anhand seiner ID und Version zurück.
-   * 
-   * @param {string} mappingId ID des Message Mappings
-   * @param {string} version Version des Message Mappings (Standard: 'active')
-   * @returns {Promise<ComSapHciApiMessageMappingDesigntimeArtifact | undefined>} Promise mit dem Message Mapping
-   * 
-   * @example
-   * const mapping = await client.getMessageMappingById('MyMappingId', '1.0.0');
-   */
-  async getMessageMappingById(mappingId: string, version = 'active'): Promise<ComSapHciApiMessageMappingDesigntimeArtifact | undefined> {
-    const response = await this.api.messageMappingDesigntimeArtifactsIdIdVersionVersion.messageMappingDesigntimeArtifactsIdVersionList(
-      mappingId,
-      version
-    );
-    // Die Antwortstruktur ist { d: mappingObject }, wir extrahieren d.
-    return response.data?.d;
-  }
-
-  /**
-   * Aktualisiert ein vorhandenes Message Mapping.
-   * 
-   * @param {string} mappingId ID des zu aktualisierenden Mappings
-   * @param {string} version Version des zu aktualisierenden Mappings
-   * @param {ComSapHciApiMessageMappingDesigntimeArtifactUpdate} mappingData Die zu aktualisierenden Daten
-   * @returns {Promise<void>} Promise, der aufgelöst wird, wenn das Mapping aktualisiert wurde
-   * 
-   * @example
-   * await client.updateMessageMapping('MyMappingId', '1.0.0', {
-   *   Name: 'Updated Mapping Name',
-   *   Description: 'Updated Description'
-   * });
-   */
-  async updateMessageMapping(mappingId: string, version: string, mappingData: ComSapHciApiMessageMappingDesigntimeArtifactUpdate): Promise<void> {
-    await this.api.messageMappingDesigntimeArtifactsIdIdVersionVersion.messageMappingDesigntimeArtifactsIdVersionUpdate(
-      mappingId,
-      version,
-      mappingData
-    );
-  }
-
-  /**
-   * Löscht ein Message Mapping anhand seiner ID und Version.
-   *
-   * @param {string} mappingId ID des zu löschenden Mappings
-   * @param {string} version Version des zu löschenden Mappings
-   * @returns {Promise<void>} Promise, der aufgelöst wird, wenn das Mapping gelöscht wurde
-   *
-   * @example
-   * await client.deleteMessageMapping('MyMappingId', '1.0.0');
-   */
-  async deleteMessageMapping(mappingId: string, version: string): Promise<void> {
-    await this.api.messageMappingDesigntimeArtifactsIdIdVersionVersion.messageMappingDesigntimeArtifactsIdVersionDelete(mappingId, version);
-  }
-
-  /**
-   * Lädt ein Message Mapping als ZIP-Datei herunter.
-   *
-   * Hinweis: Download von Mappings aus Configure-Only-Paketen ist nicht möglich.
-   * Der Rückgabetyp `File` ist primär für Browser-Umgebungen relevant. In Node.js
-   * müsste die Response anders behandelt werden (z.B. als Stream oder Buffer).
-   *
-   * @param {string} mappingId ID des herunterzuladenden Mappings
-   * @param {string} [version='active'] Version des herunterzuladenden Mappings
-   * @returns {Promise<File>} Promise mit der heruntergeladenen Datei (im Browser-Kontext)
-   *
-   * @example
-   * // Im Browser:
-   * try {
-   *   const file = await client.downloadMessageMapping('MyMappingId');
-   *   // ... (Code zum Speichern der Datei)
-   * } catch (error) {
-   *   console.error('Download failed:', error);
-   * }
-   */
-  async downloadMessageMapping(mappingId: string, version = 'active'): Promise<File> {
-    const response = await this.api.messageMappingDesigntimeArtifactsIdIdVersionVersion.valueList(mappingId, version);
-    return response.data as File;
-  }
-
-  /**
-   * Deployed ein Message Mapping.
-   *
-   * @param {string} mappingId ID des zu deployenden Mappings
-   * @param {string} [version='active'] Version des Mappings
-   * @returns {Promise<void>} Promise, der aufgelöst wird, wenn das Deployment gestartet wurde
-   *
-   * @example
-   * await client.deployMessageMapping('MyMappingId');
-   */
-  async deployMessageMapping(mappingId: string, version = 'active'): Promise<void> {
-    await this.api.deployMessageMappingDesigntimeArtifact.deployMessageMappingDesigntimeArtifactCreate({
-      Id: `'${mappingId}'`, // API erwartet ID in einfachen Anführungszeichen
-      Version: `'${version}'` // API erwartet Version in einfachen Anführungszeichen
-    });
-  }
-
-  /**
-   * Speichert ein Message Mapping unter einer neuen Version.
-   *
-   * @param {string} mappingId ID des Message Mappings
-   * @param {string} newVersion Die neue Versionsnummer (z.B. '1.0.1')
-   * @returns {Promise<void>} Promise, der aufgelöst wird, wenn die neue Version gespeichert wurde
-   *
-   * @example
-   * await client.saveMessageMappingAsVersion('MyMappingId', '1.0.1');
-   */
-  async saveMessageMappingAsVersion(mappingId: string, newVersion: string): Promise<void> {
-    await this.api.messageMappingDesigntimeArtifactSaveAsVersion.messageMappingDesigntimeArtifactSaveAsVersionCreate({
-      Id: mappingId,
-      SaveAsVersion: newVersion
-    });
+    return this.normalizer.normalizeEntityResponse(response.data, 'createMessageMapping');
   }
 
   /**
@@ -854,7 +746,7 @@ export class IntegrationContentClient {
       $select: options.select,
       $orderby: options.orderby
     });
-    return response.data?.value || [];
+    return this.normalizer.normalizeArrayResponse(response.data, 'getAllValueMappings');
   }
 
   /**
@@ -874,66 +766,7 @@ export class IntegrationContentClient {
    */
   async createValueMapping(mappingData: ComSapHciApiValueMappingDesigntimeArtifactCreate): Promise<ComSapHciApiValueMappingDesigntimeArtifact | undefined> {
     const response = await this.api.valueMappingDesigntimeArtifacts.valueMappingDesigntimeArtifactsCreate(mappingData);
-    // Die Antwortstruktur ist { d: mappingObject }, wir extrahieren d.
-    return response.data?.d;
-  }
-
-  /**
-   * Gibt ein bestimmtes Value Mapping anhand seiner ID und Version zurück.
-   *
-   * @param {string} mappingId ID des Value Mappings
-   * @param {string} version Version des Value Mappings (Standard: 'active')
-   * @returns {Promise<ComSapHciApiValueMappingDesigntimeArtifact | undefined>} Promise mit dem Value Mapping
-   *
-   * @example
-   * const mapping = await client.getValueMappingById('MyValueMapId', '1.0.0');
-   */
-  async getValueMappingById(mappingId: string, version = 'active'): Promise<ComSapHciApiValueMappingDesigntimeArtifact | undefined> {
-    const response = await this.api.valueMappingDesigntimeArtifactsIdIdVersionVersion.valueMappingDesigntimeArtifactsIdVersionList(
-      mappingId,
-      version
-    );
-    // Die API gibt hier ein Array zurück, auch wenn nur ein Element erwartet wird.
-    return response.data?.value?.[0]; 
-  }
-
-  /**
-   * Löscht ein Value Mapping anhand seiner ID und Version.
-   *
-   * @param {string} mappingId ID des zu löschenden Mappings
-   * @param {string} version Version des zu löschenden Mappings
-   * @returns {Promise<void>} Promise, der aufgelöst wird, wenn das Mapping gelöscht wurde
-   *
-   * @example
-   * await client.deleteValueMapping('MyValueMapId', '1.0.0');
-   */
-  async deleteValueMapping(mappingId: string, version: string): Promise<void> {
-    await this.api.valueMappingDesigntimeArtifactsIdIdVersionVersion.valueMappingDesigntimeArtifactsIdVersionDelete(mappingId, version);
-  }
-
-  /**
-   * Lädt ein Value Mapping als ZIP-Datei herunter.
-   *
-   * Hinweis: Download von Mappings aus Configure-Only-Paketen ist nicht möglich.
-   * Der Rückgabetyp `File` ist primär für Browser-Umgebungen relevant. In Node.js
-   * müsste die Response anders behandelt werden (z.B. als Stream oder Buffer).
-   *
-   * @param {string} mappingId ID des herunterzuladenden Mappings
-   * @param {string} [version='active'] Version des herunterzuladenden Mappings
-   * @returns {Promise<File>} Promise mit der heruntergeladenen Datei (im Browser-Kontext)
-   *
-   * @example
-   * // Im Browser:
-   * try {
-   *   const file = await client.downloadValueMapping('MyValueMapId');
-   *   // ... (Code zum Speichern der Datei)
-   * } catch (error) {
-   *   console.error('Download failed:', error);
-   * }
-   */
-  async downloadValueMapping(mappingId: string, version = 'active'): Promise<File> {
-    const response = await this.api.valueMappingDesigntimeArtifactsIdIdVersionVersion.valueList(mappingId, version);
-    return response.data as File;
+    return this.normalizer.normalizeEntityResponse(response.data, 'createValueMapping');
   }
 
   /**
@@ -950,7 +783,7 @@ export class IntegrationContentClient {
    */
   async getValueMappingSchemas(mappingId: string, version = 'active', filter?: string): Promise<ComSapHciApiValMapSchema[]> {
     const response = await this.api.valueMappingDesigntimeArtifactsIdIdVersionVersion.valMapSchemaList(mappingId, version, { $filter: filter });
-    return response.data?.value || [];
+    return this.normalizer.normalizeArrayResponse(response.data, 'getValueMappingSchemas');
   }
 
   /**
@@ -982,7 +815,7 @@ export class IntegrationContentClient {
     const response = await this.api.valueMappingDesigntimeArtifactsIdIdVersionVersion.valMapSchemaSrcAgencySrcIdTgtAgencyTgtIdValMapsList(
       mappingId, version, srcAgency, srcId, tgtAgency, tgtId, { $filter: filter }
     );
-    return response.data?.value || [];
+    return this.normalizer.normalizeArrayResponse(response.data, 'getValueMappingsForSchema');
   }
 
   /**
@@ -1012,7 +845,7 @@ export class IntegrationContentClient {
     const response = await this.api.valueMappingDesigntimeArtifactsIdIdVersionVersion.valMapSchemaSrcAgencySrcIdTgtAgencyTgtIdDefaultValMapsList(
       mappingId, version, srcAgency, srcId, tgtAgency, tgtId
     );
-    return response.data?.value || [];
+    return this.normalizer.normalizeArrayResponse(response.data, 'getDefaultValueMappingsForSchema');
   }
 
   /**
@@ -1180,7 +1013,7 @@ export class IntegrationContentClient {
    */
   async getScriptCollections(packageId: string): Promise<ComSapHciApiScriptCollectionDesigntimeArtifact[]> {
     const response = await this.api.integrationPackagesId.scriptCollectionDesigntimeArtifactsList(packageId);
-    return response.data?.value || [];
+    return this.normalizer.normalizeArrayResponse(response.data, 'getScriptCollections');
   }
 
   /**
@@ -1217,7 +1050,7 @@ export class IntegrationContentClient {
       scriptId,
       version
     );
-    return response.data?.d;
+    return this.normalizer.normalizeEntityResponse(response.data, 'getScriptCollectionById');
   }
 
   /**
@@ -1433,7 +1266,7 @@ export class IntegrationContentClient {
       version, 
       options
     );
-    return response.data?.d?.results || [];
+    return this.normalizer.normalizeArrayResponse(response.data, 'getIntegrationFlowResources');
   }
 
   /**

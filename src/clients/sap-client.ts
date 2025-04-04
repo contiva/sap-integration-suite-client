@@ -11,26 +11,16 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
 import { config } from 'dotenv';
 import { Api as IntegrationContentApi } from '../types/sap.IntegrationContent';
-import { 
-  ComSapHciApiIntegrationPackage, 
-  ComSapHciApiIntegrationPackageCreate,
-  ComSapHciApiIntegrationDesigntimeArtifact,
-  ComSapHciApiConfiguration,
-  ComSapHciApiServiceEndpoint,
-  ComSapHciApiIntegrationRuntimeArtifact,
-  ComSapHciApiValueMappingDesigntimeArtifact,
-  ComSapHciApiMessageMappingDesigntimeArtifact
-} from '../types/sap.IntegrationContent';
 import { Api as LogFilesApi } from '../types/sap.LogFiles';
 import { Api as MessageProcessingLogsApi } from '../types/sap.MessageProcessingLogs';
 import { Api as MessageStoreApi } from '../types/sap.MessageStore';
 import { Api as SecurityContentApi } from '../types/sap.SecurityContent';
 import qs from 'querystring';
-import { IntegrationContentClient } from './integration-content-client';
-import { MessageProcessingLogsClient } from './message-processing-logs-client';
-import { LogFilesClient } from './log-files-client';
-import { MessageStoreClient } from './message-store-client';
-import { SecurityContentClient } from './security-content-client';
+import { IntegrationContentClient } from '../wrapper/integration-content-client';
+import { MessageProcessingLogsClient } from '../wrapper/message-processing-logs-client';
+import { LogFilesClient } from '../wrapper/log-files-client';
+import { MessageStoreClient } from '../wrapper/message-store-client';
+import { SecurityContentClient } from '../wrapper/security-content-client';
 
 // Load environment variables from .env file
 config();
@@ -219,6 +209,17 @@ class SapClient {
     this.maxRetries = config?.maxRetries || 0;
     this.retryDelay = config?.retryDelay || 1000;
     
+    // Enable debug mode if environment variable is set
+    const debugMode = process.env.DEBUG === 'true';
+    if (debugMode) {
+      console.debug('[SapClient] Initializing with config:', {
+        baseUrl: this.baseUrl,
+        normalizeResponses: this.normalizeResponses,
+        maxRetries: this.maxRetries,
+        retryDelay: this.retryDelay
+      });
+    }
+    
     // Validate required configuration
     this.validateConfig();
 
@@ -248,7 +249,20 @@ class SapClient {
       this.axiosInstance.interceptors.response.use(
         (response) => {
           // Normalize response data format
-          response.data = this.normalizeResponseFormat(response.data);
+          if (response.data) {
+            const originalData = JSON.stringify(response.data).substring(0, 100);
+            response.data = this.normalizeResponseFormat(response.data);
+            
+            // Extended debug logging to track what's happening with the normalization
+            if (process.env.DEBUG === 'true') {
+              const normalizedData = JSON.stringify(response.data).substring(0, 100);
+              console.debug(
+                `[SapClient] Response normalized for ${response.config.method?.toUpperCase()} ${response.config.url}`,
+                `\nBefore: ${originalData}${originalData.length >= 100 ? '...' : ''}`,
+                `\nAfter: ${normalizedData}${normalizedData.length >= 100 ? '...' : ''}`
+              );
+            }
+          }
           return response;
         },
         (error) => {
@@ -407,27 +421,99 @@ class SapClient {
   private normalizeResponseFormat(data: any): any {
     if (!data) return data;
 
+    // Create a debug info object to help with troubleshooting
+    const debugInfo: any = { 
+      originalType: typeof data,
+      isArray: Array.isArray(data),
+      topLevelKeys: typeof data === 'object' ? Object.keys(data) : []
+    };
+
     // Handle array responses (already normalized)
     if (Array.isArray(data)) {
+      if (process.env.DEBUG === 'true') {
+        console.debug('[SapClient] Format detected: Already array', 
+          `(length: ${data.length})`);
+      }
       return data;
     }
 
     // Handle OData v2 format (d.results)
     if (data.d && Array.isArray(data.d.results)) {
+      if (process.env.DEBUG === 'true') {
+        console.debug('[SapClient] Format detected: OData v2 (d.results)', 
+          `(length: ${data.d.results.length})`);
+      }
       return data.d.results;
+    }
+
+    // Handle OData v2 format where d is directly the object (not an array)
+    if (data.d && typeof data.d === 'object' && !Array.isArray(data.d) && !data.d.results) {
+      if (process.env.DEBUG === 'true') {
+        console.debug('[SapClient] Format detected: OData v2 (d as object)',
+          `(keys: ${Object.keys(data.d).join(', ')})`);
+      }
+      return data.d;
     }
 
     // Handle OData v4 format (value array)
     if (data.value && Array.isArray(data.value)) {
+      if (process.env.DEBUG === 'true') {
+        console.debug('[SapClient] Format detected: OData v4 (value array)',
+          `(length: ${data.value.length})`);
+      }
       return data.value;
     }
 
     // Handle IntegrationPackages format
     if (data.IntegrationPackages && Array.isArray(data.IntegrationPackages)) {
+      if (process.env.DEBUG === 'true') {
+        console.debug('[SapClient] Format detected: IntegrationPackages array',
+          `(length: ${data.IntegrationPackages.length})`);
+      }
       return data.IntegrationPackages;
     }
 
+    // Handle results property directly (some APIs return { results: [...] })
+    if (data.results && Array.isArray(data.results)) {
+      if (process.env.DEBUG === 'true') {
+        console.debug('[SapClient] Format detected: Direct results array',
+          `(length: ${data.results.length})`);
+      }
+      return data.results;
+    }
+
+    // Handle specific nested formats that may contain arrays
+    if (data.d && data.d.__next && data.d.results) {
+      if (process.env.DEBUG === 'true') {
+        console.debug('[SapClient] Format detected: OData with __next link',
+          `(length: ${data.d.results.length})`);
+      }
+      return data.d.results; // OData with __next link
+    }
+  
+    // If the data is an object and has only one property that is an array, return that array
+    const keys = Object.keys(data);
+    if (keys.length === 1 && Array.isArray(data[keys[0]])) {
+      if (process.env.DEBUG === 'true') {
+        console.debug('[SapClient] Format detected: Single property array',
+          `(property: ${keys[0]}, length: ${data[keys[0]].length})`);
+      }
+      return data[keys[0]];
+    }
+
+    // Special handling for OData queries with $count that return a string
+    if (typeof data === 'string' && !isNaN(parseInt(data, 10))) {
+      if (process.env.DEBUG === 'true') {
+        console.debug('[SapClient] Format detected: Count string value', `(value: ${data})`);
+      }
+      return data; // Keep the string for count operations
+    }
+
     // If we can't normalize, return the original data
+    if (process.env.DEBUG === 'true') {
+      console.debug('[SapClient] No normalization applied, returning original data',
+        `(type: ${typeof data}, keys: ${typeof data === 'object' ? Object.keys(data).join(', ') : 'n/a'})`);
+    }
     return data;
   }
 
@@ -455,6 +541,37 @@ class SapClient {
       (enhancedError as any).statusCode = error.response.status;
       (enhancedError as any).statusText = error.response.statusText;
       (enhancedError as any).responseData = error.response.data;
+      
+      // Special handling for OData error details
+      const odataError = error.response.data?.error || 
+                         error.response.data?.['odata.error'] ||
+                         (error.response.data?.d && error.response.data.d.error);
+                         
+      if (odataError) {
+        (enhancedError as any).odataError = true;
+        
+        // Extract common OData error properties
+        const errorCode = odataError.code || odataError.Code;
+        const errorMessage = odataError.message || odataError.Message;
+        const details = odataError.details || odataError.Details || odataError.innererror;
+        
+        // Add extracted properties to the error
+        if (errorCode) (enhancedError as any).errorCode = errorCode;
+        if (errorMessage) {
+          // OData can include message as an object with 'value' property or directly as string
+          if (typeof errorMessage === 'object' && errorMessage.value) {
+            (enhancedError as any).errorMessage = errorMessage.value;
+          } else {
+            (enhancedError as any).errorMessage = errorMessage;
+          }
+        }
+        if (details) (enhancedError as any).errorDetails = details;
+        
+        // Add a formatted message that includes OData error details
+        enhancedError.message = `${enhancedError.message} (OData Error: ${
+          (enhancedError as any).errorCode || 'Unknown Code'}: ${
+          (enhancedError as any).errorMessage || 'No message provided'})`;
+      }
     }
 
     return enhancedError;
@@ -545,9 +662,25 @@ class SapClient {
         })
       );
 
-      // Normalize response if enabled (should be handled by interceptor, this is a safeguard)
+      // Normalize response if enabled and not already normalized by interceptor
       if (this.normalizeResponses && response.data) {
+        const originalData = response.data;
         response.data = this.normalizeResponseFormat(response.data);
+        
+        // Debug log for normalization result
+        if (process.env.DEBUG === 'true') {
+          const isChanged = JSON.stringify(originalData) !== JSON.stringify(response.data);
+          console.debug(
+            `[SapClient] customFetch: ${isChanged ? 'Response format normalized' : 'No normalization applied'} for ${method} ${url}`,
+            isChanged ? 
+              `\nFormat detected: ${Array.isArray(response.data) ? 
+                `Array with ${response.data.length} items` : 
+                typeof response.data === 'object' ? 
+                  `Object with keys [${Object.keys(response.data).join(', ')}]` : 
+                  `${typeof response.data}`}` :
+              ''
+          );
+        }
       }
 
       // Convert axios response to fetch Response
