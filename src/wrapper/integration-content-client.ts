@@ -48,16 +48,17 @@ import { ResponseNormalizer } from '../utils/response-normalizer';
  * Struktur für ein Paket mit allen zugehörigen Artefakten
  */
 export interface PackageWithArtifacts {
-  /** Das Integrationspaket */
-  package: ComSapHciApiIntegrationPackage;
-  /** Liste der Integrationsflows im Paket */
-  IntegrationDesigntimeArtifacts: ComSapHciApiIntegrationDesigntimeArtifact[];
-  /** Liste der Message Mappings im Paket */
-  MessageMappingDesigntimeArtifacts: ComSapHciApiMessageMappingDesigntimeArtifact[];
-  /** Liste der Value Mappings im Paket */
-  ValueMappingDesigntimeArtifacts: ComSapHciApiValueMappingDesigntimeArtifact[];
-  /** Liste der Script Collections im Paket */
-  ScriptCollectionDesigntimeArtifacts: ComSapHciApiScriptCollectionDesigntimeArtifact[];
+  /** Das Integrationspaket mit allen Artefakten */
+  package: ComSapHciApiIntegrationPackage & {
+    /** Liste der Integrationsflows im Paket */
+    IntegrationDesigntimeArtifacts: ComSapHciApiIntegrationDesigntimeArtifact[];
+    /** Liste der Message Mappings im Paket */
+    MessageMappingDesigntimeArtifacts: ComSapHciApiMessageMappingDesigntimeArtifact[];
+    /** Liste der Value Mappings im Paket */
+    ValueMappingDesigntimeArtifacts: ComSapHciApiValueMappingDesigntimeArtifact[];
+    /** Liste der Script Collections im Paket */
+    ScriptCollectionDesigntimeArtifacts: ComSapHciApiScriptCollectionDesigntimeArtifact[];
+  }
 }
 
 /**
@@ -531,13 +532,15 @@ export class IntegrationContentClient {
       }
     }
 
-    // Array für das Ergebnis
+    // Array für das Ergebnis mit erweiterter Struktur
     const result: PackageWithArtifacts[] = packages.map(pkg => ({
-      package: pkg,
-      IntegrationDesigntimeArtifacts: [],
-      MessageMappingDesigntimeArtifacts: [],
-      ValueMappingDesigntimeArtifacts: [],
-      ScriptCollectionDesigntimeArtifacts: []
+      package: {
+        ...pkg,
+        IntegrationDesigntimeArtifacts: [],
+        MessageMappingDesigntimeArtifacts: [],
+        ValueMappingDesigntimeArtifacts: [],
+        ScriptCollectionDesigntimeArtifacts: []
+      }
     }));
 
     // Direktes Mapping von PackageId zu Result-Index
@@ -563,7 +566,7 @@ export class IntegrationContentClient {
         for (const flow of allFlows) {
           if (flow.PackageId && packageIndexMap.has(flow.PackageId as string)) {
             const index = packageIndexMap.get(flow.PackageId as string)!;
-            result[index].IntegrationDesigntimeArtifacts.push(flow);
+            result[index].package.IntegrationDesigntimeArtifacts.push(flow);
           }
         }
 
@@ -571,7 +574,7 @@ export class IntegrationContentClient {
         for (const mapping of allMessageMappings) {
           if (mapping.PackageId && packageIndexMap.has(mapping.PackageId as string)) {
             const index = packageIndexMap.get(mapping.PackageId as string)!;
-            result[index].MessageMappingDesigntimeArtifacts.push(mapping);
+            result[index].package.MessageMappingDesigntimeArtifacts.push(mapping);
           }
         }
 
@@ -579,7 +582,7 @@ export class IntegrationContentClient {
         for (const mapping of allValueMappings) {
           if (mapping.PackageId && packageIndexMap.has(mapping.PackageId as string)) {
             const index = packageIndexMap.get(mapping.PackageId as string)!;
-            result[index].ValueMappingDesigntimeArtifacts.push(mapping);
+            result[index].package.ValueMappingDesigntimeArtifacts.push(mapping);
           }
         }
 
@@ -587,7 +590,7 @@ export class IntegrationContentClient {
         for (const script of allScriptCollections) {
           if (script.PackageId && packageIndexMap.has(script.PackageId as string)) {
             const index = packageIndexMap.get(script.PackageId as string)!;
-            result[index].ScriptCollectionDesigntimeArtifacts.push(script);
+            result[index].package.ScriptCollectionDesigntimeArtifacts.push(script);
           }
         }
       } else {
@@ -597,31 +600,31 @@ export class IntegrationContentClient {
           
           try {
             // Hole alle Artefakte für dieses Paket
-            result[i].IntegrationDesigntimeArtifacts = await this.getIntegrationFlows(packageId).catch(() => []);
+            result[i].package.IntegrationDesigntimeArtifacts = await this.getIntegrationFlows(packageId).catch(() => []);
           } catch (error) {
             console.error(`Fehler beim Abrufen der Integrationsflows für Paket ${packageId}:`, error);
-            result[i].IntegrationDesigntimeArtifacts = [];
+            result[i].package.IntegrationDesigntimeArtifacts = [];
           }
 
           try {
-            result[i].MessageMappingDesigntimeArtifacts = await this.getMessageMappings(packageId).catch(() => []);
+            result[i].package.MessageMappingDesigntimeArtifacts = await this.getMessageMappings(packageId).catch(() => []);
           } catch (error) {
             console.error(`Fehler beim Abrufen der Message Mappings für Paket ${packageId}:`, error);
-            result[i].MessageMappingDesigntimeArtifacts = [];
+            result[i].package.MessageMappingDesigntimeArtifacts = [];
           }
 
           try {
-            result[i].ValueMappingDesigntimeArtifacts = await this.getValueMappings(packageId).catch(() => []);
+            result[i].package.ValueMappingDesigntimeArtifacts = await this.getValueMappings(packageId).catch(() => []);
           } catch (error) {
             console.error(`Fehler beim Abrufen der Value Mappings für Paket ${packageId}:`, error);
-            result[i].ValueMappingDesigntimeArtifacts = [];
+            result[i].package.ValueMappingDesigntimeArtifacts = [];
           }
 
           try {
-            result[i].ScriptCollectionDesigntimeArtifacts = await this.getScriptCollections(packageId).catch(() => []);
+            result[i].package.ScriptCollectionDesigntimeArtifacts = await this.getScriptCollections(packageId).catch(() => []);
           } catch (error) {
             console.error(`Fehler beim Abrufen der Script Collections für Paket ${packageId}:`, error);
-            result[i].ScriptCollectionDesigntimeArtifacts = [];
+            result[i].package.ScriptCollectionDesigntimeArtifacts = [];
           }
         }
       }
@@ -629,10 +632,10 @@ export class IntegrationContentClient {
       // Entferne leere Pakete, wenn includeEmpty=false
       if (!options.includeEmpty) {
         return result.filter(item => 
-          item.IntegrationDesigntimeArtifacts.length > 0 || 
-          item.MessageMappingDesigntimeArtifacts.length > 0 || 
-          item.ValueMappingDesigntimeArtifacts.length > 0 || 
-          item.ScriptCollectionDesigntimeArtifacts.length > 0
+          item.package.IntegrationDesigntimeArtifacts.length > 0 || 
+          item.package.MessageMappingDesigntimeArtifacts.length > 0 || 
+          item.package.ValueMappingDesigntimeArtifacts.length > 0 || 
+          item.package.ScriptCollectionDesigntimeArtifacts.length > 0
         );
       }
 
