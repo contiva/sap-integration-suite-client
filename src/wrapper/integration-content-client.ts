@@ -51,13 +51,13 @@ export interface PackageWithArtifacts {
   /** Das Integrationspaket */
   package: ComSapHciApiIntegrationPackage;
   /** Liste der Integrationsflows im Paket */
-  integrationFlows: ComSapHciApiIntegrationDesigntimeArtifact[];
+  IntegrationDesigntimeArtifacts: ComSapHciApiIntegrationDesigntimeArtifact[];
   /** Liste der Message Mappings im Paket */
-  messageMappings: ComSapHciApiMessageMappingDesigntimeArtifact[];
+  MessageMappingDesigntimeArtifacts: ComSapHciApiMessageMappingDesigntimeArtifact[];
   /** Liste der Value Mappings im Paket */
-  valueMappings: ComSapHciApiValueMappingDesigntimeArtifact[];
+  ValueMappingDesigntimeArtifacts: ComSapHciApiValueMappingDesigntimeArtifact[];
   /** Liste der Script Collections im Paket */
-  scriptCollections: ComSapHciApiScriptCollectionDesigntimeArtifact[];
+  ScriptCollectionDesigntimeArtifacts: ComSapHciApiScriptCollectionDesigntimeArtifact[];
 }
 
 /**
@@ -534,10 +534,10 @@ export class IntegrationContentClient {
     // Array für das Ergebnis
     const result: PackageWithArtifacts[] = packages.map(pkg => ({
       package: pkg,
-      integrationFlows: [],
-      messageMappings: [],
-      valueMappings: [],
-      scriptCollections: []
+      IntegrationDesigntimeArtifacts: [],
+      MessageMappingDesigntimeArtifacts: [],
+      ValueMappingDesigntimeArtifacts: [],
+      ScriptCollectionDesigntimeArtifacts: []
     }));
 
     // Direktes Mapping von PackageId zu Result-Index
@@ -563,7 +563,7 @@ export class IntegrationContentClient {
         for (const flow of allFlows) {
           if (flow.PackageId && packageIndexMap.has(flow.PackageId as string)) {
             const index = packageIndexMap.get(flow.PackageId as string)!;
-            result[index].integrationFlows.push(flow);
+            result[index].IntegrationDesigntimeArtifacts.push(flow);
           }
         }
 
@@ -571,7 +571,7 @@ export class IntegrationContentClient {
         for (const mapping of allMessageMappings) {
           if (mapping.PackageId && packageIndexMap.has(mapping.PackageId as string)) {
             const index = packageIndexMap.get(mapping.PackageId as string)!;
-            result[index].messageMappings.push(mapping);
+            result[index].MessageMappingDesigntimeArtifacts.push(mapping);
           }
         }
 
@@ -579,7 +579,7 @@ export class IntegrationContentClient {
         for (const mapping of allValueMappings) {
           if (mapping.PackageId && packageIndexMap.has(mapping.PackageId as string)) {
             const index = packageIndexMap.get(mapping.PackageId as string)!;
-            result[index].valueMappings.push(mapping);
+            result[index].ValueMappingDesigntimeArtifacts.push(mapping);
           }
         }
 
@@ -587,7 +587,7 @@ export class IntegrationContentClient {
         for (const script of allScriptCollections) {
           if (script.PackageId && packageIndexMap.has(script.PackageId as string)) {
             const index = packageIndexMap.get(script.PackageId as string)!;
-            result[index].scriptCollections.push(script);
+            result[index].ScriptCollectionDesigntimeArtifacts.push(script);
           }
         }
       } else {
@@ -597,31 +597,31 @@ export class IntegrationContentClient {
           
           try {
             // Hole alle Artefakte für dieses Paket
-            result[i].integrationFlows = await this.getIntegrationFlows(packageId).catch(() => []);
+            result[i].IntegrationDesigntimeArtifacts = await this.getIntegrationFlows(packageId).catch(() => []);
           } catch (error) {
             console.error(`Fehler beim Abrufen der Integrationsflows für Paket ${packageId}:`, error);
-            result[i].integrationFlows = [];
+            result[i].IntegrationDesigntimeArtifacts = [];
           }
 
           try {
-            result[i].messageMappings = await this.getMessageMappings(packageId).catch(() => []);
+            result[i].MessageMappingDesigntimeArtifacts = await this.getMessageMappings(packageId).catch(() => []);
           } catch (error) {
             console.error(`Fehler beim Abrufen der Message Mappings für Paket ${packageId}:`, error);
-            result[i].messageMappings = [];
+            result[i].MessageMappingDesigntimeArtifacts = [];
           }
 
           try {
-            result[i].valueMappings = await this.getValueMappings(packageId).catch(() => []);
+            result[i].ValueMappingDesigntimeArtifacts = await this.getValueMappings(packageId).catch(() => []);
           } catch (error) {
             console.error(`Fehler beim Abrufen der Value Mappings für Paket ${packageId}:`, error);
-            result[i].valueMappings = [];
+            result[i].ValueMappingDesigntimeArtifacts = [];
           }
 
           try {
-            result[i].scriptCollections = await this.getScriptCollections(packageId).catch(() => []);
+            result[i].ScriptCollectionDesigntimeArtifacts = await this.getScriptCollections(packageId).catch(() => []);
           } catch (error) {
             console.error(`Fehler beim Abrufen der Script Collections für Paket ${packageId}:`, error);
-            result[i].scriptCollections = [];
+            result[i].ScriptCollectionDesigntimeArtifacts = [];
           }
         }
       }
@@ -629,10 +629,10 @@ export class IntegrationContentClient {
       // Entferne leere Pakete, wenn includeEmpty=false
       if (!options.includeEmpty) {
         return result.filter(item => 
-          item.integrationFlows.length > 0 || 
-          item.messageMappings.length > 0 || 
-          item.valueMappings.length > 0 || 
-          item.scriptCollections.length > 0
+          item.IntegrationDesigntimeArtifacts.length > 0 || 
+          item.MessageMappingDesigntimeArtifacts.length > 0 || 
+          item.ValueMappingDesigntimeArtifacts.length > 0 || 
+          item.ScriptCollectionDesigntimeArtifacts.length > 0
         );
       }
 
