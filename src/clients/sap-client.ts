@@ -11,11 +11,26 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
 import { config } from 'dotenv';
 import { Api as IntegrationContentApi } from '../types/sap.IntegrationContent';
+import { 
+  ComSapHciApiIntegrationPackage, 
+  ComSapHciApiIntegrationPackageCreate,
+  ComSapHciApiIntegrationDesigntimeArtifact,
+  ComSapHciApiConfiguration,
+  ComSapHciApiServiceEndpoint,
+  ComSapHciApiIntegrationRuntimeArtifact,
+  ComSapHciApiValueMappingDesigntimeArtifact,
+  ComSapHciApiMessageMappingDesigntimeArtifact
+} from '../types/sap.IntegrationContent';
 import { Api as LogFilesApi } from '../types/sap.LogFiles';
 import { Api as MessageProcessingLogsApi } from '../types/sap.MessageProcessingLogs';
 import { Api as MessageStoreApi } from '../types/sap.MessageStore';
 import { Api as SecurityContentApi } from '../types/sap.SecurityContent';
 import qs from 'querystring';
+import { IntegrationContentClient } from './integration-content-client';
+import { MessageProcessingLogsClient } from './message-processing-logs-client';
+import { LogFilesClient } from './log-files-client';
+import { MessageStoreClient } from './message-store-client';
+import { SecurityContentClient } from './security-content-client';
 
 // Load environment variables from .env file
 config();
@@ -144,27 +159,27 @@ class SapClient {
    * Integration Content API client
    * Provides access to integration packages, artifacts, and related operations
    */
-  public integrationContent: IntegrationContentApi<unknown>;
+  public integrationContent: IntegrationContentClient;
   /** 
    * Log Files API client
    * Access system logs and log archives
    */
-  public logFiles: LogFilesApi<unknown>;
+  public logFiles: LogFilesClient;
   /** 
    * Message Processing Logs API client
    * Access and query message processing logs
    */
-  public messageProcessingLogs: MessageProcessingLogsApi<unknown>;
+  public messageProcessingLogs: MessageProcessingLogsClient;
   /** 
    * Message Store API client
    * Access stored messages and attachments
    */
-  public messageStore: MessageStoreApi<unknown>;
+  public messageStore: MessageStoreClient;
   /** 
    * Security Content API client
    * Manage security artifacts like credentials and certificates
    */
-  public securityContent: SecurityContentApi<unknown>;
+  public securityContent: SecurityContentClient;
 
   /**
    * Creates a new SAP Client instance
@@ -279,30 +294,36 @@ class SapClient {
     );
 
     // Initialize API clients
-    this.integrationContent = new IntegrationContentApi({
+    const integrationContentApi = new IntegrationContentApi({
       baseUrl: this.baseUrl,
       customFetch: this.customFetch.bind(this),
     });
+    
+    this.integrationContent = new IntegrationContentClient(integrationContentApi);
 
-    this.logFiles = new LogFilesApi({
+    const logFilesApi = new LogFilesApi({
       baseUrl: this.baseUrl,
       customFetch: this.customFetch.bind(this),
     });
+    this.logFiles = new LogFilesClient(logFilesApi);
 
-    this.messageProcessingLogs = new MessageProcessingLogsApi({
+    const messageProcessingLogsApi = new MessageProcessingLogsApi({
       baseUrl: this.baseUrl, 
       customFetch: this.customFetch.bind(this),
     });
+    this.messageProcessingLogs = new MessageProcessingLogsClient(messageProcessingLogsApi);
 
-    this.messageStore = new MessageStoreApi({
+    const messageStoreApi = new MessageStoreApi({
       baseUrl: this.baseUrl,
       customFetch: this.customFetch.bind(this),
     });
+    this.messageStore = new MessageStoreClient(messageStoreApi);
 
-    this.securityContent = new SecurityContentApi({
+    const securityContentApi = new SecurityContentApi({
       baseUrl: this.baseUrl,
       customFetch: this.customFetch.bind(this),
     });
+    this.securityContent = new SecurityContentClient(securityContentApi);
   }
   
   /**

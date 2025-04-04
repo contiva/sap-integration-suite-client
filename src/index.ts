@@ -26,6 +26,11 @@
 
 // Core Client and Config
 import SapClient, { SapClientConfig } from './clients/sap-client';
+import { IntegrationContentClient } from './clients/integration-content-client';
+import { LogFilesClient } from './clients/log-files-client';
+import { MessageProcessingLogsClient } from './clients/message-processing-logs-client';
+import { MessageStoreClient } from './clients/message-store-client';
+import { SecurityContentClient } from './clients/security-content-client';
 
 // Utilities
 import { formatSapTimestampsInObject } from './utils/date-formatter';
@@ -131,5 +136,30 @@ export {
   /**
    * Type definitions for Security Content API
    */
-  SecurityContentTypes
+  SecurityContentTypes,
+  
+  /**
+   * Integration Content Client
+   */
+  IntegrationContentClient,
+  
+  /**
+   * Log Files Client Wrapper
+   */
+  LogFilesClient,
+  
+  /**
+   * Message Processing Logs Client Wrapper
+   */
+  MessageProcessingLogsClient,
+  
+  /**
+   * Message Store Client Wrapper
+   */
+  MessageStoreClient,
+  
+  /**
+   * Security Content Client Wrapper
+   */
+  SecurityContentClient
 }; 
