@@ -21,6 +21,15 @@ import {
   ComSapHciApiArchivingKeyPerformanceIndicators
 } from '../types/sap.MessageProcessingLogs';
 
+import { 
+  EnhancedMessageProcessingLog,
+  MessageProcessingLogsOptions,
+  DateFieldFilter 
+} from '../types/enhanced-logs';
+
+import { SapDateUtils } from '../utils/date-formatter';
+import { enhanceLogsWithDates } from '../utils/log-enhancer';
+import { buildODataFilter } from '../utils/odata-filter-builder';
 import { ResponseNormalizer } from '../utils/response-normalizer';
 
 /**
@@ -45,14 +54,8 @@ export class MessageProcessingLogsClient {
   /**
    * Retrieves message processing logs based on specified criteria.
    * 
-   * @param {object} [options] Optional parameters for filtering and pagination.
-   * @param {number} [options.top] Maximum number of logs to retrieve.
-   * @param {number} [options.skip] Number of logs to skip (for pagination).
-   * @param {string} [options.filter] OData filter string (e.g., "Status eq 'FAILED'").
-   * @param {('LogEnd' | 'LogEnd desc' | 'LogStart' | 'LogStart desc' | 'Status,LogEnd desc' | 'ApplicationMessageId')[]} [options.orderby] Sorting order.
-   * @param {('MessageGuid' | 'CorrelationId' | 'ApplicationMessageId' | 'ApplicationMessageType' | 'IntegrationFlowName' | 'IntegrationArtifact' | 'Status' | 'CustomStatus' | 'LogLevel' | 'LogStart' | 'LogEnd' | 'Sender' | 'Receiver' | 'AlternateWebLink' | 'ArchivingStatus' | 'ArchivingSenderChannelMessages' | 'ArchivingReceiverChannelMessages' | 'ArchivingLogAttachments' | 'ArchivingPersistedMessages')[]} [options.select] Properties to select.
-   * @param {boolean} [options.inlinecount] If true, includes the total count in the response (uses $inlinecount=allpages).
-   * @returns {Promise<{ logs: ComSapHciApiMessageProcessingLog[], count?: number }>} Promise resolving to the logs and optional count.
+   * @param {MessageProcessingLogsOptions} [options] Optional parameters for filtering and pagination.
+   * @returns {Promise<{ logs: EnhancedMessageProcessingLog[], count?: number }>} Promise resolving to the logs with Date objects and optional count.
    * 
    * @example
    * // Get the top 10 failed logs
@@ -62,31 +65,95 @@ export class MessageProcessingLogsClient {
    *   orderby: ['LogEnd desc'] 
    * });
    * 
+   * @example
    * // Get logs with count
    * const { logs, count } = await client.getMessageProcessingLogs({ 
    *   filter: "IntegrationFlowName eq 'MyFlow'", 
    *   inlinecount: true 
    * });
    * console.log(`Total logs for MyFlow: ${count}`);
+   * 
+   * @example
+   * // Get logs from the last hour using Date objects with filterObj
+   * const oneHourAgo = new Date();
+   * oneHourAgo.setHours(oneHourAgo.getHours() - 1);
+   * const { logs } = await client.getMessageProcessingLogs({
+   *   filterObj: {
+   *     LogEnd: { gt: oneHourAgo }
+   *   }
+   * });
+   * 
+   * @example
+   * // Get logs from the last hour using startDate parameter
+   * const oneHourAgo = new Date();
+   * oneHourAgo.setHours(oneHourAgo.getHours() - 1);
+   * const { logs } = await client.getMessageProcessingLogs({
+   *   startDate: oneHourAgo,
+   *   orderby: ['LogEnd desc']
+   * });
+   * 
+   * @example
+   * // Get logs with Status and specific date range
+   * const { logs } = await client.getMessageProcessingLogs({
+   *   filterObj: {
+   *     Status: 'COMPLETED',
+   *     LogEnd: { 
+   *       ge: new Date('2023-04-01'), 
+   *       lt: new Date('2023-04-02')
+   *     }
+   *   }
+   * });
+   * 
+   * @example
+   * // Use raw filter with datetime - the client will automatically handle date format
+   * const { logs } = await client.getMessageProcessingLogs({
+   *   filter: "IntegrationFlowName eq 'MyFlow' and LogStart ge datetime'2023-04-01T00:00:00Z'",
+   * });
    */
-  async getMessageProcessingLogs(options: {
-    top?: number;
-    skip?: number;
-    filter?: string;
-    orderby?: ('LogEnd' | 'LogEnd desc' | 'LogStart' | 'LogStart desc' | 'Status,LogEnd desc' | 'ApplicationMessageId')[];
-    select?: ('MessageGuid' | 'CorrelationId' | 'ApplicationMessageId' | 'ApplicationMessageType' | 'IntegrationFlowName' | 'IntegrationArtifact' | 'Status' | 'CustomStatus' | 'LogLevel' | 'LogStart' | 'LogEnd' | 'Sender' | 'Receiver' | 'AlternateWebLink' | 'ArchivingStatus' | 'ArchivingSenderChannelMessages' | 'ArchivingReceiverChannelMessages' | 'ArchivingLogAttachments' | 'ArchivingPersistedMessages')[];
-    inlinecount?: boolean;
-  } = {}): Promise<{ logs: ComSapHciApiMessageProcessingLog[], count?: number }> {
+  async getMessageProcessingLogs(options: MessageProcessingLogsOptions = {}): Promise<{ logs: EnhancedMessageProcessingLog[], count?: number }> {
+    // Build filter from filterObj if provided
+    let filterObj = options.filterObj || {};
+    
+    // Handle startDate and endDate parameters by adding them to filterObj
+    if (options.startDate || options.endDate) {
+      // Initialize LogEnd filter object if it doesn't exist
+      filterObj.LogEnd = filterObj.LogEnd || {};
+      
+      // Add startDate as ge (greater than or equal) filter
+      if (options.startDate) {
+        filterObj.LogEnd.ge = options.startDate;
+      }
+      
+      // Add endDate as le (less than or equal) filter
+      if (options.endDate) {
+        filterObj.LogEnd.le = options.endDate;
+      }
+    }
+    
+    // Build the OData filter string
+    let filter = options.filter;
+    if (Object.keys(filterObj).length > 0) {
+      filter = buildODataFilter(filterObj);
+    }
+    
+    // Sanitize any datetime values in the filter
+    if (filter && filter.includes('datetime')) {
+      filter = SapDateUtils.sanitizeFilterDatetimes(filter);
+    }
+    
     const response = await this.api.messageProcessingLogs.messageProcessingLogsList({
       $top: options.top,
       $skip: options.skip,
-      $filter: options.filter,
+      $filter: filter,
       $orderby: options.orderby,
       $select: options.select,
       $inlinecount: options.inlinecount ? ['allpages'] : undefined,
     });
     
-    const logs = this.normalizer.normalizeArrayResponse(response.data, 'getMessageProcessingLogs');
+    const originalLogs = this.normalizer.normalizeArrayResponse(response.data, 'getMessageProcessingLogs');
+    // Convert date strings to Date objects using the utility function
+    const logs = enhanceLogsWithDates(originalLogs);
+    
     // The count is returned as string property __count if $inlinecount is used
     const countString = (response.data?.d as any)?.__count;
     const count = countString ? parseInt(countString, 10) : undefined;
@@ -95,52 +162,37 @@ export class MessageProcessingLogsClient {
   }
 
   /**
-   * Retrieves the total count of message processing logs based on specified criteria.
-   * 
-   * @param {string} [filter] OData filter string (e.g., "Status eq 'FAILED'").
-   * @returns {Promise<number>} Promise resolving to the total count of logs.
-   * 
-   * @example
-   * const failedCount = await client.getMessageProcessingLogCount("Status eq 'FAILED'");
-   * console.log(`Total failed logs: ${failedCount}`);
-   */
-  async getMessageProcessingLogCount(filter?: string): Promise<number> {
-    const response = await this.api.messageProcessingLogs.countList({
-      $filter: filter,
-    });
-    // The API returns the count as a plain string in the response body
-    const countString = response.data as unknown as string;
-    return parseInt(countString || '0', 10);
-  }
-
-  /**
    * Retrieves a specific message processing log by its Message GUID.
+   * The returned log will have LogStart and LogEnd as Date objects.
    * 
    * @param {string} messageGuid The unique Message GUID of the log entry.
    * @param {object} [options] Optional parameters for selecting properties and expanding related entities.
    * @param {('CorrelationId' | 'ApplicationMessageId' | 'ApplicationMessageType' | 'IntegrationFlowName' | 'IntegrationArtifact' | 'Status' | 'CustomStatus' | 'LogLevel' | 'LogStart' | 'LogEnd' | 'Sender' | 'Receiver' | 'AlternateWebLink' | 'ArchivingStatus' | 'ArchivingSenderChannelMessages' | 'ArchivingReceiverChannelMessages' | 'ArchivingLogAttachments' | 'ArchivingPersistedMessages')[]} [options.select] Properties to select.
    * @param {('AdapterAttributes' | 'CustomHeaderProperties')[]} [options.expand] Related entities to expand.
-   * @returns {Promise<ComSapHciApiMessageProcessingLog | undefined>} Promise resolving to the log entry or undefined if not found.
+   * @returns {Promise<EnhancedMessageProcessingLog | undefined>} Promise resolving to the log entry with Date objects or undefined if not found.
    * 
    * @example
    * const log = await client.getMessageProcessingLogById('005056ab-1234-1edc-abcd-1234567890ab');
-   * if (log) {
-   *   console.log(`Status: ${log.Status}`);
+   * if (log && log.LogEnd) {
+   *   console.log(`Log end time: ${log.LogEnd.toLocaleTimeString()}`);
    * }
-   * 
-   * @example
-   * // Get log and expand custom headers
-   * const logWithHeaders = await client.getMessageProcessingLogById('guid...', { expand: ['CustomHeaderProperties'] });
    */
   async getMessageProcessingLogById(messageGuid: string, options: {
     select?: ('CorrelationId' | 'ApplicationMessageId' | 'ApplicationMessageType' | 'IntegrationFlowName' | 'IntegrationArtifact' | 'Status' | 'CustomStatus' | 'LogLevel' | 'LogStart' | 'LogEnd' | 'Sender' | 'Receiver' | 'AlternateWebLink' | 'ArchivingStatus' | 'ArchivingSenderChannelMessages' | 'ArchivingReceiverChannelMessages' | 'ArchivingLogAttachments' | 'ArchivingPersistedMessages')[];
     expand?: ('AdapterAttributes' | 'CustomHeaderProperties')[];
-  } = {}): Promise<ComSapHciApiMessageProcessingLog | undefined> {
+  } = {}): Promise<EnhancedMessageProcessingLog | undefined> {
     const response = await this.api.messageProcessingLogsMessageGuid.messageProcessingLogsList(messageGuid, {
       $select: options.select,
       $expand: options.expand,
     });
-    return this.normalizer.normalizeEntityResponse(response.data, 'getMessageProcessingLogById');
+    
+    const log = this.normalizer.normalizeEntityResponse(response.data, 'getMessageProcessingLogById');
+    
+    if (!log) return undefined;
+    
+    // Convert to enhanced log with Date objects using the utility function
+    const enhancedLogs = enhanceLogsWithDates([log]);
+    return enhancedLogs[0];
   }
 
   /**
@@ -493,5 +545,4 @@ export class MessageProcessingLogsClient {
     const response = await this.api.archivingKeyPerformanceIndicators.archivingKeyPerformanceIndicatorsList({ $filter: filter });
     return this.normalizer.normalizeArrayResponse(response.data, 'getArchivingKpis');
   }
-
 }

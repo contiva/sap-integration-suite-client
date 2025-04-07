@@ -33,7 +33,9 @@ import { MessageStoreClient } from './wrapper/message-store-client';
 import { SecurityContentClient } from './wrapper/security-content-client';
 
 // Utilities
-import { formatSapTimestampsInObject } from './utils/date-formatter';
+import { formatSapTimestampsInObject, SapDateUtils } from './utils/date-formatter';
+import { enhanceLogsWithDates } from './utils/log-enhancer';
+import { buildODataFilter } from './utils/odata-filter-builder';
 
 // Types
 import * as IntegrationContentTypes from './types/sap.IntegrationContent';
@@ -41,6 +43,7 @@ import * as LogFilesTypes from './types/sap.LogFiles';
 import * as MessageProcessingLogsTypes from './types/sap.MessageProcessingLogs';
 import * as MessageStoreTypes from './types/sap.MessageStore';
 import * as SecurityContentTypes from './types/sap.SecurityContent';
+import * as EnhancedLogTypes from './types/enhanced-logs';
 
 /**
  * Lazy-loaded default client
@@ -114,6 +117,21 @@ export {
   formatSapTimestampsInObject,
   
   /**
+   * Utility class for SAP date handling
+   */
+  SapDateUtils,
+  
+  /**
+   * Utility function to enhance SAP logs with Date objects
+   */
+  enhanceLogsWithDates,
+  
+  /**
+   * Utility function to build OData filter expressions
+   */
+  buildODataFilter,
+  
+  /**
    * Type definitions for Integration Content API
    */
   IntegrationContentTypes,
@@ -137,6 +155,11 @@ export {
    * Type definitions for Security Content API
    */
   SecurityContentTypes,
+  
+  /**
+   * Enhanced type definitions for Message Processing Logs
+   */
+  EnhancedLogTypes,
   
   /**
    * Integration Content Client

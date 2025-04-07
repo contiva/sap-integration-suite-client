@@ -1,9 +1,16 @@
 /**
- * Utility functions for formatting SAP timestamps in API responses
+ * Utility functions for SAP date and timestamp formatting
+ * 
+ * Provides comprehensive date handling utilities for SAP Integration Suite including:
+ * - Timestamp formatting for API responses
+ * - OData date filters
+ * - SAP date format parsing and conversion
  * 
  * @module date-formatter
  * @packageDocumentation
  */
+
+// ---------- TIMESTAMP FORMATTING FOR API RESPONSES ----------
 
 /**
  * Converts an SAP timestamp to a readable date format
@@ -109,4 +116,99 @@ export function formatSapTimestampsInObject(obj: any): any {
   }
   
   return formattedObj;
+}
+
+// ---------- SAP DATE FORMAT HANDLING (OData) ----------
+
+/**
+ * Utility functions for SAP date handling in OData requests
+ * These are primarily used for OData filtering and date conversion
+ */
+export class SapDateUtils {
+  /**
+   * Formats a date for SAP OData filter expressions
+   * 
+   * @param {Date | string} date Date to format
+   * @returns {string} Formatted date string for SAP OData filtering
+   */
+  static formatDateForFilter(date: Date | string): string {
+    if (typeof date === 'string') {
+      // Handle ISO string
+      return date.replace(/\.\d+Z$/, '').replace(/Z$/, '');
+    } else {
+      // Handle Date object
+      return date.toISOString().replace(/\.\d+Z$/, '').replace(/Z$/, '');
+    }
+  }
+
+  /**
+   * Creates an OData datetime filter expression
+   * 
+   * @param {string} fieldName Name of the date field
+   * @param {string} operator Comparison operator (eq, ne, gt, ge, lt, le)
+   * @param {Date | string} date Date value to compare against
+   * @returns {string} Complete OData filter expression
+   */
+  static createDateTimeFilter(fieldName: string, operator: 'eq' | 'ne' | 'gt' | 'ge' | 'lt' | 'le', date: Date | string): string {
+    const formattedDate = this.formatDateForFilter(date);
+    return `${fieldName} ${operator} datetime'${formattedDate}'`;
+  }
+
+  /**
+   * Parses an SAP OData date string to a JavaScript Date
+   * 
+   * @param {string} sapDateString Date string in SAP format (e.g. "/Date(1234567890)/")
+   * @returns {Date | null} JavaScript Date object or null if invalid
+   */
+  static parseSapDate(sapDateString: string): Date | null {
+    if (!sapDateString || typeof sapDateString !== 'string') return null;
+    
+    const match = sapDateString.match(/\/Date\((\d+)\)\//);
+    if (!match || !match[1]) return null;
+    
+    const timestamp = parseInt(match[1], 10);
+    return new Date(timestamp);
+  }
+
+  /**
+   * Formats an SAP OData date string to a readable string
+   * 
+   * @param {string} sapDateString Date string in SAP format
+   * @param {Intl.DateTimeFormatOptions} options Formatting options
+   * @returns {string} Formatted date string or the original if invalid
+   */
+  static formatSapDate(sapDateString: string, options?: Intl.DateTimeFormatOptions): string {
+    const date = this.parseSapDate(sapDateString);
+    if (!date) return sapDateString;
+    
+    return date.toLocaleString(undefined, options);
+  }
+
+  /**
+   * Ensures that all datetime values in a filter string are properly formatted
+   * for SAP OData (removing 'Z' and milliseconds)
+   * 
+   * @param {string} filter The OData filter string to process
+   * @returns {string} Filter string with correctly formatted datetime values
+   */
+  static sanitizeFilterDatetimes(filter: string): string {
+    if (!filter) return filter;
+    
+    // Look for datetime'...' patterns in the filter string
+    return filter.replace(/datetime'([^']*?)'/g, (match, datetimeValue) => {
+      // Check if it's an ISO-like date string
+      if (datetimeValue.includes('T') || datetimeValue.includes('Z')) {
+        // Remove milliseconds and Z suffix
+        const sanitizedDate = datetimeValue
+          .replace(/\.\d+Z$/, '') // Remove milliseconds and Z
+          .replace(/\.\d+$/, '')  // Remove milliseconds without Z
+          .replace(/Z$/, '');     // Remove just Z if present
+        
+        return `datetime'${sanitizedDate}'`;
+      }
+      
+      // Return unchanged if not an ISO-like format
+      return match;
+    });
+  }
 } 
