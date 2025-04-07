@@ -39,27 +39,12 @@ import {
   ComSapHciApiCustomTagsConfigurationCreate,
   ComSapHciApiIntegrationAdapterDesigntimeArtifact,
   ComSapHciApiIntegrationAdapterDesigntimeArtifactImport,
-  ComSapHciApiMDIDeltaToken
+  ComSapHciApiMDIDeltaToken,
+  ComSapHciApiRuntimeArtifactErrorInformation
 } from '../types/sap.IntegrationContent';
 
+import { PackageWithArtifacts, DetailedErrorInformation, ParsedErrorDetails } from '../types/sap.ContentClient';
 import { ResponseNormalizer } from '../utils/response-normalizer';
-
-/**
- * Struktur für ein Paket mit allen zugehörigen Artefakten
- */
-export interface PackageWithArtifacts {
-  /** Das Integrationspaket mit allen Artefakten */
-  package: ComSapHciApiIntegrationPackage & {
-    /** Liste der Integrationsflows im Paket */
-    IntegrationDesigntimeArtifacts: ComSapHciApiIntegrationDesigntimeArtifact[];
-    /** Liste der Message Mappings im Paket */
-    MessageMappingDesigntimeArtifacts: ComSapHciApiMessageMappingDesigntimeArtifact[];
-    /** Liste der Value Mappings im Paket */
-    ValueMappingDesigntimeArtifacts: ComSapHciApiValueMappingDesigntimeArtifact[];
-    /** Liste der Script Collections im Paket */
-    ScriptCollectionDesigntimeArtifacts: ComSapHciApiScriptCollectionDesigntimeArtifact[];
-  }
-}
 
 /**
  * Erweiterter SAP Integration Content Client
@@ -443,14 +428,154 @@ export class IntegrationContentClient {
    * Gibt Fehlerinformationen für ein deployten Integrationsartefakt zurück
    * 
    * @param {string} artifactId ID des deployten Integrationsartefakts
-   * @returns {Promise<string>} Promise mit den Fehlerinformationen
+   * @returns {Promise<ComSapHciApiRuntimeArtifactErrorInformation | null>} Promise mit den Fehlerinformationen oder null bei Fehlern
    * 
    * @example
    * const errorInfo = await client.getArtifactErrorInformation('MyFailedFlow');
+   * if (errorInfo && errorInfo.Id) {
+   *   console.log(`Fehler-ID: ${errorInfo.Id}`);
+   * }
    */
-  async getArtifactErrorInformation(artifactId: string): Promise<string> {
-    const response = await this.api.integrationRuntimeArtifactsId.errorInformationValueList(artifactId);
-    return response.data as unknown as string;
+  async getArtifactErrorInformation(artifactId: string): Promise<ComSapHciApiRuntimeArtifactErrorInformation | null> {
+    try {
+      // Verwende die generierte API, um das Artefakt mit Fehlerinformationen zu holen
+      const response = await this.api.integrationRuntimeArtifactsId.integrationRuntimeArtifactsList(artifactId);
+      
+      // Hole das RuntimeArtifact aus der Antwort
+      const runtimeArtifact = this.normalizer.normalizeEntityResponse(response.data, 'getDeployedArtifactById') as ComSapHciApiIntegrationRuntimeArtifact;
+      
+      // Wenn es keine Fehlerinformationen gibt, gib null zurück
+      if (!runtimeArtifact?.ErrorInformation) {
+        return null;
+      }
+      
+      // Da die ErrorInformation bereits im Artefakt enthalten ist, können wir sie direkt zurückgeben
+      return runtimeArtifact.ErrorInformation;
+    } catch (error) {
+      console.error('Error fetching error information:', error);
+      return null;
+    }
+  }
+  
+  /**
+   * Gibt detaillierte Fehlerinformationen für ein deployten Integrationsartefakt zurück
+   * Diese Methode ruft den spezifischen $value-Endpunkt auf, der mehr Details enthält
+   * 
+   * @param {string} artifactId ID des deployten Integrationsartefakts
+   * @returns {Promise<DetailedErrorInformation | null>} Promise mit den detaillierten Fehlerinformationen oder null bei Fehlern
+   * 
+   * @example
+   * const detailedError = await client.getDetailedArtifactErrorInformation('MyFailedFlow');
+   * if (detailedError && detailedError.message) {
+   *   console.log(`Fehlertyp: ${detailedError.message.messageId}`);
+   *   if (detailedError.parameter && detailedError.parameter.length > 0) {
+   *     try {
+   *       const paramJson = JSON.parse(detailedError.parameter[0]);
+   *       console.log(`Fehlermeldung: ${paramJson.message}`);
+   *     } catch (e) {
+   *       console.log(`Parameter: ${detailedError.parameter[0]}`);
+   *     }
+   *   }
+   * }
+   */
+  async getDetailedArtifactErrorInformation(artifactId: string): Promise<DetailedErrorInformation | null> {
+    try {
+      // Da der generierte Client keinen direkten Zugriff auf den $value-Endpunkt bietet,
+      // müssen wir einen benutzerdefinierten Request erstellen
+      
+      // Generiere die URL für den $value-Endpunkt
+      const url = `${this.api.baseUrl}/IntegrationRuntimeArtifacts('${artifactId}')/ErrorInformation/$value`;
+      
+      // Verwende den CustomFetch des API-Clients, um von seiner Authentifizierung zu profitieren
+      const response = await (this.api as any).request({
+        path: `/IntegrationRuntimeArtifacts('${artifactId}')/ErrorInformation/$value`,
+        method: 'GET',
+        headers: {
+          'Accept': '*/*'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error retrieving detailed error information: HTTP ${response.status}`);
+      }
+      
+      let errorData = null;
+      
+      try {
+        // Versuche, die Antwort als JSON zu parsen
+        errorData = await response.json();
+      } catch (parseError) {
+        // Falls kein JSON, versuche es als Text
+        errorData = await response.text();
+      }
+      
+      return errorData;
+    } catch (error) {
+      console.error('Error fetching detailed error information:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Parst die Fehlerdetails aus den Parametern einer DetailedErrorInformation
+   * 
+   * @param {DetailedErrorInformation} errorInfo Die detaillierten Fehlerinformationen
+   * @returns {ParsedErrorDetails | null} Die geparsten Fehlerdetails oder null, wenn keine Parameter vorhanden oder das Parsing fehlschlägt
+   * 
+   * @example
+   * const detailedError = await client.getDetailedArtifactErrorInformation('MyFailedFlow');
+   * if (detailedError) {
+   *   const errorDetails = client.parseErrorDetails(detailedError);
+   *   if (errorDetails && errorDetails.message) {
+   *     console.log(`Fehlermeldung: ${errorDetails.message}`);
+   *     
+   *     if (errorDetails.childMessageInstances && errorDetails.childMessageInstances.length > 0) {
+   *       console.log(`Hauptursache: ${errorDetails.childMessageInstances[0].message}`);
+   *     }
+   *   }
+   * }
+   */
+  parseErrorDetails(errorInfo: DetailedErrorInformation): ParsedErrorDetails | null {
+    if (!errorInfo) {
+      return null;
+    }
+    
+    // Wenn Parameter vorhanden sind, versuche sie zu parsen
+    if (errorInfo.parameter && Array.isArray(errorInfo.parameter) && errorInfo.parameter.length > 0) {
+      try {
+        // Versuche, den ersten Parameter als JSON zu parsen
+        const parsedDetails = JSON.parse(errorInfo.parameter[0]) as ParsedErrorDetails;
+        
+        // Stelle sicher, dass die message-Eigenschaft existiert
+        if (!parsedDetails.message && errorInfo.message?.messageText) {
+          parsedDetails.message = errorInfo.message.messageText;
+        }
+        
+        return parsedDetails;
+      } catch (error) {
+        // Wenn JSON-Parsing fehlschlägt, erstelle ein einfaches Objekt mit den Parametern als Strings
+        const result: ParsedErrorDetails = {
+          parameters: errorInfo.parameter
+        };
+        
+        // Füge die Nachricht hinzu, wenn vorhanden
+        if (errorInfo.message) {
+          result.message = errorInfo.message.messageText || errorInfo.message.messageId || 'Unknown error';
+        }
+        
+        return result;
+      }
+    }
+    
+    // Wenn keine Parameter vorhanden sind, aber eine Nachricht existiert, erstelle ein einfaches Objekt
+    if (errorInfo.message) {
+      return {
+        message: errorInfo.message.messageText || errorInfo.message.messageId || 'Unknown error'
+      };
+    }
+    
+    // Wenn weder Parameter noch Nachricht vorhanden sind, gib null zurück
+    return null;
   }
 
   /**
