@@ -711,10 +711,10 @@ export class IntegrationContentClient {
         // Hole alle Artefakte parallel für alle Pakete
         // Dies ist schneller, kann aber API-Limits überschreiten
         const [allFlows, allMessageMappings, allValueMappings, allScriptCollections] = await Promise.all([
-          this._fetchAllIntegrationFlows(),
-          this._fetchAllMessageMappings(),
-          this._fetchAllValueMappings(),
-          this._fetchAllScriptCollections()
+          this.getAllIntegrationFlows({ packages }),
+          this.getAllMessageMappings({ packages }),
+          this.getAllValueMappings({ packages }),
+          this.getAllScriptCollections({ packages })
         ]);
 
         // Sortiere Flows nach PackageId
@@ -804,14 +804,24 @@ export class IntegrationContentClient {
   /**
    * Ruft alle Integrationsflows aller Pakete ab
    * 
+   * @param {Object} options Optionale Parameter für die Anfrage
+   * @param {number} [options.top] Maximale Anzahl der zurückzugebenden Pakete für die Abfrage
+   * @param {ComSapHciApiIntegrationPackage[]} [options.packages] Bereits abgerufene Pakete, um redundante API-Aufrufe zu vermeiden
    * @returns {Promise<ComSapHciApiIntegrationDesigntimeArtifact[]>} Liste aller Integrationsflows
    * 
-   * @private Interne Methode für getPackagesWithArtifacts
+   * @example
+   * const allFlows = await client.getAllIntegrationFlows();
+   * 
+   * // Mit bereits vorhandenen Paketen
+   * const packages = await client.getIntegrationPackages();
+   * const allFlows = await client.getAllIntegrationFlows({ packages });
    */
-  private async _fetchAllIntegrationFlows(): Promise<ComSapHciApiIntegrationDesigntimeArtifact[]> {
-    // Für alle Integrationsflows gibt es keinen direkten API-Endpunkt
-    // Daher müssen wir hier einen Trick anwenden und über alle Pakete iterieren
-    const packages = await this.getIntegrationPackages();
+  async getAllIntegrationFlows(options: { 
+    top?: number; 
+    packages?: ComSapHciApiIntegrationPackage[] 
+  } = {}): Promise<ComSapHciApiIntegrationDesigntimeArtifact[]> {
+    // Verwende übergebene Pakete oder hole sie, wenn nicht vorhanden
+    const packages = options.packages || await this.getIntegrationPackages({ top: options.top });
     
     // Sammel alle Flows
     const allFlows: ComSapHciApiIntegrationDesigntimeArtifact[] = [];
@@ -832,41 +842,26 @@ export class IntegrationContentClient {
   }
 
   /**
-   * Ruft alle Message Mappings aller Pakete ab
-   * 
-   * @returns {Promise<ComSapHciApiMessageMappingDesigntimeArtifact[]>} Liste aller Message Mappings
-   * 
-   * @private Interne Methode für getPackagesWithArtifacts
-   */
-  private async _fetchAllMessageMappings(): Promise<ComSapHciApiMessageMappingDesigntimeArtifact[]> {
-    // Hier können wir die existierende getAllMessageMappings-Methode verwenden, 
-    // die bereits alle Tenant-weiten Mappings zurückgibt
-    return this.getAllMessageMappings({ top: 999 }); // Größtmöglicher Wert für 'top'
-  }
-
-  /**
-   * Ruft alle Value Mappings aller Pakete ab
-   * 
-   * @returns {Promise<ComSapHciApiValueMappingDesigntimeArtifact[]>} Liste aller Value Mappings
-   * 
-   * @private Interne Methode für getPackagesWithArtifacts
-   */
-  private async _fetchAllValueMappings(): Promise<ComSapHciApiValueMappingDesigntimeArtifact[]> {
-    // Hier können wir die existierende getAllValueMappings-Methode verwenden
-    return this.getAllValueMappings({ top: 999 }); // Größtmöglicher Wert für 'top'
-  }
-
-  /**
    * Ruft alle Script Collections aller Pakete ab
    * 
+   * @param {Object} options Optionale Parameter für die Anfrage
+   * @param {number} [options.top] Maximale Anzahl der zurückzugebenden Pakete für die Abfrage
+   * @param {ComSapHciApiIntegrationPackage[]} [options.packages] Bereits abgerufene Pakete, um redundante API-Aufrufe zu vermeiden
    * @returns {Promise<ComSapHciApiScriptCollectionDesigntimeArtifact[]>} Liste aller Script Collections
    * 
-   * @private Interne Methode für getPackagesWithArtifacts
+   * @example
+   * const allScriptCollections = await client.getAllScriptCollections();
+   * 
+   * // Mit bereits vorhandenen Paketen
+   * const packages = await client.getIntegrationPackages();
+   * const allScripts = await client.getAllScriptCollections({ packages });
    */
-  private async _fetchAllScriptCollections(): Promise<ComSapHciApiScriptCollectionDesigntimeArtifact[]> {
-    // Für alle Script Collections gibt es keinen direkten API-Endpunkt
-    // Daher müssen wir hier einen Trick anwenden und über alle Pakete iterieren
-    const packages = await this.getIntegrationPackages();
+  async getAllScriptCollections(options: { 
+    top?: number; 
+    packages?: ComSapHciApiIntegrationPackage[] 
+  } = {}): Promise<ComSapHciApiScriptCollectionDesigntimeArtifact[]> {
+    // Verwende übergebene Pakete oder hole sie, wenn nicht vorhanden
+    const packages = options.packages || await this.getIntegrationPackages({ top: options.top });
     
     // Sammel alle Script Collections
     const allScripts: ComSapHciApiScriptCollectionDesigntimeArtifact[] = [];
@@ -1021,14 +1016,35 @@ export class IntegrationContentClient {
     skip?: number; 
     select?: ("Id" | "Version" | "PackageId" | "Name" | "Description" | "ArtifactContent")[]; 
     orderby?: ("Name" | "Name desc")[]; 
+    packages?: ComSapHciApiIntegrationPackage[];
   } = {}): Promise<ComSapHciApiMessageMappingDesigntimeArtifact[]> {
-    const response = await this.api.messageMappingDesigntimeArtifacts.messageMappingDesigntimeArtifactsList({
-      $top: options.top,
-      $skip: options.skip,
-      $select: options.select,
-      $orderby: options.orderby
-    });
-    return this.normalizer.normalizeArrayResponse(response.data, 'getAllMessageMappings');
+    // Wenn Pakete vorhanden sind, hole Mappings paketweise, ansonsten über die zentrale API
+    if (options.packages && options.packages.length > 0) {
+      const allMappings: ComSapHciApiMessageMappingDesigntimeArtifact[] = [];
+      
+      // Arrays von Promises für Promise.all
+      const promises = options.packages.map(pkg => 
+        this.getMessageMappings(pkg.Id as string)
+          .then(mappings => allMappings.push(...mappings))
+          .catch(error => {
+            console.error(`Fehler beim Abrufen der Message Mappings für Paket ${pkg.Id}:`, error);
+            return []; // Fehler ignorieren
+          })
+      );
+      
+      // Warte auf alle Promises
+      await Promise.all(promises);
+      return allMappings;
+    } else {
+      // Ursprüngliche Methode über die zentrale API
+      const response = await this.api.messageMappingDesigntimeArtifacts.messageMappingDesigntimeArtifactsList({
+        $top: options.top,
+        $skip: options.skip,
+        $select: options.select,
+        $orderby: options.orderby
+      });
+      return this.normalizer.normalizeArrayResponse(response.data, 'getAllMessageMappings');
+    }
   }
 
   /**
@@ -1072,14 +1088,35 @@ export class IntegrationContentClient {
     skip?: number; 
     select?: ("Id" | "Version" | "PackageId" | "Name" | "Description" | "ArtifactContent")[];
     orderby?: ("Name" | "Name desc")[];
+    packages?: ComSapHciApiIntegrationPackage[];
   } = {}): Promise<ComSapHciApiValueMappingDesigntimeArtifact[]> {
-    const response = await this.api.valueMappingDesigntimeArtifacts.valueMappingDesigntimeArtifactsList({
-      $top: options.top,
-      $skip: options.skip,
-      $select: options.select,
-      $orderby: options.orderby
-    });
-    return this.normalizer.normalizeArrayResponse(response.data, 'getAllValueMappings');
+    // Wenn Pakete vorhanden sind, hole Mappings paketweise, ansonsten über die zentrale API
+    if (options.packages && options.packages.length > 0) {
+      const allMappings: ComSapHciApiValueMappingDesigntimeArtifact[] = [];
+      
+      // Arrays von Promises für Promise.all
+      const promises = options.packages.map(pkg => 
+        this.getValueMappings(pkg.Id as string)
+          .then(mappings => allMappings.push(...mappings))
+          .catch(error => {
+            console.error(`Fehler beim Abrufen der Value Mappings für Paket ${pkg.Id}:`, error);
+            return []; // Fehler ignorieren
+          })
+      );
+      
+      // Warte auf alle Promises
+      await Promise.all(promises);
+      return allMappings;
+    } else {
+      // Ursprüngliche Methode über die zentrale API
+      const response = await this.api.valueMappingDesigntimeArtifacts.valueMappingDesigntimeArtifactsList({
+        $top: options.top,
+        $skip: options.skip,
+        $select: options.select,
+        $orderby: options.orderby
+      });
+      return this.normalizer.normalizeArrayResponse(response.data, 'getAllValueMappings');
+    }
   }
 
   /**
