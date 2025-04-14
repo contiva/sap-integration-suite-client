@@ -154,8 +154,18 @@ export class IntegrationContentClient {
    * const flows = await client.getIntegrationFlows('MyPackageId');
    */
   async getIntegrationFlows(packageId: string): Promise<ComSapHciApiIntegrationDesigntimeArtifact[]> {
-    const response = await this.api.integrationPackagesId.integrationDesigntimeArtifactsList(packageId);
-    return this.normalizer.normalizeArrayResponse(response.data, 'getIntegrationFlows', 'IntegrationDesigntimeArtifacts');
+    try {
+      const response = await this.api.integrationPackagesId.integrationDesigntimeArtifactsList(packageId);
+      return this.normalizer.normalizeArrayResponse(response.data, 'getIntegrationFlows', 'IntegrationDesigntimeArtifacts');
+    } catch (error: any) {
+      // Check for 500 Internal Server Error - skip these packages gracefully
+      if (error?.statusCode === 500 && error?.errorCode === 'Internal Server Error') {
+        console.warn(`Failed to fetch Integration Flows for package ${packageId}. Skipping and returning empty array.`);
+        return [];
+      }
+      // For other errors, rethrow
+      throw error;
+    }
   }
 
   /**
@@ -588,8 +598,18 @@ export class IntegrationContentClient {
    * const valueMappings = await client.getValueMappings('MyPackageId');
    */
   async getValueMappings(packageId: string): Promise<ComSapHciApiValueMappingDesigntimeArtifact[]> {
-    const response = await this.api.integrationPackagesId.valueMappingDesigntimeArtifactsList(packageId);
-    return this.normalizer.normalizeArrayResponse(response.data, 'getValueMappings');
+    try {
+      const response = await this.api.integrationPackagesId.valueMappingDesigntimeArtifactsList(packageId);
+      return this.normalizer.normalizeArrayResponse(response.data, 'getValueMappings');
+    } catch (error: any) {
+      // Check for the specific 500 Internal Server Error case
+      if (error?.statusCode === 500 && error?.errorCode === 'Internal Server Error') {
+        console.warn(`Failed to fetch Value Mappings for package ${packageId}. Skipping and returning empty array.`);
+        return [];
+      }
+      // For other errors, rethrow
+      throw error;
+    }
   }
 
   /**
@@ -602,8 +622,18 @@ export class IntegrationContentClient {
    * const messageMappings = await client.getMessageMappings('MyPackageId');
    */
   async getMessageMappings(packageId: string): Promise<ComSapHciApiMessageMappingDesigntimeArtifact[]> {
-    const response = await this.api.integrationPackagesId.messageMappingDesigntimeArtifactsList(packageId);
-    return this.normalizer.normalizeArrayResponse(response.data, 'getMessageMappings');
+    try {
+      const response = await this.api.integrationPackagesId.messageMappingDesigntimeArtifactsList(packageId);
+      return this.normalizer.normalizeArrayResponse(response.data, 'getMessageMappings');
+    } catch (error: any) {
+      // Check for the specific 500 Internal Server Error case
+      if (error?.statusCode === 500 && error?.errorCode === 'Internal Server Error') {
+        console.warn(`Failed to fetch Message Mappings for package ${packageId}. Skipping and returning empty array.`);
+        return [];
+      }
+      // For other errors, rethrow
+      throw error;
+    }
   }
 
   /**
@@ -1315,8 +1345,18 @@ export class IntegrationContentClient {
    * const scripts = await client.getScriptCollections('MyPackageId');
    */
   async getScriptCollections(packageId: string): Promise<ComSapHciApiScriptCollectionDesigntimeArtifact[]> {
-    const response = await this.api.integrationPackagesId.scriptCollectionDesigntimeArtifactsList(packageId);
-    return this.normalizer.normalizeArrayResponse(response.data, 'getScriptCollections');
+    try {
+      const response = await this.api.integrationPackagesId.scriptCollectionDesigntimeArtifactsList(packageId);
+      return this.normalizer.normalizeArrayResponse(response.data, 'getScriptCollections');
+    } catch (error: any) {
+      // Check for the specific 500 Internal Server Error case
+      if (error?.statusCode === 500 && error?.errorCode === 'Internal Server Error') {
+        console.warn(`Failed to fetch Script Collections for package ${packageId}. Skipping and returning empty array.`);
+        return [];
+      }
+      // For other errors, rethrow
+      throw error;
+    }
   }
 
   /**
