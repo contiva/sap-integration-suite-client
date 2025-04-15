@@ -248,26 +248,186 @@ export class IntegrationContentClient {
    * Lädt einen Integrationsflow als ZIP-Datei herunter.
    * 
    * Hinweis: Download von Flows aus Configure-Only-Paketen ist nicht möglich.
-   * Der Rückgabetyp `File` ist primär für Browser-Umgebungen relevant. In Node.js 
-   * müsste die Response anders behandelt werden (z.B. als Stream oder Buffer).
+   * Die Methode gibt in Node.js-Umgebungen einen Buffer zurück und
+   * in Browser-Umgebungen einen Blob/File.
    * 
    * @param {string} flowId ID des herunterzuladenden Flows
    * @param {string} [version='active'] Version des herunterzuladenden Flows
-   * @returns {Promise<File>} Promise mit der heruntergeladenen Datei (im Browser-Kontext)
+   * @returns {Promise<Buffer | Blob>} Promise mit den Binärdaten des Flows
    * 
    * @example
-   * // Im Browser:
+   * // In Node.js:
    * try {
-   *   const file = await client.downloadIntegrationFlow('MyFlowId', '1.0.1');
-   *   // ... (Code zum Speichern der Datei, siehe downloadIntegrationPackage Beispiel)
+   *   const buffer = await client.downloadIntegrationFlow('MyFlowId', '1.0.1');
+   *   fs.writeFileSync('MyFlowId.zip', buffer);
    * } catch (error) {
    *   console.error('Download failed:', error);
    * }
    */
-  async downloadIntegrationFlow(flowId: string, version = 'active'): Promise<File> {
-    const response = await this.api.integrationDesigntimeArtifactsIdIdVersionVersion.valueList(flowId, version);
-    // Die API-Client-Generierung gibt 'File' zurück, was ggf. angepasst werden muss.
-    return response.data as File;
+  async downloadIntegrationFlow(flowId: string, version = 'active'): Promise<Buffer | Blob> {
+    try {
+      // Für diesen API-Call verwenden wir direkt axios, da wir einen binären Response benötigen
+      // und der generierte HTTP-Client nicht optimal mit arraybuffer umgeht
+      const axios = require('axios');
+      
+      // Erhalte das Security-Token (wird von der API-Client-Instanz verwaltet)
+      const securityWorker = this.api['securityWorker'];
+      const securityData = this.api['securityData'];
+      
+      // Debug-Logging für die Sicherheitsinformationen
+      if (process.env.DEBUG === 'true') {
+        console.debug('[IntegrationContentClient] Preparing download for flow:', flowId, version);
+        console.debug('[IntegrationContentClient] Security worker available:', !!securityWorker);
+        console.debug('[IntegrationContentClient] Security data available:', !!securityData);
+      }
+      
+      // Sicherheitsparameter abrufen und sicherstellen, dass wir ein Objekt haben
+      let securityParams = {};
+      if (securityWorker) {
+        try {
+          const params = await securityWorker(securityData);
+          if (params && typeof params === 'object') {
+            securityParams = params;
+          }
+        } catch (securityError) {
+          console.error('[IntegrationContentClient] Error getting security params:', securityError);
+        }
+      }
+      
+      if (process.env.DEBUG === 'true') {
+        console.debug('[IntegrationContentClient] Security params:', 
+          securityParams && typeof securityParams === 'object' ? 
+          Object.keys(securityParams).length : 'none');
+      }
+      
+      // URL aus dem API-Client extrahieren
+      const baseUrl = this.api['baseUrl'];
+      const url = `${baseUrl}/IntegrationDesigntimeArtifacts(Id='${flowId}',Version='${version}')/$value`;
+      
+      // Wenn keine Sicherheitsparameter vorhanden sind oder die Headers fehlen, 
+      // verwenden wir einen Fallback
+      const hasSecurityHeaders = 
+        securityParams && 
+        typeof securityParams === 'object' && 
+        'headers' in securityParams && 
+        securityParams.headers && 
+        typeof securityParams.headers === 'object' &&
+        'Authorization' in securityParams.headers;
+      
+      if (!hasSecurityHeaders) {
+        if (process.env.SAP_OAUTH_CLIENT_ID && process.env.SAP_OAUTH_CLIENT_SECRET && process.env.SAP_OAUTH_TOKEN_URL) {
+          // Direktes Token-Holen als Fallback
+          if (process.env.DEBUG === 'true') {
+            console.debug('[IntegrationContentClient] Using direct token acquisition as fallback');
+          }
+          
+          // Token direkt holen (ähnlich wie in getArtifacts.js)
+          const tokenResponse = await axios({
+            method: 'post',
+            url: process.env.SAP_OAUTH_TOKEN_URL,
+            params: {
+              grant_type: 'client_credentials',
+              client_id: process.env.SAP_OAUTH_CLIENT_ID,
+              client_secret: process.env.SAP_OAUTH_CLIENT_SECRET
+            },
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded'
+            }
+          });
+          
+          if (process.env.DEBUG === 'true') {
+            console.debug('[IntegrationContentClient] Token acquired successfully, making download request');
+          }
+          
+          // API-Aufruf mit dem direkt geholten Token durchführen
+          const response = await axios({
+            method: 'get',
+            url,
+            headers: {
+              'Authorization': `Bearer ${tokenResponse.data.access_token}`,
+              'Accept': 'application/zip'
+            },
+            responseType: 'arraybuffer'
+          });
+          
+          // Prüfen, ob wir Daten erhalten haben
+          if (response && response.data) {
+            if (process.env.DEBUG === 'true') {
+              console.debug('[IntegrationContentClient] Download successful, data length:', 
+                response.data.length || (response.data.byteLength || 'unknown'));
+            }
+            
+            // In Node.js-Umgebung 
+            if (typeof Buffer !== 'undefined') {
+              return Buffer.from(response.data);
+            }
+            
+            // In Browser-Umgebung 
+            if (typeof Blob !== 'undefined' && typeof window !== 'undefined') {
+              return new Blob([response.data], { type: 'application/zip' });
+            }
+          }
+          
+          throw new Error(`Unexpected response format or environment when downloading flow ${flowId}`);
+        } else {
+          if (process.env.DEBUG === 'true') {
+            console.debug('[IntegrationContentClient] No security parameters and no environment variables for fallback');
+          }
+        }
+      }
+      
+      // Nur hier ankommen, wenn wir gültige securityParams haben oder keine Fallback-Variablen vorhanden sind
+      if (process.env.DEBUG === 'true') {
+        console.debug('[IntegrationContentClient] Using security parameters from API client');
+      }
+      
+      // API-Aufruf mit axios durchführen
+      const response = await axios({
+        method: 'get',
+        url,
+        headers: {
+          ...((securityParams && typeof securityParams === 'object' && 'headers' in securityParams) ? 
+              (securityParams as any).headers : {}),
+          'Accept': 'application/zip'
+        },
+        responseType: 'arraybuffer'
+      });
+      
+      // Prüfen, ob wir Daten erhalten haben
+      if (response && response.data) {
+        if (process.env.DEBUG === 'true') {
+          console.debug('[IntegrationContentClient] Download successful, data length:', 
+            response.data.length || (response.data.byteLength || 'unknown'));
+        }
+        
+        // In Node.js-Umgebung 
+        if (typeof Buffer !== 'undefined') {
+          return Buffer.from(response.data);
+        }
+        
+        // In Browser-Umgebung 
+        if (typeof Blob !== 'undefined' && typeof window !== 'undefined') {
+          return new Blob([response.data], { type: 'application/zip' });
+        }
+      }
+      
+      throw new Error(`Unexpected response format or environment when downloading flow ${flowId}`);
+    } catch (error: any) {
+      // Verbesserte Fehlerbehandlung mit mehr Informationen
+      console.error(`[IntegrationContentClient] Error downloading flow ${flowId}:`, 
+        error.message || 'Unknown error');
+      if (error.response) {
+        console.error(`Status: ${error.response.status}, Status text: ${error.response.statusText}`);
+        if (error.response.data) {
+          // Wenn die Fehlerdaten ein Buffer sind, versuchen wir, sie als Text zu decodieren
+          const errorData = Buffer.isBuffer(error.response.data) ? 
+            Buffer.from(error.response.data).toString('utf8') : 
+            error.response.data;
+          console.error('Error details:', errorData);
+        }
+      }
+      throw error;
+    }
   }
 
   /**

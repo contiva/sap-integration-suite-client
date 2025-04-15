@@ -415,18 +415,18 @@ class SapClient {
 
     // Otherwise, get a new token
     try {
-      // Create base64 encoded credentials for basic auth
-      const authString = Buffer.from(`${this.oauthClientId}:${this.oauthClientSecret}`).toString('base64');
-      
+      // Use params like in the direct implementation instead of basic auth
       const tokenResponse = await axios.post(
         this.oauthTokenUrl,
-        qs.stringify({
-          grant_type: 'client_credentials'
-        }),
+        null,
         {
+          params: {
+            grant_type: 'client_credentials',
+            client_id: this.oauthClientId,
+            client_secret: this.oauthClientSecret
+          },
           headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Authorization': `Basic ${authString}`
+            'Content-Type': 'application/x-www-form-urlencoded'
           },
         }
       );

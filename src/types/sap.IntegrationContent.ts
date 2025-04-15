@@ -1404,11 +1404,12 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
      * @secure
      */
     valueList: (id: string, version: string, params: RequestParams = {}) =>
-      this.request<File, OdataError>({
+      this.request<ArrayBuffer, OdataError>({
         path: `/IntegrationDesigntimeArtifacts(Id='${id}',Version='${version}')/$value`,
         method: "GET",
         secure: true,
-        type: ContentType.Json,
+        responseType: 'arraybuffer',
+        headers: { 'Accept': 'application/zip' },
         ...params,
       }),
 
