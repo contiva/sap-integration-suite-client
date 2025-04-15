@@ -17,7 +17,15 @@
     "lint": "eslint src --ext .ts",
     "release:patch": "git push && npm version patch && npm publish && git push && git push --tags",
     "release:minor": "git push && npm version minor && npm publish && git push && git push --tags",
-    "release:major": "git push && npm version major && npm publish && git push && git push --tags"
+    "release:major": "git push && npm version major && npm publish && git push && git push --tags",
+    "publish:github": "cp package.json package.json.backup && npm pkg set name='@contiva/sap-integration-suite-client' && npm publish --registry=https://npm.pkg.github.com && mv package.json.backup package.json",
+    "release:all:patch": "git push && npm version patch && npm publish && npm run publish:github && git push && git push --tags",
+    "release:all:minor": "git push && npm version minor && npm publish && npm run publish:github && git push && git push --tags",
+    "release:all:major": "git push && npm version major && npm publish && npm run publish:github && git push && git push --tags"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org",
+    "access": "public"
   },
   "keywords": [
     "sap",
@@ -51,5 +59,8 @@
   "bugs": {
     "url": "https://github.com/contiva/sap-integration-suite-client/issues"
   },
-  "homepage": "https://github.com/contiva/sap-integration-suite-client#readme"
+  "homepage": "https://github.com/contiva/sap-integration-suite-client#readme",
+  "github": {
+    "name": "@contiva/sap-integration-suite-client"
+  }
 }
