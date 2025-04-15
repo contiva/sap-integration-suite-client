@@ -14,7 +14,10 @@
     "prebuild": "npm run clean",
     "prepare": "npm run build",
     "test": "npm run build && jest",
-    "lint": "eslint src --ext .ts"
+    "lint": "eslint src --ext .ts",
+    "release:patch": "git push && npm version patch && npm publish && git push && git push --tags",
+    "release:minor": "git push && npm version minor && npm publish && git push && git push --tags",
+    "release:major": "git push && npm version major && npm publish && git push && git push --tags"
   },
   "keywords": [
     "sap",
