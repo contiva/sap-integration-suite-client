@@ -1,5 +1,5 @@
 {
-  "name": "sap-integration-suite-client",
+  "name": "@contiva/sap-integration-suite-client",
   "author": "Contiva GmbH <mail@contiva.com>",
   "version": "1.2.3",
   "description": "SAP Cloud Platform Integration API Client",
@@ -15,13 +15,15 @@
     "prepare": "npm run build",
     "test": "npm run build && jest",
     "lint": "eslint src --ext .ts",
-    "release:patch": "git push && npm version patch && npm publish && git push && git push --tags",
-    "release:minor": "git push && npm version minor && npm publish && git push && git push --tags",
-    "release:major": "git push && npm version major && npm publish && git push && git push --tags",
-    "publish:github": "cp package.json package.json.backup && npm pkg set name='@contiva/sap-integration-suite-client' && npm publish --registry=https://npm.pkg.github.com && mv package.json.backup package.json",
-    "release:all:patch": "git push && npm version patch && npm publish && npm run publish:github && git push && git push --tags",
-    "release:all:minor": "git push && npm version minor && npm publish && npm run publish:github && git push && git push --tags",
-    "release:all:major": "git push && npm version major && npm publish && npm run publish:github && git push && git push --tags"
+    "release:npm:patch": "git push && npm version patch && npm publish --registry=https://registry.npmjs.org && git push && git push --tags",
+    "release:npm:minor": "git push && npm version minor && npm publish --registry=https://registry.npmjs.org && git push && git push --tags",
+    "release:npm:major": "git push && npm version major && npm publish --registry=https://registry.npmjs.org && git push && git push --tags",
+    "release:github:patch": "git push && npm version patch && npm publish --registry=https://npm.pkg.github.com && git push && git push --tags",
+    "release:github:minor": "git push && npm version minor && npm publish --registry=https://npm.pkg.github.com && git push && git push --tags",
+    "release:github:major": "git push && npm version major && npm publish --registry=https://npm.pkg.github.com && git push && git push --tags",
+    "release:all:patch": "git push && npm version patch && npm publish --registry=https://registry.npmjs.org && npm publish --registry=https://npm.pkg.github.com && git push && git push --tags",
+    "release:all:minor": "git push && npm version minor && npm publish --registry=https://registry.npmjs.org && npm publish --registry=https://npm.pkg.github.com && git push && git push --tags",
+    "release:all:major": "git push && npm version major && npm publish --registry=https://registry.npmjs.org && npm publish --registry=https://npm.pkg.github.com && git push && git push --tags"
   },
   "publishConfig": {
     "registry": "https://registry.npmjs.org",
