@@ -27,6 +27,7 @@
 // Core Client and Config
 import SapClient, { SapClientConfig } from './clients/sap-client';
 import { IntegrationContentClient } from './wrapper/integration-content-client';
+import { IntegrationContentAdvancedClient } from './wrapper/custom/integration-content-advanced-client';
 import { LogFilesClient } from './wrapper/log-files-client';
 import { MessageProcessingLogsClient } from './wrapper/message-processing-logs-client';
 import { MessageStoreClient } from './wrapper/message-store-client';
@@ -165,6 +166,11 @@ export {
    * Integration Content Client
    */
   IntegrationContentClient,
+  
+  /**
+   * Integration Content Advanced Client with extended functionality
+   */
+  IntegrationContentAdvancedClient,
   
   /**
    * Log Files Client Wrapper

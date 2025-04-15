@@ -45,6 +45,7 @@ import {
 
 import { PackageWithArtifacts, DetailedErrorInformation, ParsedErrorDetails } from '../types/sap.ContentClient';
 import { ResponseNormalizer } from '../utils/response-normalizer';
+import { IntegrationContentAdvancedClient } from './custom/integration-content-advanced-client';
 
 /**
  * Erweiterter SAP Integration Content Client
@@ -55,6 +56,7 @@ import { ResponseNormalizer } from '../utils/response-normalizer';
 export class IntegrationContentClient {
   private api: IntegrationContentApi<unknown>;
   private normalizer: ResponseNormalizer;
+  private advancedClient: IntegrationContentAdvancedClient;
 
   /**
    * Erstellt einen neuen IntegrationContentClient
@@ -64,6 +66,7 @@ export class IntegrationContentClient {
   constructor(api: IntegrationContentApi<unknown>) {
     this.api = api;
     this.normalizer = new ResponseNormalizer();
+    this.advancedClient = new IntegrationContentAdvancedClient(this);
   }
 
   /**
@@ -487,43 +490,11 @@ export class IntegrationContentClient {
    *     }
    *   }
    * }
+   * 
+   * @deprecated Diese Methode wird in zukünftigen Versionen ausgelagert. Bitte verwenden Sie die entsprechenden Methoden im IntegrationContentAdvancedClient.
    */
   async getDetailedArtifactErrorInformation(artifactId: string): Promise<DetailedErrorInformation | null> {
-    try {
-      // Da der generierte Client keinen direkten Zugriff auf den $value-Endpunkt bietet,
-      // müssen wir einen benutzerdefinierten Request erstellen
-      
-      // Generiere die URL für den $value-Endpunkt
-      const url = `${this.api.baseUrl}/IntegrationRuntimeArtifacts('${artifactId}')/ErrorInformation/$value`;
-      
-      // Verwende den CustomFetch des API-Clients, um von seiner Authentifizierung zu profitieren
-      const response = await (this.api as any).request({
-        path: `/IntegrationRuntimeArtifacts('${artifactId}')/ErrorInformation/$value`,
-        method: 'GET',
-        headers: {
-          'Accept': '*/*'
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Error retrieving detailed error information: HTTP ${response.status}`);
-      }
-      
-      let errorData = null;
-      
-      try {
-        // Versuche, die Antwort als JSON zu parsen
-        errorData = await response.json();
-      } catch (parseError) {
-        // Falls kein JSON, versuche es als Text
-        errorData = await response.text();
-      }
-      
-      return errorData;
-    } catch (error) {
-      console.error('Error fetching detailed error information:', error);
-      return null;
-    }
+    return this.advancedClient.getDetailedArtifactErrorInformation(artifactId);
   }
 
   /**
@@ -544,48 +515,11 @@ export class IntegrationContentClient {
    *     }
    *   }
    * }
+   * 
+   * @deprecated Diese Methode wird in zukünftigen Versionen ausgelagert. Bitte verwenden Sie die entsprechenden Methoden im IntegrationContentAdvancedClient.
    */
   parseErrorDetails(errorInfo: DetailedErrorInformation): ParsedErrorDetails | null {
-    if (!errorInfo) {
-      return null;
-    }
-    
-    // Wenn Parameter vorhanden sind, versuche sie zu parsen
-    if (errorInfo.parameter && Array.isArray(errorInfo.parameter) && errorInfo.parameter.length > 0) {
-      try {
-        // Versuche, den ersten Parameter als JSON zu parsen
-        const parsedDetails = JSON.parse(errorInfo.parameter[0]) as ParsedErrorDetails;
-        
-        // Stelle sicher, dass die message-Eigenschaft existiert
-        if (!parsedDetails.message && errorInfo.message?.messageText) {
-          parsedDetails.message = errorInfo.message.messageText;
-        }
-        
-        return parsedDetails;
-      } catch (error) {
-        // Wenn JSON-Parsing fehlschlägt, erstelle ein einfaches Objekt mit den Parametern als Strings
-        const result: ParsedErrorDetails = {
-          parameters: errorInfo.parameter
-        };
-        
-        // Füge die Nachricht hinzu, wenn vorhanden
-        if (errorInfo.message) {
-          result.message = errorInfo.message.messageText || errorInfo.message.messageId || 'Unknown error';
-        }
-        
-        return result;
-      }
-    }
-    
-    // Wenn keine Parameter vorhanden sind, aber eine Nachricht existiert, erstelle ein einfaches Objekt
-    if (errorInfo.message) {
-      return {
-        message: errorInfo.message.messageText || errorInfo.message.messageId || 'Unknown error'
-      };
-    }
-    
-    // Wenn weder Parameter noch Nachricht vorhanden sind, gib null zurück
-    return null;
+    return this.advancedClient.parseErrorDetails(errorInfo);
   }
 
   /**
@@ -661,6 +595,8 @@ export class IntegrationContentClient {
    * 
    * // Alle Pakete mit parallelen API-Aufrufen abrufen (schneller)
    * const packagesWithArtifacts = await client.getPackagesWithArtifacts({ parallel: true });
+   * 
+   * @deprecated Diese Methode wird in zukünftigen Versionen ausgelagert. Bitte verwenden Sie die entsprechenden Methoden im IntegrationContentAdvancedClient.
    */
   async getPackagesWithArtifacts(options: { 
     top?: number; 
@@ -668,137 +604,7 @@ export class IntegrationContentClient {
     includeEmpty?: boolean;
     parallel?: boolean;
   } = {}): Promise<PackageWithArtifacts[]> {
-    // Hole alle Integrationspakete
-    const packages = await this.getIntegrationPackages({
-      top: options.top,
-      skip: options.skip
-    });
-
-    // Wenn keine Pakete gefunden wurden, direkt leeres Array zurückgeben
-    if (packages.length === 0) {
-      return [];
-    }
-
-    // Map von PackageId -> Package erstellen für einfacheren Zugriff
-    const packageMap = new Map<string, ComSapHciApiIntegrationPackage>();
-    for (const pkg of packages) {
-      if (pkg.Id) {
-        packageMap.set(pkg.Id as string, pkg);
-      }
-    }
-
-    // Array für das Ergebnis mit erweiterter Struktur
-    const result: PackageWithArtifacts[] = packages.map(pkg => ({
-      package: {
-        ...pkg,
-        IntegrationDesigntimeArtifacts: [],
-        MessageMappingDesigntimeArtifacts: [],
-        ValueMappingDesigntimeArtifacts: [],
-        ScriptCollectionDesigntimeArtifacts: []
-      }
-    }));
-
-    // Direktes Mapping von PackageId zu Result-Index
-    const packageIndexMap = new Map<string, number>();
-    packages.forEach((pkg, index) => {
-      if (pkg.Id) {
-        packageIndexMap.set(pkg.Id as string, index);
-      }
-    });
-
-    try {
-      if (options.parallel) {
-        // Hole alle Artefakte parallel für alle Pakete
-        // Dies ist schneller, kann aber API-Limits überschreiten
-        const [allFlows, allMessageMappings, allValueMappings, allScriptCollections] = await Promise.all([
-          this.getAllIntegrationFlows({ packages }),
-          this.getAllMessageMappings({ packages }),
-          this.getAllValueMappings({ packages }),
-          this.getAllScriptCollections({ packages })
-        ]);
-
-        // Sortiere Flows nach PackageId
-        for (const flow of allFlows) {
-          if (flow.PackageId && packageIndexMap.has(flow.PackageId as string)) {
-            const index = packageIndexMap.get(flow.PackageId as string)!;
-            result[index].package.IntegrationDesigntimeArtifacts.push(flow);
-          }
-        }
-
-        // Sortiere Message Mappings nach PackageId
-        for (const mapping of allMessageMappings) {
-          if (mapping.PackageId && packageIndexMap.has(mapping.PackageId as string)) {
-            const index = packageIndexMap.get(mapping.PackageId as string)!;
-            result[index].package.MessageMappingDesigntimeArtifacts.push(mapping);
-          }
-        }
-
-        // Sortiere Value Mappings nach PackageId
-        for (const mapping of allValueMappings) {
-          if (mapping.PackageId && packageIndexMap.has(mapping.PackageId as string)) {
-            const index = packageIndexMap.get(mapping.PackageId as string)!;
-            result[index].package.ValueMappingDesigntimeArtifacts.push(mapping);
-          }
-        }
-
-        // Sortiere Script Collections nach PackageId
-        for (const script of allScriptCollections) {
-          if (script.PackageId && packageIndexMap.has(script.PackageId as string)) {
-            const index = packageIndexMap.get(script.PackageId as string)!;
-            result[index].package.ScriptCollectionDesigntimeArtifacts.push(script);
-          }
-        }
-      } else {
-        // Sequentieller Ansatz wie bisher, aber optimiert mit Try-Catch
-        for (const [i, pkg] of packages.entries()) {
-          const packageId = pkg.Id as string;
-          
-          try {
-            // Hole alle Artefakte für dieses Paket
-            result[i].package.IntegrationDesigntimeArtifacts = await this.getIntegrationFlows(packageId).catch(() => []);
-          } catch (error) {
-            console.error(`Fehler beim Abrufen der Integrationsflows für Paket ${packageId}:`, error);
-            result[i].package.IntegrationDesigntimeArtifacts = [];
-          }
-
-          try {
-            result[i].package.MessageMappingDesigntimeArtifacts = await this.getMessageMappings(packageId).catch(() => []);
-          } catch (error) {
-            console.error(`Fehler beim Abrufen der Message Mappings für Paket ${packageId}:`, error);
-            result[i].package.MessageMappingDesigntimeArtifacts = [];
-          }
-
-          try {
-            result[i].package.ValueMappingDesigntimeArtifacts = await this.getValueMappings(packageId).catch(() => []);
-          } catch (error) {
-            console.error(`Fehler beim Abrufen der Value Mappings für Paket ${packageId}:`, error);
-            result[i].package.ValueMappingDesigntimeArtifacts = [];
-          }
-
-          try {
-            result[i].package.ScriptCollectionDesigntimeArtifacts = await this.getScriptCollections(packageId).catch(() => []);
-          } catch (error) {
-            console.error(`Fehler beim Abrufen der Script Collections für Paket ${packageId}:`, error);
-            result[i].package.ScriptCollectionDesigntimeArtifacts = [];
-          }
-        }
-      }
-
-      // Entferne leere Pakete, wenn includeEmpty=false
-      if (!options.includeEmpty) {
-        return result.filter(item => 
-          item.package.IntegrationDesigntimeArtifacts.length > 0 || 
-          item.package.MessageMappingDesigntimeArtifacts.length > 0 || 
-          item.package.ValueMappingDesigntimeArtifacts.length > 0 || 
-          item.package.ScriptCollectionDesigntimeArtifacts.length > 0
-        );
-      }
-
-      return result;
-    } catch (error) {
-      console.error(`Fehler beim Abrufen der Artefakte:`, error);
-      throw error;
-    }
+    return this.advancedClient.getPackagesWithArtifacts(options);
   }
 
   /**
@@ -815,30 +621,14 @@ export class IntegrationContentClient {
    * // Mit bereits vorhandenen Paketen
    * const packages = await client.getIntegrationPackages();
    * const allFlows = await client.getAllIntegrationFlows({ packages });
+   * 
+   * @deprecated Diese Methode wird in zukünftigen Versionen ausgelagert. Bitte verwenden Sie die entsprechenden Methoden im IntegrationContentAdvancedClient.
    */
   async getAllIntegrationFlows(options: { 
     top?: number; 
     packages?: ComSapHciApiIntegrationPackage[] 
   } = {}): Promise<ComSapHciApiIntegrationDesigntimeArtifact[]> {
-    // Verwende übergebene Pakete oder hole sie, wenn nicht vorhanden
-    const packages = options.packages || await this.getIntegrationPackages({ top: options.top });
-    
-    // Sammel alle Flows
-    const allFlows: ComSapHciApiIntegrationDesigntimeArtifact[] = [];
-    
-    // Arrays von Promises für Promise.all
-    const promises = packages.map(pkg => 
-      this.getIntegrationFlows(pkg.Id as string)
-        .then(flows => allFlows.push(...flows))
-        .catch(error => {
-          console.error(`Fehler beim Abrufen der Flows für Paket ${pkg.Id}:`, error);
-          return []; // Fehler ignorieren
-        })
-    );
-    
-    // Warte auf alle Promises
-    await Promise.all(promises);
-    return allFlows;
+    return this.advancedClient.getAllIntegrationFlows(options);
   }
 
   /**
@@ -855,30 +645,14 @@ export class IntegrationContentClient {
    * // Mit bereits vorhandenen Paketen
    * const packages = await client.getIntegrationPackages();
    * const allScripts = await client.getAllScriptCollections({ packages });
+   * 
+   * @deprecated Diese Methode wird in zukünftigen Versionen ausgelagert. Bitte verwenden Sie die entsprechenden Methoden im IntegrationContentAdvancedClient.
    */
   async getAllScriptCollections(options: { 
     top?: number; 
     packages?: ComSapHciApiIntegrationPackage[] 
   } = {}): Promise<ComSapHciApiScriptCollectionDesigntimeArtifact[]> {
-    // Verwende übergebene Pakete oder hole sie, wenn nicht vorhanden
-    const packages = options.packages || await this.getIntegrationPackages({ top: options.top });
-    
-    // Sammel alle Script Collections
-    const allScripts: ComSapHciApiScriptCollectionDesigntimeArtifact[] = [];
-    
-    // Arrays von Promises für Promise.all
-    const promises = packages.map(pkg => 
-      this.getScriptCollections(pkg.Id as string)
-        .then(scripts => allScripts.push(...scripts))
-        .catch(error => {
-          console.error(`Fehler beim Abrufen der Script Collections für Paket ${pkg.Id}:`, error);
-          return []; // Fehler ignorieren
-        })
-    );
-    
-    // Warte auf alle Promises
-    await Promise.all(promises);
-    return allScripts;
+    return this.advancedClient.getAllScriptCollections(options);
   }
 
   /**
@@ -1010,6 +784,8 @@ export class IntegrationContentClient {
    * 
    * @example
    * const allMappings = await client.getAllMessageMappings({ top: 50 });
+   * 
+   * @deprecated Diese Methode wird in zukünftigen Versionen ausgelagert. Bitte verwenden Sie die entsprechenden Methoden im IntegrationContentAdvancedClient.
    */
   async getAllMessageMappings(options: { 
     top?: number; 
@@ -1018,33 +794,7 @@ export class IntegrationContentClient {
     orderby?: ("Name" | "Name desc")[]; 
     packages?: ComSapHciApiIntegrationPackage[];
   } = {}): Promise<ComSapHciApiMessageMappingDesigntimeArtifact[]> {
-    // Wenn Pakete vorhanden sind, hole Mappings paketweise, ansonsten über die zentrale API
-    if (options.packages && options.packages.length > 0) {
-      const allMappings: ComSapHciApiMessageMappingDesigntimeArtifact[] = [];
-      
-      // Arrays von Promises für Promise.all
-      const promises = options.packages.map(pkg => 
-        this.getMessageMappings(pkg.Id as string)
-          .then(mappings => allMappings.push(...mappings))
-          .catch(error => {
-            console.error(`Fehler beim Abrufen der Message Mappings für Paket ${pkg.Id}:`, error);
-            return []; // Fehler ignorieren
-          })
-      );
-      
-      // Warte auf alle Promises
-      await Promise.all(promises);
-      return allMappings;
-    } else {
-      // Ursprüngliche Methode über die zentrale API
-      const response = await this.api.messageMappingDesigntimeArtifacts.messageMappingDesigntimeArtifactsList({
-        $top: options.top,
-        $skip: options.skip,
-        $select: options.select,
-        $orderby: options.orderby
-      });
-      return this.normalizer.normalizeArrayResponse(response.data, 'getAllMessageMappings');
-    }
+    return this.advancedClient.getAllMessageMappings(options);
   }
 
   /**
@@ -1090,33 +840,7 @@ export class IntegrationContentClient {
     orderby?: ("Name" | "Name desc")[];
     packages?: ComSapHciApiIntegrationPackage[];
   } = {}): Promise<ComSapHciApiValueMappingDesigntimeArtifact[]> {
-    // Wenn Pakete vorhanden sind, hole Mappings paketweise, ansonsten über die zentrale API
-    if (options.packages && options.packages.length > 0) {
-      const allMappings: ComSapHciApiValueMappingDesigntimeArtifact[] = [];
-      
-      // Arrays von Promises für Promise.all
-      const promises = options.packages.map(pkg => 
-        this.getValueMappings(pkg.Id as string)
-          .then(mappings => allMappings.push(...mappings))
-          .catch(error => {
-            console.error(`Fehler beim Abrufen der Value Mappings für Paket ${pkg.Id}:`, error);
-            return []; // Fehler ignorieren
-          })
-      );
-      
-      // Warte auf alle Promises
-      await Promise.all(promises);
-      return allMappings;
-    } else {
-      // Ursprüngliche Methode über die zentrale API
-      const response = await this.api.valueMappingDesigntimeArtifacts.valueMappingDesigntimeArtifactsList({
-        $top: options.top,
-        $skip: options.skip,
-        $select: options.select,
-        $orderby: options.orderby
-      });
-      return this.normalizer.normalizeArrayResponse(response.data, 'getAllValueMappings');
-    }
+    return this.advancedClient.getAllValueMappings(options);
   }
 
   /**

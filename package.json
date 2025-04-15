@@ -13,10 +13,8 @@
     "clean": "rm -rf dist",
     "prebuild": "npm run clean",
     "prepare": "npm run build",
-    "test": "jest",
-    "lint": "eslint src --ext .ts",
-    "test:connection": "node tests/sap-connection.test.js",
-    "verify": "npm run build && npm run test:connection"
+    "test": "npm run build && jest",
+    "lint": "eslint src --ext .ts"
   },
   "keywords": [
     "sap",
@@ -36,8 +34,10 @@
     "typescript": "^5.0.4"
   },
   "devDependencies": {
+    "@types/jest": "^29.5.14",
     "@types/node": "^18.15.11",
     "@types/qs": "^6.9.7",
+    "jest": "^29.7.0",
     "rimraf": "^5.0.1",
     "typescript": "^5.0.4"
   },

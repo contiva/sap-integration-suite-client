@@ -17,10 +17,13 @@ import { Api as MessageStoreApi } from '../types/sap.MessageStore';
 import { Api as SecurityContentApi } from '../types/sap.SecurityContent';
 import qs from 'querystring';
 import { IntegrationContentClient } from '../wrapper/integration-content-client';
+import { IntegrationContentAdvancedClient } from '../wrapper/custom/integration-content-advanced-client';
 import { MessageProcessingLogsClient } from '../wrapper/message-processing-logs-client';
 import { LogFilesClient } from '../wrapper/log-files-client';
 import { MessageStoreClient } from '../wrapper/message-store-client';
 import { SecurityContentClient } from '../wrapper/security-content-client';
+import { CustomClientRegistry, CustomClientType } from '../wrapper/custom/custom-client-registry';
+import { BaseCustomClient, CustomClientFactory } from '../wrapper/custom/base-custom-client';
 
 // Load environment variables from .env file
 config();
@@ -91,6 +94,11 @@ export interface SapClientConfig {
    * Default: 1000 (1 second)
    */
   retryDelay?: number;
+  /**
+   * Aktiviere oder deaktiviere benutzerdefinierte Client-Erweiterungen
+   * Default: true
+   */
+  enableCustomClients?: boolean;
 }
 
 /**
@@ -144,12 +152,26 @@ class SapClient {
   private maxRetries: number = 3;
   /** Delay between retries in milliseconds */
   private retryDelay: number = 1000;
+  /** Whether to enable custom client extensions */
+  private enableCustomClients: boolean = true;
+  /** Registry für benutzerdefinierte Client-Erweiterungen */
+  private customClientRegistry: CustomClientRegistry;
+  /** Map der erstellten benutzerdefinierten Clients */
+  private customClients: Map<string, BaseCustomClient<any>> = new Map();
   
   /** 
    * Integration Content API client
    * Provides access to integration packages, artifacts, and related operations
    */
   public integrationContent: IntegrationContentClient;
+  
+  /**
+   * Integration Content Advanced API client
+   * Provides extended functionality for integration content operations
+   */
+  public integrationContentAdvanced!: IntegrationContentAdvancedClient;
+  
+  
   /** 
    * Log Files API client
    * Access system logs and log archives
@@ -208,6 +230,8 @@ class SapClient {
     this.normalizeResponses = config?.normalizeResponses !== undefined ? config.normalizeResponses : true;
     this.maxRetries = config?.maxRetries || 0;
     this.retryDelay = config?.retryDelay || 1000;
+    this.enableCustomClients = config?.enableCustomClients !== undefined ? config.enableCustomClients : true;
+    this.customClientRegistry = CustomClientRegistry.getInstance();
     
     // Enable debug mode if environment variable is set
     const debugMode = process.env.DEBUG === 'true';
@@ -308,36 +332,44 @@ class SapClient {
     );
 
     // Initialize API clients
-    const integrationContentApi = new IntegrationContentApi({
+    const integrationContentApiClient = new IntegrationContentApi({
       baseUrl: this.baseUrl,
       customFetch: this.customFetch.bind(this),
     });
+    this.integrationContent = new IntegrationContentClient(integrationContentApiClient);
     
-    this.integrationContent = new IntegrationContentClient(integrationContentApi);
-
     const logFilesApi = new LogFilesApi({
       baseUrl: this.baseUrl,
       customFetch: this.customFetch.bind(this),
     });
     this.logFiles = new LogFilesClient(logFilesApi);
-
+    
     const messageProcessingLogsApi = new MessageProcessingLogsApi({
-      baseUrl: this.baseUrl, 
+      baseUrl: this.baseUrl,
       customFetch: this.customFetch.bind(this),
     });
     this.messageProcessingLogs = new MessageProcessingLogsClient(messageProcessingLogsApi);
-
+    
     const messageStoreApi = new MessageStoreApi({
       baseUrl: this.baseUrl,
       customFetch: this.customFetch.bind(this),
     });
     this.messageStore = new MessageStoreClient(messageStoreApi);
-
+    
     const securityContentApi = new SecurityContentApi({
       baseUrl: this.baseUrl,
       customFetch: this.customFetch.bind(this),
     });
     this.securityContent = new SecurityContentClient(securityContentApi);
+    
+    // Custom Clients initialisieren
+    if (this.enableCustomClients) {
+      this.initializeCustomClients();
+    } else {
+      // Legacy-Initialisierung für Kompatibilität, wenn Custom-Clients deaktiviert sind
+      this.integrationContentAdvanced = new IntegrationContentAdvancedClient(this.integrationContent);
+      // MessageProcessingLogsAdvancedClient wird on-demand erstellt, wenn er benötigt wird
+    }
   }
   
   /**
@@ -730,6 +762,73 @@ class SapClient {
         throw this.enhanceError(error, 'Failed to fetch CSRF token');
       }
     }
+  }
+
+  /**
+   * Initialisiert alle benutzerdefinierten Client-Erweiterungen
+   */
+  private initializeCustomClients(): void {
+    // Integration Content Advanced Client
+    this.integrationContentAdvanced = this.getOrCreateCustomClient<
+      IntegrationContentClient, 
+      IntegrationContentAdvancedClient
+    >(
+      CustomClientType.INTEGRATION_CONTENT_ADVANCED,
+      this.integrationContent
+    );
+    
+
+    
+    // In Zukunft weitere Custom-Clients hier initialisieren
+  }
+  
+  /**
+   * Gibt einen vorhandenen benutzerdefinierten Client zurück oder erstellt einen neuen
+   * 
+   * @param type - Der Typ des benutzerdefinierten Clients
+   * @param baseClient - Der zugrundeliegende Standard-Client
+   * @returns Eine Instanz des benutzerdefinierten Clients
+   */
+  private getOrCreateCustomClient<T, C extends BaseCustomClient<T>>(
+    type: string,
+    baseClient: T
+  ): C {
+    // Prüfen, ob der Client bereits erstellt wurde
+    if (this.customClients.has(type)) {
+      return this.customClients.get(type) as C;
+    }
+    
+    // Neuen Client erstellen
+    const customClient = this.customClientRegistry.create<T, C>(type, baseClient);
+    this.customClients.set(type, customClient);
+    return customClient;
+  }
+  
+  /**
+   * Gibt einen benutzerdefinierten Client nach Typ zurück
+   * 
+   * @param type - Der Typ des benutzerdefinierten Clients
+   * @returns Der benutzerdefinierte Client oder undefined, wenn nicht gefunden
+   */
+  public getCustomClient<C extends BaseCustomClient<any>>(type: string): C | undefined {
+    return this.customClients.get(type) as C | undefined;
+  }
+  
+  /**
+   * Registriert einen benutzerdefinierten Client-Factory
+   * 
+   * Diese Methode erlaubt es, zur Laufzeit neue benutzerdefinierte Client-Factories
+   * zu registrieren, was die dynamische Erweiterung des Clients ermöglicht.
+   * 
+   * @param type - Der Typ des benutzerdefinierten Clients
+   * @param factory - Die Factory für die Erstellung des Clients
+   */
+  public registerCustomClientFactory<T, C extends BaseCustomClient<T>>(
+    type: string,
+    factory: CustomClientFactory<T, C>
+  ): void {
+    this.customClientRegistry.register(type, factory);
+    
   }
 }
 
