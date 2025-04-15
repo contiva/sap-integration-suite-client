@@ -5,6 +5,8 @@
 
 A TypeScript library for SAP Cloud Integration APIs (part of SAP Integration Suite), developed by [Contiva GmbH](https://contiva.com).
 
+Available on npm: [sap-integration-suite-client](https://www.npmjs.com/package/sap-integration-suite-client)
+
 ## 📋 Table of Contents
 
 - [Quick Start](#-quick-start)
