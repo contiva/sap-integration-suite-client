@@ -298,8 +298,30 @@ export class MessageProcessingLogsClient {
    */
   async getLogErrorInformationText(messageGuid: string): Promise<string | undefined> {
     const response = await this.api.messageProcessingLogsMessageGuid.errorInformationValueList(messageGuid);
+    
+    // Fix: The response is a Fetch Response object, we need to read the text from it
+    // Check if response.data is null and we got a raw fetch Response object
+    if (response && (response as any).data === null && typeof response === 'object' && (response as any).text) {
+      // This is a raw Fetch Response, read the text content
+      const textContent = await (response as any).text();
+      return textContent;
+    }
+    
     // API spec says void, but data is likely in response.data
-    return response.data as unknown as string | undefined;
+    // Fix: Ensure we return the actual text content, not the wrapped response
+    if (response && typeof (response as any).data === 'string') {
+      return (response as any).data;
+    }
+    // Sometimes the response might be nested differently
+    if (response && (response as any).data && typeof (response as any).data === 'object' && (response as any).data.value) {
+      return (response as any).data.value;
+    }
+    // If response.data is directly the string content
+    if (typeof response === 'string') {
+      return response;
+    }
+    
+    return (response as any)?.data || undefined;
   }
 
   // --- ID Mapper Methods ---
