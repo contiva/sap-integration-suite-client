@@ -53,7 +53,7 @@ export function formatSapTimestamp(timestamp: string | number | null | undefined
       minute: '2-digit',
       second: '2-digit'
     });
-  } catch (error) {
+  } catch {
     // On error, return the original value
     return String(timestamp);
   }

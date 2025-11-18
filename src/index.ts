@@ -32,6 +32,8 @@ import { LogFilesClient } from './wrapper/log-files-client';
 import { MessageProcessingLogsClient } from './wrapper/message-processing-logs-client';
 import { MessageStoreClient } from './wrapper/message-store-client';
 import { SecurityContentClient } from './wrapper/security-content-client';
+import { B2BScenariosClient } from './wrapper/b2b-scenarios-client';
+import { PartnerDirectoryClient } from './wrapper/partner-directory-client';
 
 // Utilities
 import { formatSapTimestampsInObject, SapDateUtils } from './utils/date-formatter';
@@ -44,6 +46,8 @@ import * as LogFilesTypes from './types/sap.LogFiles';
 import * as MessageProcessingLogsTypes from './types/sap.MessageProcessingLogs';
 import * as MessageStoreTypes from './types/sap.MessageStore';
 import * as SecurityContentTypes from './types/sap.SecurityContent';
+import * as B2BScenariosTypes from './types/sap.B2BScenarios';
+import * as PartnerDirectoryTypes from './types/sap.PartnerDirectory';
 import * as EnhancedLogTypes from './types/enhanced-logs';
 
 /**
@@ -158,6 +162,16 @@ export {
   SecurityContentTypes,
   
   /**
+   * Type definitions for B2B Scenarios API
+   */
+  B2BScenariosTypes,
+  
+  /**
+   * Type definitions for Partner Directory API
+   */
+  PartnerDirectoryTypes,
+  
+  /**
    * Enhanced type definitions for Message Processing Logs
    */
   EnhancedLogTypes,
@@ -190,5 +204,15 @@ export {
   /**
    * Security Content Client Wrapper
    */
-  SecurityContentClient
+  SecurityContentClient,
+  
+  /**
+   * B2B Scenarios Client Wrapper
+   */
+  B2BScenariosClient,
+  
+  /**
+   * Partner Directory Client Wrapper
+   */
+  PartnerDirectoryClient
 }; 

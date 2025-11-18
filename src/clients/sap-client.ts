@@ -8,20 +8,23 @@
  * @packageDocumentation
  */
 
-import axios, { AxiosInstance, AxiosResponse } from 'axios';
+import axios, { AxiosInstance } from 'axios';
 import { config } from 'dotenv';
 import { Api as IntegrationContentApi } from '../types/sap.IntegrationContent';
 import { Api as LogFilesApi } from '../types/sap.LogFiles';
 import { Api as MessageProcessingLogsApi } from '../types/sap.MessageProcessingLogs';
 import { Api as MessageStoreApi } from '../types/sap.MessageStore';
 import { Api as SecurityContentApi } from '../types/sap.SecurityContent';
-import qs from 'querystring';
+import { Api as B2BScenariosApi } from '../types/sap.B2BScenarios';
+import { Api as PartnerDirectoryApi } from '../types/sap.PartnerDirectory';
 import { IntegrationContentClient } from '../wrapper/integration-content-client';
 import { IntegrationContentAdvancedClient } from '../wrapper/custom/integration-content-advanced-client';
 import { MessageProcessingLogsClient } from '../wrapper/message-processing-logs-client';
 import { LogFilesClient } from '../wrapper/log-files-client';
 import { MessageStoreClient } from '../wrapper/message-store-client';
 import { SecurityContentClient } from '../wrapper/security-content-client';
+import { B2BScenariosClient } from '../wrapper/b2b-scenarios-client';
+import { PartnerDirectoryClient } from '../wrapper/partner-directory-client';
 import { CustomClientRegistry, CustomClientType } from '../wrapper/custom/custom-client-registry';
 import { BaseCustomClient, CustomClientFactory } from '../wrapper/custom/base-custom-client';
 
@@ -192,6 +195,16 @@ class SapClient {
    * Manage security artifacts like credentials and certificates
    */
   public securityContent: SecurityContentClient;
+  /** 
+   * B2B Scenarios API client
+   * Access business documents, orphaned interchanges, and acknowledgements
+   */
+  public b2bScenarios: B2BScenariosClient;
+  /** 
+   * Partner Directory API client
+   * Manage partner information, parameters, and authorized users
+   */
+  public partnerDirectory: PartnerDirectoryClient;
 
   /**
    * Creates a new SAP Client instance
@@ -362,6 +375,18 @@ class SapClient {
     });
     this.securityContent = new SecurityContentClient(securityContentApi);
     
+    const b2bScenariosApi = new B2BScenariosApi({
+      baseUrl: this.baseUrl,
+      customFetch: this.customFetch.bind(this),
+    });
+    this.b2bScenarios = new B2BScenariosClient(b2bScenariosApi);
+    
+    const partnerDirectoryApi = new PartnerDirectoryApi({
+      baseUrl: this.baseUrl,
+      customFetch: this.customFetch.bind(this),
+    });
+    this.partnerDirectory = new PartnerDirectoryClient(partnerDirectoryApi);
+    
     // Custom Clients initialisieren
     if (this.enableCustomClients) {
       this.initializeCustomClients();
@@ -452,13 +477,6 @@ class SapClient {
    */
   private normalizeResponseFormat(data: any): any {
     if (!data) return data;
-
-    // Create a debug info object to help with troubleshooting
-    const debugInfo: any = { 
-      originalType: typeof data,
-      isArray: Array.isArray(data),
-      topLevelKeys: typeof data === 'object' ? Object.keys(data) : []
-    };
 
     // Handle array responses (already normalized)
     if (Array.isArray(data)) {

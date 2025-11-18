@@ -8,11 +8,7 @@
  */
 
 import {
-  ComSapHciApiMessageProcessingLog,
-  ComSapHciApiMessageProcessingLogAdapterAttribute,
-  ComSapHciApiMessageProcessingLogAttachment,
-  ComSapHciApiMessageProcessingLogCustomHeaderProperty,
-  ComSapHciApiMessageProcessingLogErrorInformation
+  ComSapHciApiMessageProcessingLog
 } from './sap.MessageProcessingLogs';
 
 /**

@@ -7,7 +7,6 @@
  * @module sap-integration-suite-client/message-processing-logs-advanced
  */
 
-import { ComSapHciApiMessageProcessingLog, ComSapHciApiMessageProcessingLogErrorInformation } from '../../types/sap.MessageProcessingLogs';
 import { MessageProcessingLogsClient } from '../message-processing-logs-client';
 import { BaseCustomClient, CustomClientFactory } from './base-custom-client';
 import { EnhancedMessageProcessingLog } from '../../types/enhanced-logs';

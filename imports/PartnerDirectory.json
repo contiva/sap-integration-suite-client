@@ -1,0 +1,3158 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "title": "Partner Directory",
+        "version": "1.0.0",
+        "description": "Partner Directory enables you to get, write or delete data. This component contains information on partners that are connected to a tenant in the context of a larger network. Information stored in the Partner Directory can be used to parameterize integration flows.  \nThis API is implemented based on OData version 2 specification."
+    },
+    "externalDocs": {
+        "description": "SAP Cloud Integration documentation: OData API - Partner Directory",
+        "url": "https://help.sap.com/viewer/368c481cd6954bdfa5d0435479fd4eaf/Cloud/en-US/0fe80dc9d3be4dfbbb89ee4c791d326e.html"
+    },
+    "x-sap-api-type": "ODATA",
+    "x-sap-shortText": "Access the Partner Directory to maintain and manage data.",
+    "schemes": [
+        "https"
+    ],
+    "host": "sandbox.api.sap.com",
+    "basePath": "/cpi/api/v1",
+    "x-servers": [
+        {
+            "url": "https://{Account Short Name}-tmn.{SSL Host}.{landscapehost}/api/v1",
+            "description": "SAP Cloud Integration REST API Endpoint",
+            "templates": {
+                "Account Short Name": {
+                    "description": "SAP BTP subaccount short name where Cloud Integration is provided"
+                },
+                "SSL Host": {
+                        "description": "SSL Host"
+                },                
+                "landscapehost": {
+                    "description": "SAP BTP Region Host",
+                    "enum": [
+                        "ae1.hana.ondemand.com",
+                        "ap1.hana.ondemand.com",
+                        "br1.hana.ondemand.com",
+                        "ca1.hana.ondemand.com",
+                        "cn1.hana.ondemand.com",
+                        "eu1.hana.ondemand.com",
+                        "eu2.hana.ondemand.com",
+                        "eu3.hana.ondemand.com",
+                        "hana.ondemand.com",
+                        "hanatrial.ondemand.com",
+                        "jp1.hana.ondemand.com",
+                        "sa1.hana.ondemand.com",
+                        "us1.hana.ondemand.com",
+                        "us2.hana.ondemand.com",
+                        "us3.hana.ondemand.com",
+                        "us4.hana.ondemand.com"
+                    ],
+                    "default": "hana.ondemand.com"
+                }
+            }
+        },
+        {
+            "url": "https://{Custom Name}.{Domain}/api/v1",
+            "description": "SAP Cloud Integration Custom Domain Endpoint - see [Configuring Custom Domains](https://help.sap.com/viewer/368c481cd6954bdfa5d0435479fd4eaf/Cloud/en-US/7230b9ff41914cc0969223e6a020104b.html)",
+            "templates": {
+                "Custom Name": {
+                    "description": "Your defined name for your Cloud Integration account."
+                },
+                "Domain": {
+                    "description": "Your custom domain"
+                }
+            }
+        }
+    ],
+    "securityDefinitions": {
+        "BasicAuthentication": {
+            "type": "basic"
+        }
+    },
+    "security": [
+        {
+            "BasicAuthentication": []
+        }
+    ],
+    "consumes": [
+        "application/json"
+    ],
+    "tags": [
+        {
+            "name": "Alternative Partners"
+        },
+        {
+            "name": "Authorized Users"
+        },
+        {
+            "name": "Binary Parameters"
+        },
+        {
+            "name": "Partners"
+        },
+        {
+            "name": "String Parameters"
+        },
+        {
+            "name": "User Credential Parameters"
+        },
+        {
+            "name": "CSRF Token Handling"
+        }
+    ],
+    "paths": {
+        "/AlternativePartners": {
+            "get": {
+                "description": "You can use the following request to get all alternative partners.",
+                "summary": "Get all alternative partners.",
+                "tags": [
+                    "Alternative Partners"
+                ],
+                "produces": [
+                    "application/json"
+                ],                
+                "parameters": [
+                    {
+                        "$ref": "#/parameters/top"
+                    },
+                    {
+                        "$ref": "#/parameters/skip"
+                    },
+                    {
+                        "$ref": "#/parameters/filter"
+                    },
+                    {
+                        "name": "$orderby",
+                        "in": "query",
+                        "description": "Order items by property values",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "Hexagency",
+                                "Hexagency desc",
+                                "Hexscheme",
+                                "Hexscheme desc",
+                                "Hexid",
+                                "Hexid desc",
+                                "Agency",
+                                "Agency desc",
+                                "Scheme",
+                                "Scheme desc",
+                                "Id",
+                                "Id desc",
+                                "Pid",
+                                "Pid desc",
+                                "LastModifiedBy",
+                                "LastModifiedBy desc",
+                                "LastModifiedTime",
+                                "LastModifiedTime desc",
+                                "CreatedBy",
+                                "CreatedBy desc",
+                                "CreatedTime",
+                                "CreatedTime desc"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "$select",
+                        "in": "query",
+                        "description": "Select properties to be returned.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "Hexagency",
+                                "Hexscheme",
+                                "Hexid",
+                                "Agency",
+                                "Scheme",
+                                "Id",
+                                "Pid",
+                                "LastModifiedBy",
+                                "LastModifiedTime",
+                                "CreatedBy",
+                                "CreatedTime"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved entities",
+                        "schema": {
+                            "title": "Collection of AlternativePartner",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.AlternativePartner"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "results": [
+                                        {
+                                            "Hexagency": "4167656E637958595A",
+                                            "Hexscheme": "4C4F4E47",
+                                            "Hexid": "5265636569766572205072656D69756D",
+                                            "Agency": "AgencyXYZ",
+                                            "Scheme": "LONG",
+                                            "Id": "Receiver Premium",
+                                            "Pid": "Receiver_1",
+                                            "LastModifiedBy": "Tester",
+                                            "LastModifiedTime": "/Date(1516202310720)/",
+                                            "CreatedBy": "Tester",
+                                            "CreatedTime": "/Date(1516202310720)/"
+                                        },
+                                        {
+                                            "Hexagency": "4167656E637958595A",
+                                            "Hexscheme": "4C4F4E47",
+                                            "Hexid": "52656365697665722032",
+                                            "Agency": "AgencyXYZ",
+                                            "Scheme": "LONG",
+                                            "Id": "Receiver 2",
+                                            "Pid": "Receiver_2",
+                                            "LastModifiedBy": "Tester",
+                                            "LastModifiedTime": "/Date(1516202310926)/",
+                                            "CreatedBy": "Tester",
+                                            "CreatedTime": "/Date(1516202310926)/"
+                                        }
+                                    ]
+                                }
+                            } 
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            },
+            "post": {
+                "description": "You can use the following request to add new alternative partner.<br>\nIn API sandbox only read APIs could be tested. You need to configure an API endpoint for your account, where you have the required write permissions to update the partner directory.",
+                "summary": "Add new alternative partner.",
+                "tags": [
+                    "Alternative Partners"
+                ],
+                "produces": [
+                    "application/json"
+                ],                             
+                "parameters": [
+                    {
+                        "name": "AlternativePartner",
+                        "in": "body",
+                        "description": "New entity",
+                        "schema": {
+                            "$ref": "#/definitions/com.sap.hci.api.AlternativePartner-create"
+                        }
+                    },
+                    {
+                        "description": "CSRF token that is valid for the current session (see resource 'CSRF Token Handling').",
+                        "in": "header",
+                        "name": "X-CSRF-Token",
+                        "type": "string",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created entity",                        
+                        "schema": {
+                            "$ref": "#/definitions/com.sap.hci.api.AlternativePartner"
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "Hexagency": "4167656E637958595A",
+                                    "Hexscheme": "4C4F4E47",
+                                    "Hexid": "5265636569766572205072656D69756D",
+                                    "Agency": "AgencyXYZ",
+                                    "Scheme": "LONG",
+                                    "Id": "Receiver Premium",
+                                    "Pid": "Receiver_1",
+                                    "LastModifiedBy": "Tester",
+                                    "LastModifiedTime": "/Date(1516202310720)/",
+                                    "CreatedBy": "Tester",
+                                    "CreatedTime": "/Date(1516202310720)/"
+                                }
+                            } 
+                        }                        
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "500": {
+                        "description": "Internal server error - alternative partner already exists or the request body does not contain the required attributes.",
+                        "examples": {
+                            "application/json": {                        
+                                "error": {
+                                    "code": "Internal Server Error",
+                                    "message": {
+                                        "lang": "en",
+                                        "value": "Problem during creating an entity: Inserting Alternative Partner ID with ID <ID>, scheme <scheme>, and agency <agency> failed: Attempt to insert duplicate key row in object 'ITPD_ALTERNATIVE_PIDS' with unique index 'ITPD_ALTERNATIVE_PIDS_PK'\n"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }                        
+                }
+            }
+        },
+        "/AlternativePartners(Hexagency='{Hexagency}',Hexscheme='{Hexscheme}',Hexid='{Hexid}')": {
+            "get": {
+                "description": "You can use the following request to get an alternative partner by key fields.",
+                "summary": "Get alternative partner by key fields.",
+                "tags": [
+                    "Alternative Partners"
+                ],
+                "produces": [
+                    "application/json"
+                ],               
+                "parameters": [
+                    {
+                        "name": "Hexagency",
+                        "in": "path",
+                        "required": true,
+                        "description": "Hexadecimal value in string format of the values for Agency <br>\nExample: ```4167656E637958595A```",
+                        "type": "string"
+                    },
+                    {
+                        "name": "Hexscheme",
+                        "in": "path",
+                        "required": true,
+                        "description": "Hexadecimal value in string format of the values for Schema <br>\nExample: ```4C4F4E47```",
+                        "type": "string"
+                    },
+                    {
+                        "name": "Hexid",
+                        "in": "path",
+                        "required": true,
+                        "description": "Hexadecimal value in string format of the values for Id <br>\nExample: ```5265636569766572205072656D69756D```",
+                        "type": "string"
+                    },
+                    {
+                        "name": "$select",
+                        "in": "query",
+                        "description": "Select properties to be returned.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "Agency",
+                                "Scheme",
+                                "Id",
+                                "Pid",
+                                "LastModifiedBy",
+                                "LastModifiedTime",
+                                "CreatedBy",
+                                "CreatedTime"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved entity",
+                        "schema": {
+                            "title": "AlternativePartner",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "$ref": "#/definitions/com.sap.hci.api.AlternativePartner"
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "Hexagency": "4167656E637958595A",
+                                    "Hexscheme": "4C4F4E47",
+                                    "Hexid": "5265636569766572205072656D69756D",
+                                    "Agency": "AgencyXYZ",
+                                    "Scheme": "LONG",
+                                    "Id": "Receiver Premium",
+                                    "Pid": "Receiver_1",
+                                    "LastModifiedBy": "Tester",
+                                    "LastModifiedTime": "/Date(1516202310720)/",
+                                    "CreatedBy": "Tester",
+                                    "CreatedTime": "/Date(1516202310720)/"
+                                }
+                            } 
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            },
+            "put": {
+                "description": "You can use the following request to update alternative partner.<br>\nIn API sandbox only read APIs could be tested. You need to configure an API endpoint for your account, where you have the required write permissions to update the partner directory.",
+                "summary": "Update alternative partner.",                
+                "tags": [
+                    "Alternative Partners"
+                ],
+                "produces": [
+                    "application/json"
+                ],                
+                "parameters": [
+                    {
+                        "name": "Hexagency",
+                        "in": "path",
+                        "required": true,
+                        "description": "Hexadecimal value in string format of the values for Agency <br>\nExample: ```4167656E637958595A```",
+                        "type": "string"
+                    },
+                    {
+                        "name": "Hexscheme",
+                        "in": "path",
+                        "required": true,
+                        "description": "Hexadecimal value in string format of the values for Schema <br>\nExample: ```4C4F4E47```",
+                        "type": "string"
+                    },
+                    {
+                        "name": "Hexid",
+                        "in": "path",
+                        "required": true,
+                        "description": "Hexadecimal values in string format of the values for Id <br>\nExample: ```5265636569766572205072656D69756D```",
+                        "type": "string"
+                    },
+                    {
+                        "name": "AlternativePartner",
+                        "in": "body",
+                        "description": "New property values",
+                        "schema": {
+                            "$ref": "#/definitions/com.sap.hci.api.AlternativePartner-update"
+                        }
+                    },
+                    {
+                        "description": "CSRF token that is valid for the current session (see resource 'CSRF Token Handling')",
+                        "in": "header",
+                        "name": "X-CSRF-Token",
+                        "type": "string",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "$ref": "#/responses/204"
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "500": {
+                        "description": "Internal server error - request body does not contain values for expected attributes.",
+                        "examples": {
+                            "application/json": {                        
+                                "error": {
+                                    "code": "Internal Server Error",
+                                    "message": {
+                                        "lang": "en",
+                                        "value": "Problem during updating an entity: Updating Alternative Partner ID with Id <Id>, Scheme <scheme>, and Agency <agency> failed: Attempt to insert NULL value into column 'PID', table 'NEO_7U7D8TZA5XSIZT879SZA6YF6Q.NEO_7U7D8TZA5XSIZT879SZA6YF6Q.ITPD_ALTERNATIVE_PIDS'; column does not allow nulls. Update fails.\n"
+                                    }
+                                }
+                            }
+                        } 
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            },
+            "delete": {
+                "description": "You can use the following request to delete alternative partner.<br>\nIn API sandbox only read APIs could be tested. You need to configure an API endpoint for your account, where you have the required write permissions to update the partner directory.",
+                "summary": "Delete alternative partner.",
+                "tags": [
+                    "Alternative Partners"
+                ],
+                "produces": [
+                    "application/json"
+                ],                               
+                "parameters": [
+                    {
+                        "name": "Hexagency",
+                        "in": "path",
+                        "required": true,
+                        "description": "Hexadecimal value in string format of the values for Agency <br>\nExample: ```4167656E637958595A```",
+                        "type": "string"
+                    },
+                    {
+                        "name": "Hexscheme",
+                        "in": "path",
+                        "required": true,
+                        "description": "Hexadecimal value in string format of the values for Schema <br>\nExample: ```4C4F4E47```",
+                        "type": "string"
+                    },
+                    {
+                        "name": "Hexid",
+                        "in": "path",
+                        "required": true,
+                        "description": "Hexadecimal values in string format of the values for Id <br>\nExample: ```5265636569766572205072656D69756D```",
+                        "type": "string"
+                    },
+                    {
+                        "description": "CSRF token that is valid for the current session (see resource 'CSRF Token Handling')",
+                        "in": "header",
+                        "name": "X-CSRF-Token",
+                        "type": "string",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "$ref": "#/responses/204"
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "500": {
+                        "description": "Internal server error - wrong parameter values.",
+                        "examples": {
+                            "application/json": {                        
+                                "error": {
+                                    "code": "Internal Server Error",
+                                    "message": {
+                                        "lang": "en",
+                                        "value": "Invalid key predicate: 'Hexscheme='...',Hexid='...''"
+                                    }
+                                }
+                            }
+                        } 
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/AuthorizedUsers": {
+            "get": {
+                "description": "You can use the following request to get all authorized users.",
+                "summary": "Get all authorized users.",
+                "tags": [
+                    "Authorized Users"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "name": "user",
+                        "in": "query",
+                        "required": false,
+                        "description": "User which initiates the call",
+                        "type": "string"
+                    },
+                    {
+                        "$ref": "#/parameters/top"
+                    },
+                    {
+                        "$ref": "#/parameters/skip"
+                    },
+                    {
+                        "$ref": "#/parameters/filter"
+                    },
+                    {
+                        "name": "$orderby",
+                        "in": "query",
+                        "description": "Order items by property values.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "User",
+                                "User desc",
+                                "Pid",
+                                "Pid desc",
+                                "LastModifiedBy",
+                                "LastModifiedBy desc",
+                                "LastModifiedTime",
+                                "LastModifiedTime desc",
+                                "CreatedBy",
+                                "CreatedBy desc",
+                                "CreatedTime",
+                                "CreatedTime desc"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "$select",
+                        "in": "query",
+                        "description": "Select properties to be returned.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "User",
+                                "Pid",
+                                "LastModifiedBy",
+                                "LastModifiedTime",
+                                "CreatedBy",
+                                "CreatedTime"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved entities",
+                        "schema": {
+                            "title": "Collection of AuthorizedUser",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.AuthorizedUser"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "results": [
+                                        {
+                                            "User": "oauth_client_client_sender_oauth",
+                                            "Pid": "Sender_OAUTH",
+                                            "LastModifiedBy": "Tester",
+                                            "LastModifiedTime": "/Date(1516202313046)/",
+                                            "CreatedBy": "Tester",
+                                            "CreatedTime": "/Date(1516202313046)/"
+                                        },
+                                        {
+                                            "User": "user_for_sender_cert",
+                                            "Pid": "Sender_CERT",
+                                            "LastModifiedBy": "Tester",
+                                            "LastModifiedTime": "/Date(1516202314266)/",
+                                            "CreatedBy": "Tester",
+                                            "CreatedTime": "/Date(1516202314266)/"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            },
+            "post": {
+                "description": "You can use the following request to add new authorized user.<br>\nIn API sandbox only read APIs could be tested. You need to configure an API endpoint for your account, where you have the required write permissions to update the partner directory.",
+                "summary": "Add new authorized user.",
+                "tags": [
+                    "Authorized Users"
+                ],
+                "produces": [
+                    "application/json"
+                ],                
+                "parameters": [
+                    {
+                        "name": "AuthorizedUser",
+                        "in": "body",
+                        "description": "New authorized user",
+                        "schema": {
+                            "$ref": "#/definitions/com.sap.hci.api.AuthorizedUser-create"
+                        }
+                    },
+                    {
+                        "name": "user",
+                        "in": "query",
+                        "required": false,
+                        "description": "User which initiates the call",
+                        "type": "string"
+                    },
+                    {
+                        "description": "CSRF token that is valid for the current session (see resource 'CSRF Token Handling')",
+                        "in": "header",
+                        "name": "X-CSRF-Token",
+                        "type": "string",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created AuthorizedUser",
+                        "schema": {
+                            "$ref": "#/definitions/com.sap.hci.api.AuthorizedUser"
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "User": "oauth_client_client_sender_oauth",
+                                    "Pid": "Sender_OAUTH",
+                                    "LastModifiedBy": "Tester",
+                                    "LastModifiedTime": "/Date(1516202313046)/",
+                                    "CreatedBy": "Tester",
+                                    "CreatedTime": "/Date(1516202313046)/"
+                                }
+                            } 
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "500": {
+                        "description": "Internal server error - authorized user already exists or request body does not contain the expected content.",
+                        "examples": {
+                            "application/json": {                        
+                                "error": {
+                                    "code": "Internal Server Error",
+                                    "message": {
+                                        "lang": "en",
+                                        "value": "Problem during creating an entity: Inserting Authorized User with user <user> failed: Attempt to insert duplicate key row in object 'ITPD_AUTHORIZED_USERS' with unique index 'PK_ITPD_AUTHORIZED_USERS'\n"
+                                    }
+                                }
+                            }
+                        } 
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }                    
+                }
+            }
+        },
+        "/AuthorizedUsers('{User}')": {
+            "get": {
+                "description": "You can use the following request to get an authorized user by key.",
+                "summary": "Get authorized user by key.",
+                "tags": [
+                    "Authorized Users"
+                ],
+                "produces": [
+                    "application/json"
+                ],                
+                "parameters": [
+                    {
+                        "name": "User",
+                        "in": "path",
+                        "required": true,
+                        "description": "Authorized user <br>\nExample: ```oauth_client_client_sender_oauth```",
+                        "type": "string"
+                    },
+                    {
+                        "name": "user",
+                        "in": "query",
+                        "required": false,
+                        "description": "User which initiates the call",
+                        "type": "string"
+                    },
+                    {
+                        "name": "$select",
+                        "in": "query",
+                        "description": "Select properties to be returned.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "Pid",
+                                "LastModifiedBy",
+                                "LastModifiedTime",
+                                "CreatedBy",
+                                "CreatedTime"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved entity",
+                        "schema": {
+                            "title": "AuthorizedUser",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "$ref": "#/definitions/com.sap.hci.api.AuthorizedUser"
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "User": "oauth_client_client_sender_oauth",
+                                    "Pid": "Sender_OAUTH",
+                                    "LastModifiedBy": "Tester",
+                                    "LastModifiedTime": "/Date(1516202313046)/",
+                                    "CreatedBy": "Tester",
+                                    "CreatedTime": "/Date(1516202313046)/"
+                                }
+                            } 
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            },
+            "put": {
+                "description": "You can use the following request to update authorized user.<br>\nIn API sandbox only read APIs could be tested. You need to configure an API endpoint for your account, where you have the required write permissions to update the partner directory.",
+                "summary": "Update authorized user.",
+                "tags": [
+                    "Authorized Users"
+                ],
+                "produces": [
+                    "application/json"
+                ],                
+                "parameters": [
+                    {
+                        "name": "User",
+                        "in": "path",
+                        "required": true,
+                        "description": "Authorized user which should be updated",
+                        "type": "string"
+                    },
+                    {
+                        "name": "AuthorizedUser",
+                        "in": "body",
+                        "description": "New property values",
+                        "schema": {
+                            "$ref": "#/definitions/com.sap.hci.api.AuthorizedUser-update"
+                        }
+                    },
+                    {
+                        "name": "user",
+                        "in": "query",
+                        "required": false,
+                        "description": "User which initiates the call",
+                        "type": "string"
+                    },
+                    {
+                        "description": "CSRF token that is valid for the current session (see resource 'CSRF Token Handling')",
+                        "in": "header",
+                        "name": "X-CSRF-Token",
+                        "type": "string",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "$ref": "#/responses/204"
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "500": {
+                        "description": "Internal server error - request body does not contain the expected content.",
+                        "examples": {
+                            "application/json": {                        
+                                "error": {
+                                    "code": "Internal Server Error",
+                                    "message": {
+                                        "lang": "en",
+                                        "value": "Problem during updating an entity: Updating Authorized User with User <user> failed: Attempt to insert NULL value into column 'PID', table 'NEO_7U7D8TZA5XSIZT879SZA6YF6Q.NEO_7U7D8TZA5XSIZT879SZA6YF6Q.ITPD_AUTHORIZED_USERS'; column does not allow nulls. Update fails."
+                                    }
+                                }
+                            }
+                        } 
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            },
+            "delete": {
+                "description": "You can use the following request to delete authorized users.<br>\nIn API sandbox only read APIs could be tested. You need to configure an API endpoint for your account, where you have the required write permissions to update the partner directory.",
+                "summary": "Delete authorized users.",
+                "tags": [
+                    "Authorized Users"
+                ],
+                "produces": [
+                    "application/json"
+                ],                
+                "parameters": [
+                    {
+                        "name": "User",
+                        "in": "path",
+                        "required": true,
+                        "description": "Authorized user which should be deleted",
+                        "type": "string"
+                    },
+                    {
+                        "name": "user",
+                        "in": "query",
+                        "required": false,
+                        "description": "User which initiates the call",
+                        "type": "string"
+                    },
+                    {
+                        "description": "CSRF token that is valid for the current session (see resource 'CSRF Token Handling')",
+                        "in": "header",
+                        "name": "X-CSRF-Token",
+                        "type": "string",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "$ref": "#/responses/204"
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/BinaryParameters": {
+            "get": {
+                "description": "You can use the following request to get all binary parameters.",
+                "summary": "Get all binary parameters.",
+                "tags": [
+                    "Binary Parameters"
+                ],
+                "produces": [
+                    "application/json"
+                ],                
+                "parameters": [
+                    {
+                        "name": "user",
+                        "in": "query",
+                        "required": false,
+                        "description": "User which initiates the call",
+                        "type": "string"
+                    },
+                    {
+                        "$ref": "#/parameters/top"
+                    },
+                    {
+                        "$ref": "#/parameters/skip"
+                    },
+                    {
+                        "$ref": "#/parameters/filter"
+                    },
+                    {
+                        "name": "$orderby",
+                        "in": "query",
+                        "description": "Order items by property values",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "ContentType",
+                                "ContentType desc",
+                                "Value",
+                                "Value desc"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "$select",
+                        "in": "query",
+                        "description": "Select properties to be returned",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "ContentType",
+                                "Value"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved entities",
+                        "schema": {
+                            "title": "Collection of BinaryParameter",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {                                
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.BinaryParameter"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "results": [
+                                        {                                
+                                            "Pid": "Sender_BASIC",
+                                            "Id": "SENDER_XSLT",
+                                            "LastModifiedBy": "Tester",
+                                            "LastModifiedTime": "/Date(1516202309300)/",
+                                            "CreatedBy": "Tester",
+                                            "CreatedTime": "/Date(1516202309300)/",
+                                            "ContentType": "zip",
+                                            "Value": "UEsDBBQAAAAIAOlpEEvcQmtFyQEAACAFAAAQAAAAc2VuZGVyX2Jhc2ljLnhzbMWUW2vbMBTHn1PodxB6d7RuL4uxXWiajcI2RtKOvRkhn8QC3ZCO4+TbT7aT5tILHWVM+MESv//5n3N0ya43WpE1+CCtyenV+AMlYIStpFnl9OH+S/KZXheXF9kmqDTgVkGoAfCg+BgVlxckjhjIhDRyOa0RXcpY27bj9tPY+hW7mkwm7PfiG7v33ISl9fpEVQv5qArcjYXVTCKLzGgANJdmIEJEulnP7ILARqimgsRDaBQmzsNSbiBEgZA0Zk8GrC9Camc9kjoyOXVV+hUMeCl+co/xp8u/bFCq9EYa7reUncltg65BogFrW+U0Zve0YUSaCgzm1FhKzgMgaKc4AtEcRZ1T1ie4G9l3CIGvIC6NRqOe586pbbJXBVZ03JGCHSTD/NikixO/Z40XELP0tEMGQHClHo2I4RpyGgBL560Dj1t6lFUrsU4c91zvwD1UdlNaLGY/bmfz8u42Y6f4m2KsuWqAkgAKRGzjuN+FqGJP0nyl6hc7PgcBcv3PSp/PprO7X/+5+Oe3vLs36Y2thnp67dQajGe16PneOrHLE/OM7Zm/tZs23se7ceT2Uq9x/yqUYqcp45WCV9se+vN7Jnhn24a1wztX/AFQSwECHwAUAAAACADpaRBL3EJrRckBAAAgBQAAEAAkAAAAAAAAACAAAAAAAAAAc2VuZGVyX2Jhc2ljLnhzbAoAIAAAAAAAAQAYAM9Dm/GAFtMBfn7PHpgV0wFsY8kemBXTAVBLBQYAAAAAAQABAGIAAAD3AQAAAAA="
+                                           },                                        
+                                        {
+                                            "Pid": "GenericPartner",
+                                            "Id": "xsl_util",
+                                            "LastModifiedBy": "Tester",
+                                            "LastModifiedTime": "/Date(1516202309566)/",
+                                            "CreatedBy": "Tester",
+                                            "CreatedTime": "/Date(1516202309566)/",
+                                            "ContentType": "zip",
+                                            "Value": "UEsDBBQAAAAIAJlpEEvRr/FglgEAAGEDAAAMAAAAeHNsX3V0aWwueHNsdZNdS8MwFIavK/gfQhio4BY/blxZJyjqjRfiBwgiI6ZnWzBNwkm6rf/e9Gtb3daL0rTPe97z5qSj21WmyALQSaMTejm4oAS0MKnUs4R+vD/2b+jt+PhotHIqdr5Q4OYAfqO4CorjIxKuUEi7OHAJnXtvY8aWy+VgeT0wOGOXw+GQfb49s3fk2k0NZh3VXMi1ynE7ECZj0rPARDWQcalrwgWkXFVMUwRWQuUp9BFcrnzfIkzlClwQCEnHNVPfqxyWI8+I5hkkNEjnXM+AssBFW9CCo+Q/ChruPkcMG1PcmxQcJQ4UCJ/Q1Ig8A+1PT2waP4EGlOKFow8PcUcS30nNsTg5a42iysVDZhX3rYtvd2ciGvEkzALKDBHZ278DnQL+w0nlEZFR28K4iaRy6Jvpuvtep0X2bMzvh2UP2mPx9VYVLj8kvX0m3+wVBMhFzYRUI7Z2K9Ox7XjVDA5kduAnFo0F9MU66E7OlpiUyzbgYaqK2sF2woezEQfvl0Zy2muPwjnpddy211WVZoY7EcNU63ebH2X8B1BLAQIfABQAAAAIAJlpEEvRr/FglgEAAGEDAAAMACQAAAAAAAAAIAAAAAAAAAB4c2xfdXRpbC54c2wKACAAAAAAAAEAGAAVgvuYgBbTAa11N2KAFtMBrXU3YoAW0wFQSwUGAAAAAAEAAQBeAAAAwAEAAAAA"
+                                        }                                        
+                                    ]
+                                }
+                            } 
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            },
+            "post": {
+                "description": "You can use the following request to add a new binary parameter.<br>\nIn API sandbox only read APIs could be tested. You need to configure an API endpoint for your account, where you have the required write permissions to update the partner directory.",
+                "summary": "Add a new binary parameter.",
+                "tags": [
+                    "Binary Parameters"
+                ],
+                "produces": [
+                    "application/json"
+                ],                
+                "parameters": [
+                    {
+                        "name": "BinaryParameter",
+                        "in": "body",
+                        "description": "New binary parameter",
+                        "schema": {
+                            "$ref": "#/definitions/com.sap.hci.api.BinaryParameter-create"
+                        }
+                    },
+                    {
+                        "name": "user",
+                        "in": "query",
+                        "required": false,
+                        "description": "User which initiates the call",
+                        "type": "string"
+                    },
+                    {
+                        "description": "CSRF token that is valid for the current session (see resource 'CSRF Token Handling')",
+                        "in": "header",
+                        "name": "X-CSRF-Token",
+                        "type": "string",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created BinaryParameter",
+                        "schema": {
+                            "$ref": "#/definitions/com.sap.hci.api.BinaryParameter"
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "Pid": "GenericPartner",
+                                    "Id": "xsl_util",
+                                    "LastModifiedBy": "Tester",
+                                    "LastModifiedTime": "/Date(1516202309566)/",
+                                    "CreatedBy": "Tester",
+                                    "CreatedTime": "/Date(1516202309566)/",
+                                    "ContentType": "zip",
+                                    "Value": "UEsDBBQAAAAIAJlpEEvRr/FglgEAAGEDAAAMAAAAeHNsX3V0aWwueHNsdZNdS8MwFIavK/gfQhio4BY/blxZJyjqjRfiBwgiI6ZnWzBNwkm6rf/e9Gtb3daL0rTPe97z5qSj21WmyALQSaMTejm4oAS0MKnUs4R+vD/2b+jt+PhotHIqdr5Q4OYAfqO4CorjIxKuUEi7OHAJnXtvY8aWy+VgeT0wOGOXw+GQfb49s3fk2k0NZh3VXMi1ynE7ECZj0rPARDWQcalrwgWkXFVMUwRWQuUp9BFcrnzfIkzlClwQCEnHNVPfqxyWI8+I5hkkNEjnXM+AssBFW9CCo+Q/ChruPkcMG1PcmxQcJQ4UCJ/Q1Ig8A+1PT2waP4EGlOKFow8PcUcS30nNsTg5a42iysVDZhX3rYtvd2ciGvEkzALKDBHZ278DnQL+w0nlEZFR28K4iaRy6Jvpuvtep0X2bMzvh2UP2mPx9VYVLj8kvX0m3+wVBMhFzYRUI7Z2K9Ox7XjVDA5kduAnFo0F9MU66E7OlpiUyzbgYaqK2sF2woezEQfvl0Zy2muPwjnpddy211WVZoY7EcNU63ebH2X8B1BLAQIfABQAAAAIAJlpEEvRr/FglgEAAGEDAAAMACQAAAAAAAAAIAAAAAAAAAB4c2xfdXRpbC54c2wKACAAAAAAAAEAGAAVgvuYgBbTAa11N2KAFtMBrXU3YoAW0wFQSwUGAAAAAAEAAQBeAAAAwAEAAAAA"
+                                }
+                            } 
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "500": {
+                        "description": "Internal server error - binary parameter already exists or request body does not contain the expected content.",
+                        "examples": {
+                            "application/json": {                        
+                                "error": {
+                                    "code": "Internal Server Error",
+                                    "message": {
+                                        "lang": "en",
+                                        "value": "Problem during creating an entity: Inserting Binary Parameter with partner ID <partner ID> and parameter ID <parameter ID> failed: Attempt to insert duplicate key row in object 'ITPD_BINARY_PAS' with unique index 'ITPD_BINARY_PAS_PK'\n"
+                                    }
+                                }
+                            }
+                        } 
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/BinaryParameters(Pid='{Pid}',Id='{Id}')": {
+            "get": {
+                "description": "You can use the following request to get a binary parameter by key.",
+                "summary": "Get binary parameter by key",
+                "tags": [
+                    "Binary Parameters"
+                ],
+                "produces": [
+                    "application/json"
+                ],                
+                "parameters": [
+                    {
+                        "name": "Pid",
+                        "in": "path",
+                        "required": true,
+                        "description": "Internal identifier of a partner <br>\nExample: ```GenericPartner```",
+                        "type": "string"
+                    },
+                    {
+                        "name": "Id",
+                        "in": "path",
+                        "required": true,
+                        "description": "Internal identifier of a parameter <br>\nExample: ```xsl_util```",
+                        "type": "string"
+                    },
+                    {
+                        "name": "user",
+                        "in": "query",
+                        "required": false,
+                        "description": "User which initiates the call",
+                        "type": "string"
+                    },
+                    {
+                        "name": "$select",
+                        "in": "query",
+                        "description": "Select properties to be returned.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "ContentType",
+                                "Value"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved entity",
+                        "schema": {
+                            "title": "BinaryParameter",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "$ref": "#/definitions/com.sap.hci.api.BinaryParameter"
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "Pid": "GenericPartner",
+                                    "Id": "xsl_util",
+                                    "LastModifiedBy": "Tester",
+                                    "LastModifiedTime": "/Date(1516202309566)/",
+                                    "CreatedBy": "Tester",
+                                    "CreatedTime": "/Date(1516202309566)/",
+                                    "ContentType": "zip",
+                                    "Value": "UEsDBBQAAAAIAJlpEEvRr/FglgEAAGEDAAAMAAAAeHNsX3V0aWwueHNsdZNdS8MwFIavK/gfQhio4BY/blxZJyjqjRfiBwgiI6ZnWzBNwkm6rf/e9Gtb3daL0rTPe97z5qSj21WmyALQSaMTejm4oAS0MKnUs4R+vD/2b+jt+PhotHIqdr5Q4OYAfqO4CorjIxKuUEi7OHAJnXtvY8aWy+VgeT0wOGOXw+GQfb49s3fk2k0NZh3VXMi1ynE7ECZj0rPARDWQcalrwgWkXFVMUwRWQuUp9BFcrnzfIkzlClwQCEnHNVPfqxyWI8+I5hkkNEjnXM+AssBFW9CCo+Q/ChruPkcMG1PcmxQcJQ4UCJ/Q1Ig8A+1PT2waP4EGlOKFow8PcUcS30nNsTg5a42iysVDZhX3rYtvd2ciGvEkzALKDBHZ278DnQL+w0nlEZFR28K4iaRy6Jvpuvtep0X2bMzvh2UP2mPx9VYVLj8kvX0m3+wVBMhFzYRUI7Z2K9Ox7XjVDA5kduAnFo0F9MU66E7OlpiUyzbgYaqK2sF2woezEQfvl0Zy2muPwjnpddy211WVZoY7EcNU63ebH2X8B1BLAQIfABQAAAAIAJlpEEvRr/FglgEAAGEDAAAMACQAAAAAAAAAIAAAAAAAAAB4c2xfdXRpbC54c2wKACAAAAAAAAEAGAAVgvuYgBbTAa11N2KAFtMBrXU3YoAW0wFQSwUGAAAAAAEAAQBeAAAAwAEAAAAA"
+                                }
+                            } 
+                        }                        
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            },
+            "put": {
+                "description": "You can use the following request to update binary parameter by key.<br>\nIn API sandbox only read APIs could be tested. You need to configure an API endpoint for your account, where you have the required write permissions to update the partner directory.",
+                "summary": "Update binary parameter by key.",
+                "tags": [
+                    "Binary Parameters"
+                ],
+                "produces": [
+                    "application/json"
+                ],                
+                "parameters": [
+                    {
+                        "name": "Pid",
+                        "in": "path",
+                        "required": true,
+                        "description": "Internal identifier of a partner <br>\nExample: ```GenericPartner```",
+                        "type": "string"
+                    },
+                    {
+                        "name": "Id",
+                        "in": "path",
+                        "required": true,
+                        "description": "Internal identifier of a parameter <br>\nExample: ```xsl_util```",
+                        "type": "string"
+                    },
+                    {
+                        "name": "BinaryParameter",
+                        "in": "body",
+                        "description": "New parameter value",
+                        "schema": {
+                            "$ref": "#/definitions/com.sap.hci.api.BinaryParameter-update"
+                        }
+                    },
+                    {
+                        "name": "user",
+                        "in": "query",
+                        "required": false,
+                        "description": "User which initiates the call",
+                        "type": "string"
+                    },
+                    {
+                        "description": "CSRF token that is valid for the current session (see resource 'CSRF Token Handling')",
+                        "in": "header",
+                        "name": "X-CSRF-Token",
+                        "type": "string",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "$ref": "#/responses/204"
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "500": {
+                        "description": "Internal server error - request body does not contain the expected content.",
+                        "examples": {
+                            "application/json": {                        
+                                "error": {
+                                    "code": "Internal Server Error",
+                                    "message": {
+                                        "lang": "en",
+                                        "value": "Problem during updating an entity: Updating Binary Parameter with partner ID <parnter ID> and parameter ID <parameter ID> failed: Attempt to insert NULL value into column 'CONTENT_TYPE', table 'NEO_7U7D8TZA5XSIZT879SZA6YF6Q.NEO_7U7D8TZA5XSIZT879SZA6YF6Q.ITPD_BINARY_PAS'; column does not allow nulls. Update fails.\n"
+                                    }
+                                }
+                            }
+                        } 
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            },
+            "delete": {
+                "description": "You can use the following request to delete binary parameter.<br>\nIn API sandbox only read APIs could be tested. You need to configure an API endpoint for your account, where you have the required write permissions to update the partner directory.",
+                "summary": "Delete binary parameter.",
+                "tags": [
+                    "Binary Parameters"
+                ],
+                "produces": [
+                    "application/json"
+                ],                
+                "parameters": [
+                    {
+                        "name": "Pid",
+                        "in": "path",
+                        "required": true,
+                        "description": "Internal identifier of a partner <br>\nExample: ```GenericPartner```",
+                        "type": "string"
+                    },
+                    {
+                        "name": "Id",
+                        "in": "path",
+                        "required": true,
+                        "description": "Internal identifier of a parameter <br>\nExample: ```xsl_util```",
+                        "type": "string"
+                    },
+                    {
+                        "name": "user",
+                        "in": "query",
+                        "required": false,
+                        "description": "User which initiates the call",
+                        "type": "string"
+                    },
+                    {
+                        "description": "CSRF token that is valid for the current session (see resource 'CSRF Token Handling')",
+                        "in": "header",
+                        "name": "X-CSRF-Token",
+                        "type": "string",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "$ref": "#/responses/204"
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/Partners": {
+            "get": {
+                "description": "You can use the following request to get all partners.",
+                "summary": "Get all partners.",
+                "tags": [
+                    "Partners"
+                ],
+                "produces": [
+                    "application/json"
+                ],                
+                "parameters": [
+                    {
+                        "name": "user",
+                        "in": "query",
+                        "required": false,
+                        "description": "User which initiates the call",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved entities",
+                        "schema": {
+                            "title": "Collection of Partner",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.Partner"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "results": [
+                                        {                               
+                                            "Pid": "GenericPartner"
+                                        },
+                                        {
+                                            "Pid": "Sender_BASIC"
+                                        }
+                                    ]
+                                }
+                            } 
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/Partners('{Pid}')": {
+            "delete": {
+                "description": "You can use the following request to delete partner.<br>\nIn API sandbox only read APIs could be tested. You need to configure an API endpoint for your account, where you have the required write permissions to update the partner directory.",
+                "summary": "Delete partner.",
+                "tags": [
+                    "Partners"
+                ],
+                "produces": [
+                    "application/json"
+                ],                
+                "parameters": [
+                    {
+                        "name": "Pid",
+                        "in": "path",
+                        "required": true,
+                        "description": "Internal identifier of a partner which should be deleted <br>\nExample: ```GenericPartner```",
+                        "type": "string"
+                    },
+                    {
+                        "name": "exclude",
+                        "in": "query",
+                        "description": "Exclude certain entity types from deletion",
+                        "type": "array",
+                        "uniqueItems": false,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "AuthorizedUsers",
+                                "AlternativePartners",
+                                "BinaryParameters",
+                                "StringParameters",
+                                "UserCredentialParameters"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "user",
+                        "in": "query",
+                        "required": false,
+                        "description": "User which initiates the call",
+                        "type": "string"
+                    },
+                    {
+                        "description": "CSRF token that is valid for the current session (see resource 'CSRF Token Handling')",
+                        "in": "header",
+                        "name": "X-CSRF-Token",
+                        "type": "string",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "$ref": "#/responses/204"
+                    },
+                     "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/StringParameters": {
+            "get": {
+                "description": "You can use the following request to get all string parameters.",
+                "summary": "Get all string parameters.",
+                "tags": [
+                    "String Parameters"
+                ],
+                "produces": [
+                    "application/json"
+                ],                
+                "parameters": [
+                    {
+                        "name": "user",
+                        "in": "query",
+                        "required": false,
+                        "description": "User which initiates the call",
+                        "type": "string"
+                    },
+                    {
+                        "$ref": "#/parameters/top"
+                    },
+                    {
+                        "$ref": "#/parameters/skip"
+                    },
+                    {
+                        "$ref": "#/parameters/filter"
+                    },
+                    {
+                        "name": "$orderby",
+                        "in": "query",
+                        "description": "Order items by property values.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "Value",
+                                "Value desc"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "$select",
+                        "in": "query",
+                        "description": "Select properties to be returned.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "Value"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved entities",
+                        "schema": {
+                            "title": "Collection of StringParameter",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.StringParameter"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "results": [
+                                        {
+                                            "Pid": "Sender_BASIC",
+                                            "Id": "AGENCY",
+                                            "LastModifiedBy": "Tester",
+                                            "LastModifiedTime": "/Date(1516202308053)/",
+                                            "CreatedBy": "Tester",
+                                            "CreatedTime": "/Date(1516202308053)/",
+                                            "Value": "AgencyXYZ"
+                                        },
+                                        {
+                                            "Pid": "Receiver_1",
+                                            "Id": "ADDRESS",
+                                            "LastModifiedBy": "Tester",
+                                            "LastModifiedTime": "/Date(1516202307726)/",
+                                            "CreatedBy": "Tester",
+                                            "CreatedTime": "/Date(1516202307726)/",
+                                            "Value": "https://cpisbsa1-iflmap.avtsbhf.eu1.hana.ondemand.com/cxf/receiver_1"
+                                        }
+                                    ]
+                                }
+                            } 
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            },
+            "post": {
+                "description": "You can use the following request to add new string parameter.<br>\nIn API sandbox only read APIs could be tested. You need to configure an API endpoint for your account, where you have the required write permissions to update the partner directory.",
+                "summary": "Add new string parameter.",
+                "tags": [
+                    "String Parameters"
+                ],
+                "produces": [
+                    "application/json"
+                ],                
+                "parameters": [
+                    {
+                        "name": "StringParameter",
+                        "in": "body",
+                        "description": "New string parameter",
+                        "schema": {
+                            "$ref": "#/definitions/com.sap.hci.api.StringParameter-create"
+                        }
+                    },
+                    {
+                        "name": "user",
+                        "in": "query",
+                        "required": false,
+                        "description": "User which initiates the call",
+                        "type": "string"
+                    },
+                    {
+                        "description": "CSRF token that is valid for the current session (see resource 'CSRF Token Handling')",
+                        "in": "header",
+                        "name": "X-CSRF-Token",
+                        "type": "string",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created string parameter",
+                        "schema": {
+                            "$ref": "#/definitions/com.sap.hci.api.StringParameter"
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {                                
+                                    "Pid": "Sender_BASIC",
+                                    "Id": "AGENCY",
+                                    "LastModifiedBy": "Tester",
+                                    "LastModifiedTime": "/Date(1516202308053)/",
+                                    "CreatedBy": "Tester",
+                                    "CreatedTime": "/Date(1516202308053)/",
+                                    "Value": "AgencyXYZ"
+                                }
+                            } 
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "500": {
+                        "description": "Internal server error - string parameter already exists or request body does not contain the expected content.",
+                        "examples": {
+                            "application/json": {                        
+                                "error": {
+                                    "code": "Internal Server Error",
+                                    "message": {
+                                        "lang": "en",
+                                        "value": "Problem during creating an entity: Inserting String Parameter with partner ID <partner ID> and parameter ID <parameter ID> failed: Attempt to insert duplicate key row in object 'ITPD_STRING_PAS' with unique index 'ITPD_STRING_PAS_PK'\n"
+                                    }
+                                }
+                            }
+                        }  
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/StringParameters(Pid='{Pid}',Id='{Id}')": {
+            "get": {
+                "description": "You can use the following request to get a string parameter by key.",
+                "summary": "Get string parameter by key.",
+                "tags": [
+                    "String Parameters"
+                ],
+                "produces": [
+                    "application/json"
+                ],                
+                "parameters": [
+                    {
+                        "name": "Pid",
+                        "in": "path",
+                        "required": true,
+                        "description": "Internal identifier of a partner <br>\nExample: ```Sender_BASIC```",
+                        "type": "string"
+                    },
+                    {
+                        "name": "Id",
+                        "in": "path",
+                        "required": true,
+                        "description": "Internal identifier of a parameter <br>\nExample: ```AGENCY```",
+                        "type": "string"
+                    },
+                    {
+                        "name": "user",
+                        "in": "query",
+                        "required": false,
+                        "description": "User which initiates the call",
+                        "type": "string"
+                    },
+                    {
+                        "name": "$select",
+                        "in": "query",
+                        "description": "Select properties to be returned.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "Value"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved entity",
+                        "schema": {
+                            "title": "StringParameter",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "$ref": "#/definitions/com.sap.hci.api.StringParameter"
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {                                
+                                    "Pid": "Sender_BASIC",
+                                    "Id": "AGENCY",
+                                    "LastModifiedBy": "Tester",
+                                    "LastModifiedTime": "/Date(1516202308053)/",
+                                    "CreatedBy": "Tester",
+                                    "CreatedTime": "/Date(1516202308053)/",
+                                    "Value": "AgencyXYZ"
+                                }
+                            } 
+                        }                        
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            },
+            "put": {
+                "description": "You can use the following request to update string parameter.<br>\nIn API sandbox only read APIs could be tested. You need to configure an API endpoint for your account, where you have the required write permissions to update the partner directory.",
+                "summary": "Update string parameter.",
+                "tags": [
+                    "String Parameters"
+                ],
+                "produces": [
+                    "application/json"
+                ],                
+                "parameters": [
+                    {
+                        "name": "Pid",
+                        "in": "path",
+                        "required": true,
+                        "description": "Internal identifier of a partner <br>\nExample: ```Sender_BASIC```",
+                        "type": "string"
+                    },
+                    {
+                        "name": "Id",
+                        "in": "path",
+                        "required": true,
+                        "description": "Internal identifier of a parameter <br>\nExample: ```AGENCY```",
+                        "type": "string"
+                    },
+                    {
+                        "name": "StringParameter",
+                        "in": "body",
+                        "description": "New string parameter",
+                        "schema": {
+                            "$ref": "#/definitions/com.sap.hci.api.StringParameter-update"
+                        }
+                    },
+                    {
+                        "name": "user",
+                        "in": "query",
+                        "required": false,
+                        "description": "User which initiates the call",
+                        "type": "string"
+                    },
+                    {
+                        "description": "CSRF token that is valid for the current session (see resource 'CSRF Token Handling')",
+                        "in": "header",
+                        "name": "X-CSRF-Token",
+                        "type": "string",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "$ref": "#/responses/204"
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            },
+            "delete": {
+                "description": "You can use the following request to delete string parameter.<br>\nIn API sandbox only read APIs could be tested. You need to configure an API endpoint for your account, where you have the required write permissions to update the partner directory.",
+                "summary": "Delete string parameter.",
+                "tags": [
+                    "String Parameters"
+                ],
+                "produces": [
+                    "application/json"
+                ],                
+                "parameters": [
+                    {
+                        "name": "Pid",
+                        "in": "path",
+                        "required": true,
+                        "description": "Internal identifier of a partner <br>\nExample: ```Sender_BASIC```",
+                        "type": "string"
+                    },
+                    {
+                        "name": "Id",
+                        "in": "path",
+                        "required": true,
+                        "description": "Internal identifier of a parameter <br>\nExample: ```AGENCY```",
+                        "type": "string"
+                    },
+                    {
+                        "name": "user",
+                        "in": "query",
+                        "required": false,
+                        "description": "User which initiates the call",
+                        "type": "string"
+                    },
+                    {
+                        "description": "CSRF token that is valid for the current session (see resource 'CSRF Token Handling')",
+                        "in": "header",
+                        "name": "X-CSRF-Token",
+                        "type": "string",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "$ref": "#/responses/204"
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/UserCredentialParameters": {
+            "get": {
+                "description": "You can use the following request to get all user credential parameters.",
+                "summary": "Get all user credential parameters.",
+                "tags": [
+                    "User Credential Parameters"
+                ],
+                "produces": [
+                    "application/json"
+                ],                
+                "parameters": [
+                    {
+                        "name": "user",
+                        "in": "query",
+                        "required": false,
+                        "description": "User which initiates the call",
+                        "type": "string"
+                    },
+                    {
+                        "name": "$filter",
+                        "in": "query",
+                        "description": "Filter is required for partner identifier (Pid) with equals operator (eq).<br>\nExample: ```Pid eq 'Receiver_1'```",
+                        "required": true,
+                        "type": "string",
+                        "default": "Pid eq ''"
+                    },
+                    {
+                        "name": "$select",
+                        "in": "query",
+                        "description": "Select properties to be returned.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "Id",
+                                "Pid",
+                                "User",
+                                "CreatedBy",
+                                "CreatedTime",
+                                "LastModifiedBy",
+                                "LastModifiedTime"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved entities",
+                        "schema": {
+                            "title": "Collection of UserCredentialParameter",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.UserCredentialParameter"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "results": [
+                                        {
+                                            "Pid": "Receiver_1",
+                                            "Id": "USER",
+                                            "LastModifiedBy": "Tester",
+                                            "LastModifiedTime": "/Date(1516201876749)/",
+                                            "CreatedBy": "Tester",
+                                            "CreatedTime": "/Date(1516201876749)/",
+                                            "User": "user_receiver_1",
+                                            "Password": null
+                                        }                                        
+                                    ]
+                                }
+                            } 
+                        }                        
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "500": {
+                        "description": "Internal server error - required filter query parameter for partner ID is not correctly entered.",
+                        "examples": {
+                            "application/json": {                        
+                                "error": {
+                                    "code": "Internal Server Error",
+                                    "message": {
+                                        "lang": "en",
+                                        "value": "Filter 'Pid eq ''' is not supported in UserCredentialParameters query. Only filters of the form \"$filter=Pid eq 'parterId1'\" are supported."
+                                    }
+                                }
+                            }
+                        }  
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }                    
+                }
+            },
+            "post": {
+                "description": "You can use the following request to add/update user credential parameter.<br>\nIn API sandbox only read APIs could be tested. You need to configure an API endpoint for your account, where you have the required write permissions to update the partner directory.",
+                "summary": "Add/update user credential parameter.",
+                "tags": [
+                    "User Credential Parameters"
+                ],
+                "produces": [
+                    "application/json"
+                ],                
+                "parameters": [
+                    {
+                        "name": "UserCredentialParameter",
+                        "in": "body",
+                        "description": "New user credential parameter",
+                        "schema": {
+                            "$ref": "#/definitions/com.sap.hci.api.UserCredentialParameter-create"
+                        }
+                    },
+                    {
+                        "description": "CSRF token that is valid for the current session (see resource 'CSRF Token Handling')",
+                        "in": "header",
+                        "name": "X-CSRF-Token",
+                        "type": "string",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created/updated user credential parameter",
+                        "schema": {
+                            "$ref": "#/definitions/com.sap.hci.api.UserCredentialParameter"
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {                                
+                                    "Pid": "Receiver_1",
+                                    "Id": "USER",
+                                    "LastModifiedBy": "Tester",
+                                    "LastModifiedTime": "/Date(1516201876749)/",
+                                    "CreatedBy": "Tester",
+                                    "CreatedTime": "/Date(1516201876749)/",
+                                    "User": "user_receiver_1",
+                                    "Password": null
+                                }
+                            } 
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "500": {
+                        "description": "Internal server error - request body does not contain the expected content.",
+                        "examples": {
+                            "application/json": {                        
+                                "error": {
+                                    "code": "Internal Server Error",
+                                    "message": {
+                                        "lang": "en",
+                                        "value": "Problem during creating an entity: The value of the property 'Password' is missing for the entity 'UserCredentialParameter'."
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/UserCredentialParameters(Pid='{Pid}',Id='{Id}')": {
+            "get": {
+                "description": "You can use the following request to get user credential parameter by key.",
+                "summary": "Get user credential parameter by key.",
+                "tags": [
+                    "User Credential Parameters"
+                ],
+                "produces": [
+                    "application/json"
+                ],                
+                "parameters": [
+                    {
+                        "name": "Pid",
+                        "in": "path",
+                        "required": true,
+                        "description": "Internal identifier of a partner <br>\nExample: ```Receiver_1```",
+                        "type": "string"
+                    },
+                    {
+                        "name": "Id",
+                        "in": "path",
+                        "required": true,
+                        "description": "Internal identifier of a parameter <br>\nExample: ```USER```",
+                        "type": "string"
+                    },
+                    {
+                        "name": "returnHashedPassword",
+                        "in": "query",
+                        "description": "Select required hash format, if password should be returned.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "SHA256"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "$select",
+                        "in": "query",
+                        "description": "Select properties to be returned.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "User",
+                                "Password",
+                                "CreatedBy",
+                                "CreatedTime",
+                                "LastModifiedBy",
+                                "LastModifiedTime"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved entity",
+                        "schema": {
+                            "title": "UserCredentialParameter",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "$ref": "#/definitions/com.sap.hci.api.UserCredentialParameter"
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {                                
+                                    "Pid": "Receiver_1",
+                                    "Id": "USER",
+                                    "LastModifiedBy": "Tester",
+                                    "LastModifiedTime": "/Date(1516201876749)/",
+                                    "CreatedBy": "Tester",
+                                    "CreatedTime": "/Date(1516201876749)/",
+                                    "User": "user_receiver_1",
+                                    "Password": null
+                                }
+                            } 
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            },
+            "delete": {
+                "description": "You can use the following request to delete user credential parameter.<br>\nIn API sandbox only read APIs could be tested. You need to configure an API endpoint for your account, where you have the required write permissions to update the partner directory.",
+                "summary": "Delete user credential parameter.",
+                "tags": [
+                    "User Credential Parameters"
+                ],
+                "produces": [
+                    "application/json"
+                ],                
+                "parameters": [
+                    {
+                        "name": "Pid",
+                        "in": "path",
+                        "required": true,
+                        "description": "Internal identifier of a partner <br>\nExample: ```Receiver_1```",
+                        "type": "string"
+                    },
+                    {
+                        "name": "Id",
+                        "in": "path",
+                        "required": true,
+                        "description": "Internal identifier of a parameter <br>\nExample: ```USER```",
+                        "type": "string"
+                    },
+                    {
+                        "description": "CSRF token that is valid for the current session (see resource 'CSRF Token Handling')",
+                        "in": "header",
+                        "name": "X-CSRF-Token",
+                        "type": "string",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "$ref": "#/responses/204"
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/": {
+            "get": {
+                "tags": [
+                    "CSRF Token Handling"
+                ],
+                "produces": [
+                    "application/json"
+                ],                
+                "description": "You can use the following request to request the CSRF token for this session, which is required for write access via POST, PUT and DELETE operations. Copy the received X-CSRF-Token from the response header.<br>\n**In API sandbox this request is not relevant!**",
+                "summary": "Get CSRF token.",
+                "parameters": [
+                    {
+                        "description": "To retrieve a new CSRF token the value of the header must be set to ```Fetch```.",
+                        "in": "header",
+                        "name": "X-CSRF-Token",
+                        "required": true,
+                        "type": "string",
+                        "default": "Fetch"                        
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The header provides the CSRF token for this session.",
+                        "headers": {
+                            "X-CSRF-Token": {
+                                "description": "CSRF token that can be used for all modifying requests within the same session.",
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "com.sap.hci.api.UserCredentialParameter": {
+            "allOf": [
+                {
+                    "$ref": "#/definitions/com.sap.hci.api.Parameter"
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "User": {
+                            "type": "string",
+                            "maxLength": 200
+                        },
+                        "Password": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "maxLength": 200,
+                            "example": ""
+                        }
+                    },
+                    "title": "UserCredentialParameter"
+                }                
+            ]
+        },
+        "com.sap.hci.api.UserCredentialParameter-create": {
+            "allOf": [
+                {
+                    "$ref": "#/definitions/com.sap.hci.api.Parameter-create"
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "User": {
+                            "type": "string",
+                            "maxLength": 200
+                        },
+                        "Password": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "maxLength": 200,
+                            "example": "password"
+                        }
+                    },
+                    "title": "UserCredentialParameter (for create)"
+                }
+            ]
+        },
+        "com.sap.hci.api.StringParameter": {
+            "allOf": [
+                {
+                    "$ref": "#/definitions/com.sap.hci.api.Parameter"
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "Value": {
+                            "type": "string",
+                            "maxLength": 4000
+                        },
+                        "LastModifiedBy": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "maxLength": 150
+                        }
+                    },
+                    "title": "StringParameter"
+                }
+            ]
+        },
+        "com.sap.hci.api.StringParameter-create": {
+            "allOf": [
+                {
+                    "$ref": "#/definitions/com.sap.hci.api.Parameter-create"
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "Value": {
+                            "type": "string",
+                            "maxLength": 4000
+                        }
+                    },
+                    "title": "StringParameter (for create)"
+                }
+            ]
+        },
+        "com.sap.hci.api.StringParameter-update": {
+            "type": "object",
+            "properties": {
+                "Value": {
+                    "type": "string",
+                    "maxLength": 4000
+                }
+            },
+            "title": "StringParameter (for update)"
+        },
+        "com.sap.hci.api.StringConfigurationParameter": {
+            "allOf": [
+                {
+                    "$ref": "#/definitions/com.sap.hci.api.ConfigurationParameter"
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "Value": {
+                            "type": "string",
+                            "maxLength": 1500
+                        }
+                    },
+                    "title": "StringConfigurationParameter"
+                }
+            ]
+        },
+        "com.sap.hci.api.StringConfigurationParameter-create": {
+            "allOf": [
+                {
+                    "$ref": "#/definitions/com.sap.hci.api.ConfigurationParameter-create"
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "Value": {
+                            "type": "string",
+                            "maxLength": 1500
+                        }
+                    },
+                    "title": "StringConfigurationParameter (for create)"
+                }
+            ]
+        },
+        "com.sap.hci.api.StringConfigurationParameter-update": {
+            "allOf": [
+                {
+                    "$ref": "#/definitions/com.sap.hci.api.ConfigurationParameter-update"
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "Value": {
+                            "type": "string",
+                            "maxLength": 1500
+                        }
+                    },
+                    "title": "StringConfigurationParameter (for update)"
+                }
+            ]
+        },
+        "com.sap.hci.api.AlternativePartner": {
+            "type": "object",
+            "properties": {
+                "Hexagency": {
+                    "type": "string",
+                    "maxLength": 480
+                },
+                "Hexscheme": {
+                    "type": "string",
+                    "maxLength": 480
+                },
+                "Hexid": {
+                    "type": "string",
+                    "maxLength": 240
+                },
+                "Agency": {
+                    "type": "string",
+                    "maxLength": 120
+                },
+                "Scheme": {
+                    "type": "string",
+                    "maxLength": 120
+                },
+                "Id": {
+                    "type": "string",
+                    "maxLength": 60
+                },
+                "Pid": {
+                    "type": "string",
+                    "maxLength": 60
+                },
+                "LastModifiedBy": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "maxLength": 150
+                },
+                "LastModifiedTime": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "format": "date-time",
+                    "example": "2017-04-13T15:51:04"
+                },
+                "CreatedBy": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "maxLength": 150
+                },
+                "CreatedTime": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "format": "date-time",
+                    "example": "2017-04-13T15:51:04"
+                }
+            },
+            "title": "AlternativePartner"
+        },
+        "com.sap.hci.api.AlternativePartner-create": {
+            "type": "object",
+            "properties": {
+                "Agency": {
+                    "type": "string",
+                    "maxLength": 120
+                },
+                "Scheme": {
+                    "type": "string",
+                    "maxLength": 120
+                },
+                "Id": {
+                    "type": "string",
+                    "maxLength": 60
+                },
+                "Pid": {
+                    "type": "string",
+                    "maxLength": 60
+                }
+            },
+            "title": "AlternativePartner (for create)"
+        },
+        "com.sap.hci.api.AlternativePartner-update": {
+            "type": "object",
+            "properties": {
+                "Pid": {
+                    "type": "string",
+                    "maxLength": 60
+                }
+            },
+            "title": "AlternativePartner (for update)"
+        },
+        "com.sap.hci.api.BinaryParameter": {
+            "allOf": [
+                {
+                    "$ref": "#/definitions/com.sap.hci.api.Parameter"
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "ContentType": {
+                            "type": "string",
+                            "maxLength": 300
+                        },
+                        "Value": {
+                            "type": "string",
+                            "format": "base64url",
+                            "maxLength": 262144
+                        }
+                    },
+                    "title": "BinaryParameter"
+                }
+            ]
+        },
+        "com.sap.hci.api.BinaryParameter-create": {
+            "allOf": [
+                {
+                    "$ref": "#/definitions/com.sap.hci.api.Parameter-create"
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "ContentType": {
+                            "type": "string",
+                            "maxLength": 300
+                        },
+                        "Value": {
+                            "type": "string",
+                            "format": "base64url",
+                            "maxLength": 262144
+                        }
+                    },
+                    "title": "BinaryParameter (for create)"
+                }
+            ]
+        },
+        "com.sap.hci.api.BinaryParameter-update": {
+            "type": "object",
+            "properties": {
+                "ContentType": {
+                    "type": "string",
+                    "maxLength": 300
+                },
+                "Value": {
+                    "type": "string",
+                    "format": "base64url",
+                    "maxLength": 262144
+                }
+            },
+            "title": "BinaryParameter (for update)"
+        },
+        "com.sap.hci.api.Partner": {
+            "type": "object",
+            "properties": {
+                "Pid": {
+                    "type": "string",
+                    "maxLength": 60
+                }
+            },
+            "title": "Partner"
+        },
+        "com.sap.hci.api.AuthorizedUser": {
+            "type": "object",
+            "properties": {
+                "User": {
+                    "type": "string",
+                    "maxLength": 150
+                },
+                "Pid": {
+                    "type": "string",
+                    "maxLength": 60
+                },
+                "LastModifiedBy": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "maxLength": 150
+                },
+                "LastModifiedTime": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "format": "date-time",
+                    "example": "2017-04-13T15:51:04"
+                },
+                "CreatedBy": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "maxLength": 150
+                },
+                "CreatedTime": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "format": "date-time",
+                    "example": "2017-04-13T15:51:04"
+                }
+            },
+            "title": "AuthorizedUser"
+        },
+        "com.sap.hci.api.AuthorizedUser-create": {
+            "type": "object",
+            "properties": {
+                "User": {
+                    "type": "string",
+                    "maxLength": 150
+                },
+                "Pid": {
+                    "type": "string",
+                    "maxLength": 60
+                }
+            },
+            "title": "AuthorizedUser (for create)"
+        },
+        "com.sap.hci.api.AuthorizedUser-update": {
+            "type": "object",
+            "properties": {
+                "Pid": {
+                    "type": "string",
+                    "maxLength": 60
+                }
+            },
+            "title": "AuthorizedUser (for update)"
+        },
+        "com.sap.hci.api.ConfigurationParameter": {
+            "type": "object",
+            "properties": {
+                "Name": {
+                    "type": "string",
+                    "maxLength": 90
+                },
+                "Namespace": {
+                    "type": "string",
+                    "maxLength": 150
+                },
+                "LastModifiedBy": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "maxLength": 150
+                },
+                "LastModifiedTime": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "format": "date-time",
+                    "example": "2017-04-13T15:51:04"
+                },
+                "CreatedBy": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "maxLength": 150
+                },
+                "CreatedTime": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "format": "date-time",
+                    "example": "2017-04-13T15:51:04"
+                }
+            },
+            "title": "ConfigurationParameter"
+        },
+        "com.sap.hci.api.ConfigurationParameter-create": {
+            "type": "object",
+            "properties": {
+                "Name": {
+                    "type": "string",
+                    "maxLength": 90
+                },
+                "Namespace": {
+                    "type": "string",
+                    "maxLength": 150
+                }
+            },
+            "title": "ConfigurationParameter (for create)"
+        },
+        "com.sap.hci.api.ConfigurationParameter-update": {
+            "type": "object",
+            "properties": {
+                "Name": {
+                    "type": "string",
+                    "maxLength": 90
+                },
+                "Namespace": {
+                    "type": "string",
+                    "maxLength": 150
+                }
+            },
+            "title": "ConfigurationParameter (for update)"
+        },
+        "com.sap.hci.api.Parameter": {
+            "type": "object",
+            "properties": {
+                "Pid": {
+                    "type": "string",
+                    "maxLength": 60
+                },
+                "Id": {
+                    "type": "string",
+                    "maxLength": 1500
+                },
+                "LastModifiedBy": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "maxLength": 150
+                },
+                "LastModifiedTime": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "format": "date-time",
+                    "example": "2017-04-13T15:51:04"
+                },
+                "CreatedBy": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "maxLength": 150
+                },
+                "CreatedTime": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "format": "date-time",
+                    "example": "2017-04-13T15:51:04"
+                }
+            },
+            "title": "Parameter"
+        },
+        "com.sap.hci.api.Parameter-create": {
+            "type": "object",
+            "properties": {
+                "Pid": {
+                    "type": "string",
+                    "maxLength": 60
+                },
+                "Id": {
+                    "type": "string",
+                    "maxLength": 1500
+                }
+            },
+            "title": "Parameter (for create)"
+        },
+        "com.sap.hci.api.Parameter-update": {
+            "type": "object",
+            "properties": {
+                "Pid": {
+                    "type": "string",
+                    "maxLength": 60
+                },
+                "Id": {
+                    "type": "string",
+                    "maxLength": 1500
+                }
+            },
+            "title": "Parameter (for update)"
+        },
+        "com.sap.hci.api.sandbox.error": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "odata.error": {
+            "type": "object",
+            "required": [
+                "error"
+            ],
+            "properties": {
+                "error": {
+                    "$ref": "#/definitions/odata.error.main"
+                }
+            }
+        },
+        "odata.error.main": {
+            "type": "object",
+            "required": [
+                "code",
+                "message"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "object",
+                    "required": [
+                        "lang",
+                        "value"
+                    ],
+                    "properties": {
+                        "lang": {
+                            "type": "string"
+                        },
+                        "value": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "odata.error.detail": {
+            "type": "object",
+            "required": [
+                "code",
+                "message"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "target": {
+                    "type": "string"
+                }
+            }
+        }
+    },
+    "parameters": {
+        "top": {
+            "name": "$top",
+            "in": "query",
+            "description": "Show only the first n items.",
+            "type": "integer",
+            "minimum": 0
+        },
+        "skip": {
+            "name": "$skip",
+            "in": "query",
+            "description": "Skip the first n items.",
+            "type": "integer",
+            "minimum": 0
+        },
+        "filter": {
+            "name": "$filter",
+            "in": "query",
+            "description": "Filter items by property values.",
+            "type": "string"
+        }
+    },
+    "responses": {
+        "204": {
+            "description": "No content. The server successfully processed the request and is not returning any content"
+        },            
+        "400": {
+            "description": "Bad Request. Wrong format or structure of the provided request body or parameters."
+        },
+        "401": {
+            "description": "Unauthorized. Authorization information is missing or invalid."
+        },
+        "403": {
+            "description": "Forbidden. The required permissions to access the resource are missing."
+        },
+        "404": {
+            "description": "Not found. The requested resource could not be found."
+        },
+        "429": {
+            "description": "Too many requests. Server’s rate limit exceeded."
+        },
+        "500": {
+            "description": "Internal server error. The requested operation led to an error during execution."
+        },
+        "error": {
+            "description": "Error",
+            "schema": {
+                "$ref": "#/definitions/odata.error"
+            },
+            "examples": {
+                "application/json": {                        
+                    "error": {
+                        "code": "<error code>",
+                        "message": {
+                            "lang": "en",
+                            "value": "<error text>"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

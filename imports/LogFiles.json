@@ -1,0 +1,922 @@
+{
+    "swagger": "2.0",
+    "info": {    
+        "title": "Log Files",
+        "version": "1.0.0",
+        "description": "HTTP log files enables you to access technical system logs written during message processing on the runtime node. HTTP log files contain information on authentication and authorization errors for inbound HTTP communication. The trace log files contain processing information including message payload data.  \nThis API is implemented based on OData version 2 specification."
+    },
+    "externalDocs": {
+        "description": "SAP Cloud Integration documentation: OData API - Log Files",
+        "url": "https://help.sap.com/viewer/368c481cd6954bdfa5d0435479fd4eaf/Cloud/en-US/93bc3722533741c7a48eec6a8352f060.html"
+    },
+    "x-sap-api-type": "ODATA",
+    "x-sap-shortText": "Access and query HTTP and trace log files on a tenant.",
+    "schemes": [
+        "https"
+    ],
+    "host": "sandbox.api.sap.com",
+    "basePath": "/cpi/api/v1",
+    "x-servers": [
+        {
+            "url": "https://{Account Short Name}-tmn.{SSL Host}.{landscapehost}/api/v1",
+            "description": "SAP Cloud Integration REST API Endpoint",
+            "templates": {
+                "Account Short Name": {
+                    "description": "SAP BTP subaccount short name where Cloud Integration is provided"
+                },
+                "SSL Host": {
+                        "description": "SSL Host"
+                },                
+                "landscapehost": {
+                    "description": "SAP BTP Region Host",
+                    "enum": [
+                        "ae1.hana.ondemand.com",
+                        "ap1.hana.ondemand.com",
+                        "br1.hana.ondemand.com",
+                        "ca1.hana.ondemand.com",
+                        "cn1.hana.ondemand.com",
+                        "eu1.hana.ondemand.com",
+                        "eu2.hana.ondemand.com",
+                        "eu3.hana.ondemand.com",
+                        "hana.ondemand.com",
+                        "hanatrial.ondemand.com",
+                        "jp1.hana.ondemand.com",
+                        "sa1.hana.ondemand.com",
+                        "us1.hana.ondemand.com",
+                        "us2.hana.ondemand.com",
+                        "us3.hana.ondemand.com",
+                        "us4.hana.ondemand.com"
+                    ],
+                    "default": "hana.ondemand.com"
+                }
+            }
+        },
+        {
+            "url": "https://{Custom Name}.{Domain}/api/v1",
+            "description": "SAP Cloud Integration Custom Domain Endpoint - see [Configuring Custom Domains](https://help.sap.com/viewer/368c481cd6954bdfa5d0435479fd4eaf/Cloud/en-US/7230b9ff41914cc0969223e6a020104b.html)",
+            "templates": {
+                "Custom Name": {
+                    "description": "Your defined name for your Cloud Integration account."
+                },                
+                "Domain": {
+                    "description": "Your custom domain"
+                }
+            }
+        }
+    ],
+    "securityDefinitions": {
+        "BasicAuthentication": {
+            "type": "basic"
+        }
+    },
+    "security": [
+        {
+            "BasicAuthentication": []
+        }
+    ],
+    "consumes": [
+        "application/json"
+    ],
+    "produces": [
+        "application/json"
+    ],
+    "tags": [
+        {
+            "name": "Log Files"
+        },
+        {
+            "name": "Log File Archives"
+        }        
+    ],
+    "paths": {
+        "/LogFileArchives": {
+            "get": {
+                "description": "You can use the following request to get all log file collections.",
+                "summary": "Get all log file collections.",
+                "tags": [
+                    "Log File Archives"
+                ],
+                "produces": [
+                    "application/json"                   
+                ],                
+                "consumes": [
+                        "application/json"                   
+                ],                
+                "responses": {
+                    "200": {
+                        "description": "Retrieved log file archive collections",
+                        "schema": {
+                            "title": "Collection of LogFileArchive",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.LogFileArchive"
+                                               }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                  "d": {
+                                    "results": [
+                                          {
+                                              "Scope": "all",
+                                              "LogFileType": "http",
+                                              "NodeScope": "worker",
+                                              "ContentType": "application/zip"
+                                          },
+                                        {
+                                            "Scope": "latest",
+                                            "LogFileType": "http",
+                                            "NodeScope": "worker",
+                                            "ContentType": "application/zip"
+                                        },
+                                        {
+                                            "Scope": "all",
+                                            "LogFileType": "trace",
+                                            "NodeScope": "worker",
+                                            "ContentType": "application/zip"
+                                        },
+                                        {
+                                            "Scope": "latest",
+                                            "LogFileType": "trace",
+                                            "NodeScope": "worker",
+                                            "ContentType": "application/zip"
+                                        }
+                                    ]
+                                  }                            
+                              }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/LogFileArchives(Scope='{Scope}',LogFileType='{LogFileType}',NodeScope='worker')": {
+            "get": {
+                "description": "You can use the following request to get log file collections for a scope and type in a compressed file (zip format), which could be downloaded via OData $value option.",
+                "summary": "Get log file collections by scope and type in a compressed file.",
+                "tags": [
+                    "Log File Archives"
+                ],
+                "produces": [
+                    "application/json"                   
+                ],                
+                "consumes": [
+                    "application/json"                   
+                ],                
+                "parameters": [
+                    {
+                        "name": "Scope",
+                        "in": "path",
+                        "required": true,
+                        "description": "Range for collecting log files",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "all",
+                                "latest"
+                            ]
+                        },
+                        "default": "latest"
+
+                    },
+                    {
+                        "name": "LogFileType",
+                        "in": "path",
+                        "required": true,
+                        "description": "Log type",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "http",
+                                "trace"
+                            ]
+                        },
+                        "default": "http"                       
+                    },
+                    {
+                        "name": "ModifiedAfter",
+                        "in": "query",
+                        "required": false,
+                        "description": "Time after which the log files were modified<br>\nExpected date format: yyyy-MM-dd'T'HH:mm:ss'Z'<br>\nExample: ```2017-04-13T15:51:04Z```",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved log file collections",
+                        "schema": {
+                            "title": "Collection of LogFileArchive",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.LogFileArchive"
+                                               }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                  "d": {
+                                    "results": [
+                                          {
+                                            "Scope": "latest",
+                                            "LogFileType": "http",
+                                            "NodeScope": "worker",
+                                            "ContentType": "application/zip"
+                                        }
+                                    ]
+                                  }                            
+                              }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/LogFileArchives(Scope='{Scope}',LogFileType='{LogFileType}',NodeScope='worker')/$value": {
+            "get": {
+                "description": "You can use the following request to download log file collections for a scope and type in a compressed file (zip format).",
+                "summary": "Download log file collections.",
+                "tags": [
+                    "Log File Archives"
+                ],
+                "produces": [
+                    "application/zip"                   
+                ],                
+                "consumes": [
+                    "application/json"                   
+                ],                
+                "parameters": [
+                    {
+                        "name": "Scope",
+                        "in": "path",
+                        "required": true,
+                        "description": "Range for collecting log files",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "all",
+                                "latest"
+                            ]
+                        },
+                        "default": "latest"
+
+                    },
+                    {
+                        "name": "LogFileType",
+                        "in": "path",
+                        "required": true,
+                        "description": "Log type",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "http",
+                                "trace"
+                            ]
+                        },
+                        "default": "http"                       
+                    },
+                    {
+                        "name": "ModifiedAfter",
+                        "in": "query",
+                        "required": false,
+                        "description": "Time after which the log files were modified<br>\nExpected date format: yyyy-MM-dd'T'HH:mm:ss'Z'<br>\nExample: ```2017-04-13T15:51:04Z```",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved log file collections",
+                        "schema": {
+                            "type": "file"
+                        }                         
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/LogFiles": {
+            "get": {
+                "description": "You can use the following request to get all log files.",
+                "summary": "Get all log files.",
+                "tags": [
+                    "Log Files"
+                ],
+                "produces": [
+                    "application/json"                   
+                ],                
+                "consumes": [
+                    "application/json"                   
+                ],                
+                "parameters": [
+                    {
+                        "$ref": "#/parameters/top"
+                    },
+                    {
+                        "$ref": "#/parameters/skip"
+                    },
+                    {
+                        "name": "$filter",
+                        "in": "query",
+                        "required": false,                        
+                        "description": "Filter items by property values.<br>\nExamples:\n* ```NodeScope eq 'worker'```\n* ```LogFileType eq 'http'```\n* ```LogFileType eq 'trace'```\n* ```NodeScope eq 'worker' and LogFileType eq 'http'```",
+                        "type": "string"
+                    },
+                    {
+                        "name": "$orderby",
+                        "in": "query",
+                        "description": "Order items by property values.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "Name",
+                                "Name desc",
+                                "Application",
+                                "Application desc",
+                                "LastModified",
+                                "LastModified desc",
+                                "ContentType",
+                                "ContentType desc",
+                                "LogFileType",
+                                "LogFileType desc",
+                                "NodeScope",
+                                "NodeScope desc"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "$select",
+                        "in": "query",
+                        "description": "Select properties to be returned.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "Name",
+                                "Application",
+                                "LastModified",
+                                "ContentType",
+                                "LogFileType",
+                                "NodeScope"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved log files",
+                        "schema": {
+                            "title": "LogFiles",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.LogFile"
+                                               }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                  "d": {
+                                    "results": [
+                                          {
+                                            "Name": "http_access_04766fd_2018-07-09.log",
+                                            "Application": "test",
+                                            "LastModified": "/Date(1531180822000)/",
+                                            "ContentType": "application/gzip",
+                                            "LogFileType": "http",
+                                            "NodeScope": "worker","Size": "6961"
+                                        },
+                                        {
+                                            "Name": "ljs_trace_cb4d1d0_2018-07-16.log",
+                                            "Application": "cpisbsa1hcioem",
+                                            "LastModified": "/Date(1531751059000)/",
+                                            "ContentType": "application/gzip",
+                                            "LogFileType": "trace",
+                                            "NodeScope": "worker",
+                                            "Size": "407321"
+                                        }
+                                    ]
+                                  }                            
+                              }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/LogFiles(Name='{Name}',Application='{Application}')": {
+            "get": {
+                "description": "You can use the following request to get log file by name and application, which could be downloaded via OData $value option.",
+                "summary": "Get log files by name and application.",
+                "tags": [
+                    "Log Files"
+                ],                
+                "produces": [
+                    "application/json"                   
+                ],                
+                "consumes": [
+                    "application/json"                   
+                ],                
+                "parameters": [
+                    {
+                        "name": "Name",
+                        "in": "path",
+                        "required": true,
+                        "description": "Log File Name",
+                        "type": "string"
+                    },
+                    {
+                        "name": "Application",
+                        "in": "path",
+                        "required": true,
+                        "description": "SAP BTP Application",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved entities",
+                        "schema": {
+                            "title": "LogFiles",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.LogFile"
+                                               }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                  "d": {
+                                    "results": [
+                                          {
+                                            "Name": "http_access_04766fd_2018-07-09.log",
+                                            "Application": "test",
+                                            "LastModified": "/Date(1531180822000)/",
+                                            "ContentType": "application/gzip",
+                                            "LogFileType": "http",
+                                            "NodeScope": "worker",
+                                            "Size": "6961"
+                                        }
+                                    ]
+                                  }                            
+                              }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/LogFiles(Name='{Name}',Application='{Application}')/$value": {
+            "get": {
+                "description": "You can use the following request to download log file by name and application.",
+                "summary": "Download log file.",
+                "tags": [
+                    "Log Files"
+                ],                
+                "produces": [
+                    "application/gzip"                   
+                ],                
+                "consumes": [
+                    "application/json"                   
+                ],                
+                "parameters": [
+                    {
+                        "name": "Name",
+                        "in": "path",
+                        "required": true,
+                        "description": "Log File Name",
+                        "type": "string"
+                    },
+                    {
+                        "name": "Application",
+                        "in": "path",
+                        "required": true,
+                        "description": "SAP BTP Application",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved entities",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "com.sap.hci.api.AuditLog": {
+            "type": "object",
+            "properties": {
+                "ChangeId": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "Action": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "Timestamp": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "format": "date-time",
+                    "example": "2017-04-13T15:51:04Z"
+                },
+                "UserName": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "ObjName": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "ObjType": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "Source": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "NodeType": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "UserType": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "CustomerVisible": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "title": "AuditLog"
+        },
+        "com.sap.hci.api.LogFileArchive": {
+            "type": "object",
+            "properties": {
+                "Scope": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "LogFileType": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "NodeScope": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "ContentType": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "title": "LogFileArchive"
+        },
+        "com.sap.hci.api.LogFile": {
+            "type": "object",
+            "properties": {
+                "Name": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "Application": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "LastModified": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "format": "date-time",
+                    "example": "2017-04-13T15:51:04Z"
+                },
+                "ContentType": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "LogFileType": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "NodeScope": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "Size": {
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "format": "int64"
+                }                
+            },
+            "title": "LogFile"
+        },
+        "odata.error": {
+            "type": "object",
+            "required": [
+                "error"
+            ],
+            "properties": {
+                "error": {
+                    "$ref": "#/definitions/odata.error.main"
+                }
+            }
+        },
+        "odata.error.main": {
+            "type": "object",
+            "required": [
+                "code",
+                "message"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "object",
+                    "required": [
+                        "lang",
+                        "value"
+                    ],
+                    "properties": {
+                        "lang": {
+                            "type": "string"
+                        },
+                        "value": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "odata.error.detail": {
+            "type": "object",
+            "required": [
+                "code",
+                "message"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "target": {
+                    "type": "string"
+                }
+            }
+        }
+    },
+    "parameters": {
+        "top": {
+            "name": "$top",
+            "in": "query",
+            "description": "Show only the first n items.",
+            "type": "integer",
+            "minimum": 0
+        },
+        "skip": {
+            "name": "$skip",
+            "in": "query",
+            "description": "Skip the first n items.",
+            "type": "integer",
+            "minimum": 0
+        },
+        "filter": {
+            "name": "$filter",
+            "in": "query",
+            "description": "Filter items by property values.",
+            "type": "string"
+        }
+    },
+    "responses": {
+        "400": {
+            "description": "Bad Request. Wrong format or structure of the provided request body or parameters."
+        },
+        "401": {
+            "description": "Unauthorized. Authorization information is missing or invalid."
+        },
+        "403": {
+            "description": "Forbidden. The required permissions to access the resource are missing."
+        },
+        "404": {
+            "description": "Not found. The requested resource could not be found."
+        },
+        "429": {
+            "description": "Too many requests. Server’s rate limit exceeded."
+        },
+        "500": {
+            "description": "Internal server error. The requested operation led to an error during execution."
+        },
+        "error": {
+            "description": "Error",
+            "schema": {
+                "$ref": "#/definitions/odata.error"
+            },
+            "examples": {
+                "application/json": {                        
+                    "error": {
+                        "code": "<error code>",
+                        "message": {
+                            "lang": "en",
+                            "value": "<error text>"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

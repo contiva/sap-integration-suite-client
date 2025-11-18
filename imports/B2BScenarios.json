@@ -1,0 +1,3293 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "title": "B2B Scenarios",
+        "version": "1.0.0",
+        "description": "The B2B Scenarios OData API is used to access data related to inter-enterprise business integration scenarios. \n With this API, you can securely query business documents, thereby supporting efficient data exchange and business process collaboration between enterprises."
+    },
+    "externalDocs": {
+        "description": "SAP Integration Suite documentation: OData API - B2B Scenarios",
+        "url": "https://help.sap.com/docs/cloud-integration/sap-cloud-integration/api-details"
+    },
+    "x-sap-api-type": "ODATA",
+    "x-sap-shortText": "Facilitates data exchange for B2B processes using OData",
+    "schemes": [
+        "https"
+    ],
+    "x-servers": [
+        {
+            "url": "https://{Account Short Name}-tmn.{SSL Host}.{Landscapehost}/api/v1",
+            "description": "SAP Cloud Integration REST API Endpoint",
+            "templates": {
+                "Account Short Name": {
+                    "description": "SAP BTP subaccount short name where Cloud Integration is provided"
+                },
+                "SSL Host": {
+                    "description": "SSL Host"
+                },
+                "Landscapehost": {
+                    "description": "SAP BTP Region Host",
+                    "enum": [
+                        "ae1.hana.ondemand.com",
+                        "ap1.hana.ondemand.com",
+                        "br1.hana.ondemand.com",
+                        "ca1.hana.ondemand.com",
+                        "cn1.hana.ondemand.com",
+                        "eu1.hana.ondemand.com",
+                        "eu2.hana.ondemand.com",
+                        "eu3.hana.ondemand.com",
+                        "hana.ondemand.com",
+                        "hanatrial.ondemand.com",
+                        "jp1.hana.ondemand.com",
+                        "sa1.hana.ondemand.com",
+                        "us1.hana.ondemand.com",
+                        "us2.hana.ondemand.com",
+                        "us3.hana.ondemand.com",
+                        "us4.hana.ondemand.com"
+                    ],
+                    "default": "hana.ondemand.com"
+                }
+            }
+        },
+        {
+            "url": "https://{Custom Name}.{Domain}/api/v1",
+            "description": "SAP Cloud Integration Custom Domain Endpoint - see [Configuring Custom Domains](https://help.sap.com/viewer/368c481cd6954bdfa5d0435479fd4eaf/Cloud/en-US/7230b9ff41914cc0969223e6a020104b.html)",
+            "templates": {
+                "Custom Name": {
+                    "description": "Your defined name for your Cloud Integration account."
+                },
+                "Domain": {
+                    "description": "Your custom domain"
+                }
+            }
+        }
+    ],
+    "securityDefinitions": {
+        "BasicAuthentication": {
+            "type": "basic"
+        }
+    },
+    "security": [
+        {
+            "BasicAuthentication": []
+        }
+    ],
+    "consumes": [
+        "application/json"
+    ],
+    "produces": [
+        "application/json"
+    ],
+    "tags": [
+        {
+            "name": "Orphaned Interchanges"
+        },
+        {
+            "name": "Business Documents"
+        },
+        {
+            "name": "Business Document Extended Fields"
+        },
+        {
+            "name": "Sender Technical Acknowledgement"
+        },
+        {
+            "name": "Receiver Technical Acknowledgement"
+        },
+        {
+            "name": "Sender Functional Acknowledgement"
+        },
+        {
+            "name": "Receiver Functional Acknowledgement"
+        },
+        {
+            "name": "Custom Search Attributes"
+        },
+        {
+            "name": "Error Details"
+        },
+        {
+            "name": "Business Document Processing Event"
+        },
+        {
+            "name": "Business Document Payloads"
+        },
+        {
+            "name": "Business Document Protocol Headers"
+        },
+        {
+            "name": "Business Document Notes"
+        },
+        {
+            "name": "Technical Acknowledgement"
+        },
+        {
+            "name": "Functional Acknowledgement"
+        },
+        {
+            "name": "Data Archiving"
+        }
+    ],
+    "paths": {
+        "/OrphanedInterchanges": {
+            "get": {
+                "description": "Retrieve a list of all orphaned interchanges available in the system. This endpoint supports filtering, ordering, and selecting specific properties.",
+                "summary": "Get all orphaned interchanges.",
+                "tags": [
+                    "Orphaned Interchanges"
+                ],
+                "parameters": [
+                    {
+                        "name": "$inlinecount",
+                        "in": "query",
+                        "description": "Count the number of retrieved entries by selecting ```allpages```.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "allpages"
+                            ]
+                        }
+                    },
+                    {
+                        "$ref": "#/parameters/top"
+                    },
+                    {
+                        "$ref": "#/parameters/skip"
+                    },
+                    {
+                        "name": "$filter",
+                        "in": "query",
+                        "description": "Filter items by property values.<br>\n For any Id filter use only the 'eq' operator.<br>\nExample: ```LastErrorDetails/ErrorCategory eq 'MESSAGE_DECRYPTION'``` returns the number of interchange documents with error category 'MESSAGE_DECRYPTION'",
+                        "type": "string"
+                    },
+                    {
+                        "name": "$orderby",
+                        "in": "query",
+                        "description": "Order items by property values.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "Date",
+                                "Date desc"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "$select",
+                        "in": "query",
+                        "description": "Select properties to be returned.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "Id",
+                                "AdapterType",
+                                "Date"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "$expand",
+                        "in": "query",
+                        "description": "Expand related entities.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "BusinessDocumentProtocolHeaders",
+                                "BusinessDocumentProcessingEvent",
+                                "BusinessDocumentPayloads",
+                                "ErrorDetails"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved orphaned interchange collections.",
+                        "schema": {
+                            "title": "Collection of orphaned interchange",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.OrphanedInterchange"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/OrphanedInterchanges('{Id}')": {
+            "get": {
+                "description": "You can use the following request to get unassigned interchange document by Guid.",
+                "summary": "Get unassigned interchange document by Guid.",
+                "tags": [
+                    "Orphaned Interchanges"
+                ],
+                "parameters": [
+                    {
+                        "name": "Id",
+                        "in": "path",
+                        "description": "The unique identifier of the orphaned interchange.",
+                        "required": true,
+                        "type": "string"
+                    },
+                    {
+                        "name": "$select",
+                        "in": "query",
+                        "description": "Select properties to be returned.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "Id",
+                                "AdapterType",
+                                "Date"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "$expand",
+                        "in": "query",
+                        "description": "Expand related entities.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "BusinessDocumentProtocolHeaders",
+                                "BusinessDocumentProcessingEvent",
+                                "BusinessDocumentPayloads",
+                                "ErrorDetails"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Get unassigned interchange document",
+                        "schema": {
+                            "title": "Collection of orphaned interchange",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.OrphanedInterchange"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/OrphanedInterchanges/$count": {
+            "get": {
+                "description": "You can use the following request to get number of all unassigned interchange documents.",
+                "summary": "Get number of all unassigned interchange documents.",
+                "tags": [
+                    "Orphaned Interchanges"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Number of retrieved unassigned interchange documents"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/OrphanedInterchanges('{Id}')/ErrorDetails": {
+            "get": {
+                "description": "You can use the following request to get unassigned interchange document's error detail by Guid.",
+                "summary": "Get unassigned interchange document's error detail by Guid.",
+                "tags": [
+                    "Orphaned Interchanges"
+                ],
+                "parameters": [
+                    {
+                        "name": "Id",
+                        "in": "path",
+                        "required": true,
+                        "description": "Guid of the unassigned interchange document",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved error detail",
+                        "schema": {
+                            "title": "Collection of error detail",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.ErrorDetail"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/OrphanedInterchanges('{Id}')/BusinessDocumentProcessingEvent": {
+            "get": {
+                "description": "You can use the following request to get unassigned interchange document's processing event by Guid.",
+                "summary": "Get unassigned interchange document's processing event by Guid.",
+                "tags": [
+                    "Orphaned Interchanges"
+                ],
+                "parameters": [
+                    {
+                        "name": "Id",
+                        "in": "path",
+                        "required": true,
+                        "description": "Guid of the unassigned interchange document",
+                        "type": "string"
+                    },
+                    {
+                        "name": "$select",
+                        "in": "query",
+                        "description": "Select properties to be returned.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "Id",
+                                "EventType",
+                                "Date",
+                                "MonitoringType",
+                                "MonitoringId"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "$expand",
+                        "in": "query",
+                        "description": "Expand related entities.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "BusinessDocument",
+                                "FunctionalAcknowledgement",
+                                "BusinessDocumentPayload",
+                                "ErrorDetails",
+                                "BusinessDocumentNotes"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved unassigned interchange document's processing event",
+                        "schema": {
+                            "title": "Collection of processing event",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.BusinessDocumentProcessingEvent"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "__metadata": {
+                                        "id": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentProcessingEvents('3f1587645f2246009b07a994586a6392')",
+                                        "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentProcessingEvents('3f1587645f2246009b07a994586a6392')",
+                                        "type": "com.sap.hci.api.BusinessDocumentProcessingEvent"
+                                    },
+                                    "Id": "3f1587645f2246009b07a994586a6392",
+                                    "EventType": "BUSINESSDOCUMENT_UNASSIGNED_EVENT",
+                                    "Date": "/Date(1756695476155)/",
+                                    "MonitoringType": "MPL",
+                                    "MonitoringId": "SAP_MessageProcessingLogID001",
+                                    "BusinessDocument": {
+                                        "__deferred": {
+                                            "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentProcessingEvents('3f1587645f2246009b07a994586a6392')/BusinessDocument"
+                                        }
+                                    },
+                                    "FunctionalAcknowledgement": {
+                                        "__deferred": {
+                                            "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentProcessingEvents('3f1587645f2246009b07a994586a6392')/FunctionalAcknowledgement"
+                                        }
+                                    },
+                                    "BusinessDocumentPayload": {
+                                        "__deferred": {
+                                            "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentProcessingEvents('3f1587645f2246009b07a994586a6392')/BusinessDocumentPayload"
+                                        }
+                                    },
+                                    "ErrorDetails": {
+                                        "__deferred": {
+                                            "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentProcessingEvents('3f1587645f2246009b07a994586a6392')/ErrorDetails"
+                                        }
+                                    },
+                                    "BusinessDocumentNotes": {
+                                        "__deferred": {
+                                            "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentProcessingEvents('3f1587645f2246009b07a994586a6392')/BusinessDocumentNotes"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/OrphanedInterchanges('{Id}')/BusinessDocumentPayloads": {
+            "get": {
+                "description": "You can use the following request to get unassigned interchange document's payload by Guid.",
+                "summary": "Get unassigned interchange document's payload by Guid.",
+                "tags": [
+                    "Orphaned Interchanges"
+                ],
+                "parameters": [
+                    {
+                        "name": "Id",
+                        "in": "path",
+                        "required": true,
+                        "description": "Guid of the unassigned interchange document",
+                        "type": "string"
+                    },
+                    {
+                        "name": "$select",
+                        "in": "query",
+                        "description": "Select properties to be returned.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "Id",
+                                "PayloadId",
+                                "PayloadContainerContentType",
+                                "PayloadContentType",
+                                "ArchivingRelevant"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "$expand",
+                        "in": "query",
+                        "description": "Expand related entities.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "BusinessDocument",
+                                "BusinessDocumentProcessingEvent"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved unassigned interchange document's processing event",
+                        "schema": {
+                            "title": "Collection of processing event",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.BusinessDocumentPayload"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "results": [
+                                        {
+                                            "__metadata": {
+                                                "id": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentPayloads('4c203314225743dcadbaa76b39effec5')",
+                                                "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentPayloads('4c203314225743dcadbaa76b39effec5')",
+                                                "type": "com.sap.hci.api.BusinessDocumentPayload",
+                                                "content_type": "application/octet-stream",
+                                                "media_src": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentPayloads('4c203314225743dcadbaa76b39effec5')/$value",
+                                                "edit_media": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentPayloads('4c203314225743dcadbaa76b39effec5')/$value"
+                                            },
+                                            "Id": "4c203314225743dcadbaa76b39effec5",
+                                            "ProcessingState": null,
+                                            "Direction": null,
+                                            "PayloadId": "4c203314225743dcadbaa76b39effec5",
+                                            "PayloadContainerContentType": "None",
+                                            "PayloadContentType": "text/plain",
+                                            "ArchivingRelevant": false,
+                                            "BusinessDocumentProcessingEvent": {
+                                                "__deferred": {
+                                                    "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentPayloads('4c203314225743dcadbaa76b39effec5')/BusinessDocumentProcessingEvent"
+                                                }
+                                            },
+                                            "BusinessDocument": {
+                                                "__deferred": {
+                                                    "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentPayloads('4c203314225743dcadbaa76b39effec5')/BusinessDocument"
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "__metadata": {
+                                                "id": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentPayloads('bca1886693aa48dfa8b9b0a536b545bb')",
+                                                "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentPayloads('bca1886693aa48dfa8b9b0a536b545bb')",
+                                                "type": "com.sap.hci.api.BusinessDocumentPayload",
+                                                "content_type": "application/octet-stream",
+                                                "media_src": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentPayloads('bca1886693aa48dfa8b9b0a536b545bb')/$value",
+                                                "edit_media": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentPayloads('bca1886693aa48dfa8b9b0a536b545bb')/$value"
+                                            },
+                                            "Id": "bca1886693aa48dfa8b9b0a536b545bb",
+                                            "ProcessingState": null,
+                                            "Direction": null,
+                                            "PayloadId": "bca1886693aa48dfa8b9b0a536b545bb",
+                                            "PayloadContainerContentType": "None",
+                                            "PayloadContentType": "text/plain",
+                                            "ArchivingRelevant": false,
+                                            "BusinessDocumentProcessingEvent": {
+                                                "__deferred": {
+                                                    "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentPayloads('bca1886693aa48dfa8b9b0a536b545bb')/BusinessDocumentProcessingEvent"
+                                                }
+                                            },
+                                            "BusinessDocument": {
+                                                "__deferred": {
+                                                    "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentPayloads('bca1886693aa48dfa8b9b0a536b545bb')/BusinessDocument"
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/OrphanedInterchanges('{Id}')/BusinessDocumentProtocolHeaders": {
+            "get": {
+                "description": "You can use the following request to get unassigned interchange document's protocol headers by Guid.",
+                "summary": "Get unassigned interchange document's protocol headers by Guid.",
+                "tags": [
+                    "Orphaned Interchanges"
+                ],
+                "parameters": [
+                    {
+                        "name": "Id",
+                        "in": "path",
+                        "required": true,
+                        "description": "Guid of the unassigned interchange document",
+                        "type": "string"
+                    },
+                    {
+                        "name": "$select",
+                        "in": "query",
+                        "description": "Select properties to be returned.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "Id",
+                                "Name",
+                                "Value"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "$expand",
+                        "in": "query",
+                        "description": "Expand related entities.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "BusinessDocument",
+                                "OrphanedInterchange"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved unassigned interchange document's protocol headers",
+                        "schema": {
+                            "title": "Collection of protocol headers",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.BusinessDocumentProtocolHeader"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "results": [
+                                        {
+                                            "__metadata": {
+                                                "id": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentProtocolHeaders('cc4c1f7698334273b12b8abc7b2e3aab')",
+                                                "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentProtocolHeaders('cc4c1f7698334273b12b8abc7b2e3aab')",
+                                                "type": "com.sap.hci.api.BusinessDocumentProtocolHeader"
+                                            },
+                                            "Id": "cc4c1f7698334273b12b8abc7b2e3aab",
+                                            "Name": "RootName",
+                                            "Value": "root_value",
+                                            "BusinessDocument": {
+                                                "__deferred": {
+                                                    "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentProtocolHeaders('cc4c1f7698334273b12b8abc7b2e3aab')/BusinessDocument"
+                                                }
+                                            },
+                                            "OrphanedInterchange": {
+                                                "__deferred": {
+                                                    "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentProtocolHeaders('cc4c1f7698334273b12b8abc7b2e3aab')/OrphanedInterchange"
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "__metadata": {
+                                                "id": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentProtocolHeaders('42bd8194c2744bb1bb8f52b8945bd3d0')",
+                                                "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentProtocolHeaders('42bd8194c2744bb1bb8f52b8945bd3d0')",
+                                                "type": "com.sap.hci.api.BusinessDocumentProtocolHeader"
+                                            },
+                                            "Id": "42bd8194c2744bb1bb8f52b8945bd3d0",
+                                            "Name": "RootName2",
+                                            "Value": "root_value2",
+                                            "BusinessDocument": {
+                                                "__deferred": {
+                                                    "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentProtocolHeaders('42bd8194c2744bb1bb8f52b8945bd3d0')/BusinessDocument"
+                                                }
+                                            },
+                                            "OrphanedInterchange": {
+                                                "__deferred": {
+                                                    "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentProtocolHeaders('42bd8194c2744bb1bb8f52b8945bd3d0')/OrphanedInterchange"
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/BusinessDocuments": {
+            "get": {
+                "description": "Retrieve a list of all inter-enterprise business documents available in the system. This endpoint supports filtering, ordering, and selecting specific properties.",
+                "summary": "Get all interchange documents.",
+                "tags": [
+                    "Business Documents"
+                ],
+                "parameters": [
+                    {
+                        "name": "$inlinecount",
+                        "in": "query",
+                        "description": "Count the number of retrieved entries by selecting ```allpages```.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "allpages"
+                            ]
+                        }
+                    },
+                    {
+                        "$ref": "#/parameters/top"
+                    },
+                    {
+                        "$ref": "#/parameters/skip"
+                    },
+                    {
+                        "name": "$filter",
+                        "in": "query",
+                        "description": "Filter items by property values.<br>\nFor any Id filter use only the 'eq' operator.<br>\nExample: ```Status eq 'FAILED'``` returns document with status 'FAILED'.<br>\nIntegrationFlowName is deprecated. In queries filtering for IntegrationFlowName, this will be substituted automatically by IntegrationFlow/Id",
+                        "type": "string"
+                    },
+                    {
+                        "name": "$orderby",
+                        "in": "query",
+                        "description": "Order items by property values.<br>\nIntegrationFlowName is deprecated.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "DocumentCreationTime",
+                                "DocumentCreationTime desc"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "$select",
+                        "in": "query",
+                        "description": "Select properties to be returned.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "Id",
+                                "SenderMessageType"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "$expand",
+                        "in": "query",
+                        "description": "Expand related entities.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "BusinessDocumentRelations",
+                                "BusinessDocumentProcessingEvents"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved user credentials collections",
+                        "schema": {
+                            "title": "Collection of business document",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.BusinessDocument"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/BusinessDocuments('{Id}')": {
+            "get": {
+                "description": "You can use the following request to get interchange document by message Guid.",
+                "summary": "Get interchange document by message Guid.",
+                "tags": [
+                    "Business Documents"
+                ],
+                "parameters": [
+                    {
+                        "name": "Id",
+                        "in": "path",
+                        "required": true,
+                        "description": "Guid of the interchange document",
+                        "type": "string"
+                    },
+                    {
+                        "name": "$select",
+                        "in": "query",
+                        "description": "Select properties to be returned.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "Id",
+                                "SenderMessageType",
+                                "SenderGroupControlNumber",
+                                "SenderDocumentStandard",
+                                "SenderInterchangeControlNumber",
+                                "SenderMessageNumber",
+                                "SenderTradingPartnerName",
+                                "SenderSystemId",
+                                "SenderAdapterType",
+                                "SenderCommunicationPartnerName",
+                                "ReceiverMessageType",
+                                "ReceiverGroupControlNumber",
+                                "ReceiverDocumentStandard",
+                                "ReceiverInterchangeControlNumber",
+                                "ReceiverMessageNumber",
+                                "ReceiverSystemId",
+                                "ReceiverAdapterType",
+                                "ReceiverTradingPartnerName",
+                                "ReceiverCommunicationPartnerName",
+                                "AgreedSenderIdentiferAtSenderSide",
+                                "AgreedSenderIdentiferQualifierAtSenderSide",
+                                "AgreedReceiverIdentiferAtSenderSide",
+                                "AgreedReceiverIdentiferQualifierAtSenderSide",
+                                "AgreedSenderIdentiferAtReceiverSide",
+                                "AgreedSenderIdentiferQualifierAtReceiverSide",
+                                "AgreedReceiverIdentiferAtReceiverSide",
+                                "AgreedReceiverIdentiferQualifierAtReceiverSide",
+                                "Bulk",
+                                "TransactionDocumentType",
+                                "ProcessingStatus",
+                                "ReceiverFunctionalAckStatus",
+                                "ReceiverTechnicalAckStatus",
+                                "OverallStatus",
+                                "StartedAt",
+                                "EndedAt",
+                                "DocumentCreationTime",
+                                "TechnicalAckDueTime",
+                                "FunctionalAckDueTime",
+                                "ResendAllowed",
+                                "RetryAllowed",
+                                "AgreementTypeName",
+                                "TransactionTypeName",
+                                "ArchivingStatus",
+                                "InterchangeName",
+                                "InterchangeDirection",
+                                "TransactionActivityType"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "$expand",
+                        "in": "query",
+                        "description": "Expand related entities.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "BusinessDocumentRelations",
+                                "BusinessDocumentProcessingEvents",
+                                "BusinessDocumentPayloads",
+                                "SenderTechnicalAcknowledgement",
+                                "ReceiverTechnicalAcknowledgement",
+                                "SenderFunctionalAcknowledgement",
+                                "ReceiverFunctionalAcknowledgement",
+                                "LastErrorDetails",
+                                "CustomObjects",
+                                "BusinessDocumentExtFields",
+                                "BusinessDocumentNotes",
+                                "BusinessDocumentProtocolHeaders"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved interchange document",
+                        "schema": {
+                            "title": "Collection of business document",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "$ref": "#/definitions/com.sap.hci.api.BusinessDocument"
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "__metadata": {
+                                        "id": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocuments('ad82e8e094e845438bc6a7b4566f6c3e')",
+                                        "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocuments('ad82e8e094e845438bc6a7b4566f6c3e')",
+                                        "type": "com.sap.hci.api.BusinessDocument"
+                                    },
+                                    "Id": "ad82e8e094e845438bc6a7b4566f6c3e",
+                                    "SenderMessageType": "997",
+                                    "SenderGroupControlNumber": "140000005",
+                                    "SenderDocumentStandard": "ACS-X12",
+                                    "SenderInterchangeControlNumber": "146220005",
+                                    "SenderMessageNumber": "Test Sender MN: 111",
+                                    "SenderTradingPartnerName": "MyAIFCompany",
+                                    "SenderSystemId": "AAS2",
+                                    "SenderAdapterType": "AS2",
+                                    "SenderCommunicationPartnerName": null,
+                                    "ReceiverMessageType": "TestMessageType",
+                                    "ReceiverGroupControlNumber": "TestRecGroupContNum",
+                                    "ReceiverDocumentStandard": "TestDocStandard",
+                                    "ReceiverInterchangeControlNumber": "TestIntControlNum",
+                                    "ReceiverMessageNumber": "TestReceiverMsgNum",
+                                    "ReceiverSystemId": "IDC1",
+                                    "ReceiverAdapterType": "AS2",
+                                    "ReceiverTradingPartnerName": "Edeka",
+                                    "ReceiverCommunicationPartnerName": null,
+                                    "AgreedSenderIdentiferAtSenderSide": "X12_01",
+                                    "AgreedSenderIdentiferQualifierAtSenderSide": "08",
+                                    "AgreedReceiverIdentiferAtSenderSide": "idoc002",
+                                    "AgreedReceiverIdentiferQualifierAtSenderSide": "01",
+                                    "AgreedSenderIdentiferAtReceiverSide": "S111",
+                                    "AgreedSenderIdentiferQualifierAtReceiverSide": "02",
+                                    "AgreedReceiverIdentiferAtReceiverSide": "R222",
+                                    "AgreedReceiverIdentiferQualifierAtReceiverSide": "04",
+                                    "Bulk": false,
+                                    "TransactionDocumentType": "REQUEST",
+                                    "ProcessingStatus": "COMPLETED",
+                                    "ReceiverFunctionalAckStatus": "NOT_EXPECTED",
+                                    "ReceiverTechnicalAckStatus": "REJECTED",
+                                    "OverallStatus": "CANCELED",
+                                    "StartedAt": "/Date(1756693227272)/",
+                                    "EndedAt": "/Date(1756693227610)/",
+                                    "DocumentCreationTime": "/Date(1756693227268)/",
+                                    "TechnicalAckDueTime": null,
+                                    "FunctionalAckDueTime": null,
+                                    "ResendAllowed": false,
+                                    "RetryAllowed": false,
+                                    "AgreementTypeName": null,
+                                    "TransactionTypeName": null,
+                                    "ArchivingStatus": "ARCHIVING_PENDING",
+                                    "InterchangeName": "DSFAOIEWJROQJROWEJOAJFDLDSAJFLSAFALSFD",
+                                    "InterchangeDirection": null,
+                                    "TransactionActivityType": null,
+                                    "BusinessDocumentRelations": {
+                                        "__deferred": {
+                                            "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocuments('ad82e8e094e845438bc6a7b4566f6c3e')/BusinessDocumentRelations"
+                                        }
+                                    },
+                                    "BusinessDocumentProcessingEvents": {
+                                        "__deferred": {
+                                            "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocuments('ad82e8e094e845438bc6a7b4566f6c3e')/BusinessDocumentProcessingEvents"
+                                        }
+                                    },
+                                    "BusinessDocumentPayloads": {
+                                        "__deferred": {
+                                            "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocuments('ad82e8e094e845438bc6a7b4566f6c3e')/BusinessDocumentPayloads"
+                                        }
+                                    },
+                                    "SenderTechnicalAcknowledgement": {
+                                        "__deferred": {
+                                            "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocuments('ad82e8e094e845438bc6a7b4566f6c3e')/SenderTechnicalAcknowledgement"
+                                        }
+                                    },
+                                    "ReceiverTechnicalAcknowledgement": {
+                                        "__deferred": {
+                                            "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocuments('ad82e8e094e845438bc6a7b4566f6c3e')/ReceiverTechnicalAcknowledgement"
+                                        }
+                                    },
+                                    "SenderFunctionalAcknowledgement": {
+                                        "__deferred": {
+                                            "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocuments('ad82e8e094e845438bc6a7b4566f6c3e')/SenderFunctionalAcknowledgement"
+                                        }
+                                    },
+                                    "ReceiverFunctionalAcknowledgement": {
+                                        "__deferred": {
+                                            "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocuments('ad82e8e094e845438bc6a7b4566f6c3e')/ReceiverFunctionalAcknowledgement"
+                                        }
+                                    },
+                                    "LastErrorDetails": {
+                                        "__deferred": {
+                                            "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocuments('ad82e8e094e845438bc6a7b4566f6c3e')/LastErrorDetails"
+                                        }
+                                    },
+                                    "CustomObjects": {
+                                        "__deferred": {
+                                            "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocuments('ad82e8e094e845438bc6a7b4566f6c3e')/CustomObjects"
+                                        }
+                                    },
+                                    "BusinessDocumentExtFields": {
+                                        "__deferred": {
+                                            "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocuments('ad82e8e094e845438bc6a7b4566f6c3e')/BusinessDocumentExtFields"
+                                        }
+                                    },
+                                    "BusinessDocumentNotes": {
+                                        "__deferred": {
+                                            "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocuments('ad82e8e094e845438bc6a7b4566f6c3e')/BusinessDocumentNotes"
+                                        }
+                                    },
+                                    "BusinessDocumentProtocolHeaders": {
+                                        "__deferred": {
+                                            "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocuments('ad82e8e094e845438bc6a7b4566f6c3e')/BusinessDocumentProtocolHeaders"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/BusinessDocuments/$count": {
+            "get": {
+                "description": "You can use the following request to get number of all interchange documents.",
+                "summary": "Get number of all interchange documents.",
+                "tags": [
+                    "Business Documents"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Number of retrieved interchange documents"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/BusinessDocuments('{Id}')/SenderTechnicalAcknowledgement": {
+            "get": {
+                "description": "You can use the following request to get interchange document's sender technical acknowledgement by Guid.",
+                "summary": "Get interchange document's sender technical acknowledgement by Guid.",
+                "tags": [
+                    "Sender Technical Acknowledgement"
+                ],
+                "parameters": [
+                    {
+                        "name": "Id",
+                        "in": "path",
+                        "required": true,
+                        "description": "Guid of the interchange document",
+                        "type": "string"
+                    },
+                    {
+                        "name": "$select",
+                        "in": "query",
+                        "description": "Select properties to be returned.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "Id",
+                                "Type",
+                                "Direction",
+                                "PayloadId",
+                                "Status",
+                                "PayloadContainerContentType",
+                                "PayloadContentType"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "$expand",
+                        "in": "query",
+                        "description": "Expand related entities.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "BusinessDocumentProcessingEvent",
+                                "BusinessDocument",
+                                "FunctionalAcknowledgement"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved sender technical acknowledgement",
+                        "schema": {
+                            "title": "Collection of sender technical acknowledgement",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.TechnicalAcknowledgement"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/BusinessDocuments('{Id}')/SenderFunctionalAcknowledgement": {
+            "get": {
+                "description": "You can use the following request to get interchange document's sender functional acknowledgement by Guid.",
+                "summary": "Get interchange document's sender functional acknowledgement by Guid.",
+                "tags": [
+                    "Sender Functional Acknowledgement"
+                ],
+                "parameters": [
+                    {
+                        "name": "Id",
+                        "in": "path",
+                        "required": true,
+                        "description": "Guid of the interchange document",
+                        "type": "string"
+                    },
+                    {
+                        "name": "$select",
+                        "in": "query",
+                        "description": "Select properties to be returned.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "Id",
+                                "PayloadId",
+                                "PayloadContainerContentType",
+                                "PayloadContentType",
+                                "DocumentId",
+                                "MessageType",
+                                "DocumentStandard",
+                                "Direction",
+                                "Status",
+                                "TransmissionStatus",
+                                "TransmissionErrorInformation",
+                                "TransmissionHttpCode"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "$expand",
+                        "in": "query",
+                        "description": "Expand related entities.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "BusinessDocumentProcessingEvent",
+                                "BusinessDocument",
+                                "FunctionalAcknowledgement"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved sender technical acknowledgement",
+                        "schema": {
+                            "title": "Collection of sender technical acknowledgement",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.FunctionalAcknowledgement"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "__metadata": {
+                                        "id": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/FunctionalAcknowledgements('8d5649b88a8f4a898175fa0174844047')",
+                                        "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/FunctionalAcknowledgements('8d5649b88a8f4a898175fa0174844047')",
+                                        "type": "com.sap.hci.api.FunctionalAcknowledgement",
+                                        "content_type": "application/octet-stream",
+                                        "media_src": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/FunctionalAcknowledgements('8d5649b88a8f4a898175fa0174844047')/$value",
+                                        "edit_media": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/FunctionalAcknowledgements('8d5649b88a8f4a898175fa0174844047')/$value"
+                                    },
+                                    "Id": "8d5649b88a8f4a898175fa0174844047",
+                                    "PayloadId": "8d5649b88a8f4a898175fa0174844047",
+                                    "PayloadContainerContentType": "None",
+                                    "PayloadContentType": "text/plain",
+                                    "DocumentId": "77938fb5cfc444409ff9e4477f97ccbc",
+                                    "MessageType": "Type",
+                                    "DocumentStandard": "AS2",
+                                    "Direction": "OUTBOUND",
+                                    "Status": "EXPECTED",
+                                    "TransmissionStatus": "IN_TRANSMISSION",
+                                    "TransmissionErrorInformation": "Sender Error: need t",
+                                    "TransmissionHttpCode": 500,
+                                    "BusinessDocumentProcessingEvents": {
+                                        "__deferred": {
+                                            "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/FunctionalAcknowledgements('8d5649b88a8f4a898175fa0174844047')/BusinessDocumentProcessingEvents"
+                                        }
+                                    },
+                                    "BusinessDocument": {
+                                        "__deferred": {
+                                            "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/FunctionalAcknowledgements('8d5649b88a8f4a898175fa0174844047')/BusinessDocument"
+                                        }
+                                    },
+                                    "TechnicalAcknowledgement": {
+                                        "__deferred": {
+                                            "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/FunctionalAcknowledgements('8d5649b88a8f4a898175fa0174844047')/TechnicalAcknowledgement"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/BusinessDocuments('{Id}')/ReceiverTechnicalAcknowledgement": {
+            "get": {
+                "description": "You can use the following request to get interchange document's receiver technical acknowledgement by Guid.",
+                "summary": "Get interchange document's receiver technical acknowledgement by Guid.",
+                "tags": [
+                    "Receiver Technical Acknowledgement"
+                ],
+                "parameters": [
+                    {
+                        "name": "Id",
+                        "in": "path",
+                        "required": true,
+                        "description": "Guid of the interchange document",
+                        "type": "string"
+                    },
+                    {
+                        "name": "$select",
+                        "in": "query",
+                        "description": "Select properties to be returned.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "Id",
+                                "Type",
+                                "Direction",
+                                "PayloadId",
+                                "Status",
+                                "PayloadContainerContentType",
+                                "PayloadContentType"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "$expand",
+                        "in": "query",
+                        "description": "Expand related entities.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "BusinessDocumentProcessingEvent",
+                                "BusinessDocument",
+                                "FunctionalAcknowledgement"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved receiver technical acknowledgement",
+                        "schema": {
+                            "title": "Collection of receiver technical acknowledgement",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.TechnicalAcknowledgement"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/BusinessDocuments('{Id}')/ReceiverFunctionalAcknowledgement": {
+            "get": {
+                "description": "You can use the following request to get interchange document's receiver functional acknowledgement by Guid.",
+                "summary": "Get interchange document's receiver functional acknowledgement by Guid.",
+                "tags": [
+                    "Receiver Functional Acknowledgement"
+                ],
+                "parameters": [
+                    {
+                        "name": "Id",
+                        "in": "path",
+                        "required": true,
+                        "description": "Guid of the interchange document",
+                        "type": "string"
+                    },
+                    {
+                        "name": "$select",
+                        "in": "query",
+                        "description": "Select properties to be returned.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "Id",
+                                "PayloadId",
+                                "PayloadContainerContentType",
+                                "PayloadContentType",
+                                "DocumentId",
+                                "MessageType",
+                                "DocumentStandard",
+                                "Direction",
+                                "Status",
+                                "TransmissionStatus",
+                                "TransmissionErrorInformation",
+                                "TransmissionHttpCode"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "$expand",
+                        "in": "query",
+                        "description": "Expand related entities.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "BusinessDocumentProcessingEvent",
+                                "BusinessDocument",
+                                "FunctionalAcknowledgement"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved sender technical acknowledgement",
+                        "schema": {
+                            "title": "Collection of sender technical acknowledgement",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.FunctionalAcknowledgement"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/BusinessDocuments('{Id}')/BusinessDocumentProcessingEvents": {
+            "get": {
+                "description": "You can use the following request to get interchange document's processing event by Guid.",
+                "summary": "Get interchange document's processing event by Guid.",
+                "tags": [
+                    "Business Document Processing Event"
+                ],
+                "parameters": [
+                    {
+                        "name": "Id",
+                        "in": "path",
+                        "required": true,
+                        "description": "Guid of the message for which the processing event is written",
+                        "type": "string"
+                    },
+                    {
+                        "name": "$select",
+                        "in": "query",
+                        "description": "Select properties to be returned.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "Id",
+                                "EventType",
+                                "Date",
+                                "MonitoringType",
+                                "MonitoringId"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "$expand",
+                        "in": "query",
+                        "description": "Expand related entities.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "BusinessDocument",
+                                "FunctionalAcknowledgement",
+                                "BusinessDocumentPayload",
+                                "ErrorDetails",
+                                "BusinessDocumentNotes"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved interchange document's processing event",
+                        "schema": {
+                            "title": "Collection of business document processing events",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.BusinessDocumentProcessingEvent"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "results": [
+                                        {
+                                            "__metadata": {
+                                                "id": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentProcessingEvents('61dafcaf5bda46738fb83c5107cd595b')",
+                                                "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentProcessingEvents('61dafcaf5bda46738fb83c5107cd595b')",
+                                                "type": "com.sap.hci.api.BusinessDocumentProcessingEvent"
+                                            },
+                                            "Id": "61dafcaf5bda46738fb83c5107cd595b",
+                                            "EventType": "BUSINESSDOCUMENT_CREATE_EVENT",
+                                            "Date": "/Date(1756693227272)/",
+                                            "MonitoringType": "MPL",
+                                            "MonitoringId": "MPLID1",
+                                            "BusinessDocument": {
+                                                "__deferred": {
+                                                    "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentProcessingEvents('61dafcaf5bda46738fb83c5107cd595b')/BusinessDocument"
+                                                }
+                                            },
+                                            "FunctionalAcknowledgement": {
+                                                "__deferred": {
+                                                    "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentProcessingEvents('61dafcaf5bda46738fb83c5107cd595b')/FunctionalAcknowledgement"
+                                                }
+                                            },
+                                            "BusinessDocumentPayload": {
+                                                "__deferred": {
+                                                    "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentProcessingEvents('61dafcaf5bda46738fb83c5107cd595b')/BusinessDocumentPayload"
+                                                }
+                                            },
+                                            "ErrorDetails": {
+                                                "__deferred": {
+                                                    "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentProcessingEvents('61dafcaf5bda46738fb83c5107cd595b')/ErrorDetails"
+                                                }
+                                            },
+                                            "BusinessDocumentNotes": {
+                                                "__deferred": {
+                                                    "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentProcessingEvents('61dafcaf5bda46738fb83c5107cd595b')/BusinessDocumentNotes"
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "__metadata": {
+                                                "id": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentProcessingEvents('ed64fd54571d4b1da3d03493831604ea')",
+                                                "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentProcessingEvents('ed64fd54571d4b1da3d03493831604ea')",
+                                                "type": "com.sap.hci.api.BusinessDocumentProcessingEvent"
+                                            },
+                                            "Id": "ed64fd54571d4b1da3d03493831604ea",
+                                            "EventType": "BUSINESSDOCUMENT_SENT_EVENT_BEFORE_TRANSMISSION",
+                                            "Date": "/Date(1756693227501)/",
+                                            "MonitoringType": null,
+                                            "MonitoringId": null,
+                                            "BusinessDocument": {
+                                                "__deferred": {
+                                                    "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentProcessingEvents('ed64fd54571d4b1da3d03493831604ea')/BusinessDocument"
+                                                }
+                                            },
+                                            "FunctionalAcknowledgement": {
+                                                "__deferred": {
+                                                    "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentProcessingEvents('ed64fd54571d4b1da3d03493831604ea')/FunctionalAcknowledgement"
+                                                }
+                                            },
+                                            "BusinessDocumentPayload": {
+                                                "__deferred": {
+                                                    "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentProcessingEvents('ed64fd54571d4b1da3d03493831604ea')/BusinessDocumentPayload"
+                                                }
+                                            },
+                                            "ErrorDetails": {
+                                                "__deferred": {
+                                                    "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentProcessingEvents('ed64fd54571d4b1da3d03493831604ea')/ErrorDetails"
+                                                }
+                                            },
+                                            "BusinessDocumentNotes": {
+                                                "__deferred": {
+                                                    "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentProcessingEvents('ed64fd54571d4b1da3d03493831604ea')/BusinessDocumentNotes"
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "__metadata": {
+                                                "id": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentProcessingEvents('f2a1b3452dee45d59476a9ff9fbdea7f')",
+                                                "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentProcessingEvents('f2a1b3452dee45d59476a9ff9fbdea7f')",
+                                                "type": "com.sap.hci.api.BusinessDocumentProcessingEvent"
+                                            },
+                                            "Id": "f2a1b3452dee45d59476a9ff9fbdea7f",
+                                            "EventType": "BUSINESSDOCUMENT_SENT_EVENT",
+                                            "Date": "/Date(1756693227610)/",
+                                            "MonitoringType": null,
+                                            "MonitoringId": null,
+                                            "BusinessDocument": {
+                                                "__deferred": {
+                                                    "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentProcessingEvents('f2a1b3452dee45d59476a9ff9fbdea7f')/BusinessDocument"
+                                                }
+                                            },
+                                            "FunctionalAcknowledgement": {
+                                                "__deferred": {
+                                                    "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentProcessingEvents('f2a1b3452dee45d59476a9ff9fbdea7f')/FunctionalAcknowledgement"
+                                                }
+                                            },
+                                            "BusinessDocumentPayload": {
+                                                "__deferred": {
+                                                    "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentProcessingEvents('f2a1b3452dee45d59476a9ff9fbdea7f')/BusinessDocumentPayload"
+                                                }
+                                            },
+                                            "ErrorDetails": {
+                                                "__deferred": {
+                                                    "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentProcessingEvents('f2a1b3452dee45d59476a9ff9fbdea7f')/ErrorDetails"
+                                                }
+                                            },
+                                            "BusinessDocumentNotes": {
+                                                "__deferred": {
+                                                    "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentProcessingEvents('f2a1b3452dee45d59476a9ff9fbdea7f')/BusinessDocumentNotes"
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "__metadata": {
+                                                "id": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentProcessingEvents('8db4797232354172bc80d32368b170e7')",
+                                                "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentProcessingEvents('8db4797232354172bc80d32368b170e7')",
+                                                "type": "com.sap.hci.api.BusinessDocumentProcessingEvent"
+                                            },
+                                            "Id": "8db4797232354172bc80d32368b170e7",
+                                            "EventType": "BUSINESSDOCUMENT_CANCEL_EVENT",
+                                            "Date": "/Date(1756695518726)/",
+                                            "MonitoringType": null,
+                                            "MonitoringId": null,
+                                            "BusinessDocument": {
+                                                "__deferred": {
+                                                    "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentProcessingEvents('8db4797232354172bc80d32368b170e7')/BusinessDocument"
+                                                }
+                                            },
+                                            "FunctionalAcknowledgement": {
+                                                "__deferred": {
+                                                    "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentProcessingEvents('8db4797232354172bc80d32368b170e7')/FunctionalAcknowledgement"
+                                                }
+                                            },
+                                            "BusinessDocumentPayload": {
+                                                "__deferred": {
+                                                    "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentProcessingEvents('8db4797232354172bc80d32368b170e7')/BusinessDocumentPayload"
+                                                }
+                                            },
+                                            "ErrorDetails": {
+                                                "__deferred": {
+                                                    "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentProcessingEvents('8db4797232354172bc80d32368b170e7')/ErrorDetails"
+                                                }
+                                            },
+                                            "BusinessDocumentNotes": {
+                                                "__deferred": {
+                                                    "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/BusinessDocumentProcessingEvents('8db4797232354172bc80d32368b170e7')/BusinessDocumentNotes"
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/BusinessDocuments('{Id}')/BusinessDocumentPayloads": {
+            "get": {
+                "description": "You can use the following request to get interchange document's payloads by Guid.",
+                "summary": "Get interchange document's Payloads by Guid.",
+                "tags": [
+                    "Business Document Payloads"
+                ],
+                "parameters": [
+                    {
+                        "name": "Id",
+                        "in": "path",
+                        "required": true,
+                        "description": "Guid of the message for which the interchange document is written",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved unassigned interchange document's payload",
+                        "schema": {
+                            "title": "Collection of business document payloads",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.BusinessDocumentPayload"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/BusinessDocumentPayloads('{Id}')/$value": {
+            "get": {
+                "description": "You can use the following request to get payload value by Guid.",
+                "summary": "Get interchange document's payload by Guid.",
+                "tags": [
+                    "Business Document Payloads"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Value of Payloads",
+                        "schema": {
+                            "title": "Collection of business document payloads",
+                            "type": "string"
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/BusinessDocuments('{Id}')/BusinessDocumentNotes": {
+            "get": {
+                "description": "You can use the following request to get interchange document's notes by Guid.",
+                "summary": "Get interchange document's notes by Guid.",
+                "tags": [
+                    "Business Document Notes"
+                ],
+                "parameters": [
+                    {
+                        "name": "Id",
+                        "in": "path",
+                        "required": true,
+                        "description": "Guid of the interchange document",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved interchange document notes",
+                        "schema": {
+                            "title": "Collection of interchange document notes",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.BusinessDocumentNote"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/BusinessDocuments('{Id}')/CustomObjects": {
+            "get": {
+                "description": "You can use the following request to get interchange document's custom search attributes by Guid.</b>\n The B2B Scenarios tab under the Monitor section allows you to monitor the interchanges that are created during a B2B transaction.</b>\n The interchanges are displayed in a list with a list of filters using which helps you find a specific interchange easily. </b>\nThese search filters are provided in a standard format.</b>\n There could be scenarios where you need to search for an interchange using a filter that is not provided in general.</b>\n In such cases, the Configuration Manager allows you to create and use custom search attributes.",
+                "summary": "Get interchange document's custom search attributes by Guid.",
+                "tags": [
+                    "Custom Search Attributes"
+                ],
+                "parameters": [
+                    {
+                        "name": "Id",
+                        "in": "path",
+                        "required": true,
+                        "description": "Guid of the interchange document",
+                        "type": "string"
+                    },
+                    {
+                        "name": "$select",
+                        "in": "query",
+                        "description": "Select properties to be returned.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "Id",
+                                "SearchFieldValue1",
+                                "SearchFieldValue2",
+                                "SearchFieldValue3",
+                                "SearchFieldValue4",
+                                "SearchFieldValue5",
+                                "SearchFieldValue6",
+                                "SearchFieldValue7",
+                                "SearchFieldValue8",
+                                "SearchFieldValue9",
+                                "SearchFieldValue10"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved interchange document's custom search attributes",
+                        "schema": {
+                            "title": "Collection of custom search attributes",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.CustomObjects"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/BusinessDocuments('{Id}')/BusinessDocumentExtFields": {
+            "get": {
+                "description": "You can use the following request to get interchange document's extension fields by Guid.",
+                "summary": "Get interchange document's extension fields by Guid.",
+                "tags": [
+                    "Business Document Extended Fields"
+                ],
+                "parameters": [
+                    {
+                        "name": "Id",
+                        "in": "path",
+                        "required": true,
+                        "description": "Guid of the message for which the interchange document is written",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved business document extended fields",
+                        "schema": {
+                            "title": "Collection of business document extended fields",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.BusinessDocumentExtFields"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/BusinessDocuments('{Id}')/LastErrorDetails": {
+            "get": {
+                "description": "You can use the following request to get interchange document's error detail by Guid.",
+                "summary": "Get interchange document's error detail by Guid.",
+                "tags": [
+                    "Error Details"
+                ],
+                "parameters": [
+                    {
+                        "name": "Id",
+                        "in": "path",
+                        "required": true,
+                        "description": "Guid of the interchange document",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved error detail",
+                        "schema": {
+                            "title": "Collection of error detail",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.ErrorDetail"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/BusinessDocuments('{Id}')/BusinessDocumentProtocolHeaders": {
+            "get": {
+                "description": "You can use the following request to get interchange document's protocol headers by Guid.",
+                "summary": "Get interchange document's protocol headers by Guid.",
+                "tags": [
+                    "Business Document Protocol Headers"
+                ],
+                "parameters": [
+                    {
+                        "name": "Id",
+                        "in": "path",
+                        "required": true,
+                        "description": "Guid of the interchange document",
+                        "type": "string"
+                    },
+                    {
+                        "name": "$select",
+                        "in": "query",
+                        "description": "Select properties to be returned.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "Id",
+                                "Name",
+                                "Value"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "$expand",
+                        "in": "query",
+                        "description": "Expand related entities.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "BusinessDocument",
+                                "OrphanedInterchange"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved interchange document's protocol headers",
+                        "schema": {
+                            "title": "Collection of protocol headers",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.BusinessDocumentProtocolHeader"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/TechnicalAcknowledgements('{Id}')": {
+            "get": {
+                "description": "You can use the following request to get technical acknowledgement by Guid.",
+                "summary": "Get technical acknowledgement by Guid.",
+                "tags": [
+                    "Technical Acknowledgement"
+                ],
+                "parameters": [
+                    {
+                        "name": "Id",
+                        "in": "path",
+                        "required": true,
+                        "description": "Guid of the technical acknowledgement",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved technical acknowledgement",
+                        "schema": {
+                            "title": "Collection of sender technical acknowledgement",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.TechnicalAcknowledgement"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "__metadata": {
+                                        "id": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/TechnicalAcknowledgements('5482a173f647486a933d7956b7d667db')",
+                                        "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/TechnicalAcknowledgements('5482a173f647486a933d7956b7d667db')",
+                                        "type": "com.sap.hci.api.TechnicalAcknowledgement",
+                                        "content_type": "application/octet-stream",
+                                        "media_src": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/TechnicalAcknowledgements('5482a173f647486a933d7956b7d667db')/$value",
+                                        "edit_media": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/TechnicalAcknowledgements('5482a173f647486a933d7956b7d667db')/$value"
+                                    },
+                                    "Id": "5482a173f647486a933d7956b7d667db",
+                                    "Type": "MDN",
+                                    "Direction": "OUTBOUND",
+                                    "PayloadId": "5482a173f647486a933d7956b7d667db",
+                                    "Status": "WARNING",
+                                    "PayloadContainerContentType": "None",
+                                    "PayloadContentType": "text/plain",
+                                    "BusinessDocumentProcessingEvent": {
+                                        "__deferred": {
+                                            "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/TechnicalAcknowledgements('5482a173f647486a933d7956b7d667db')/BusinessDocumentProcessingEvent"
+                                        }
+                                    },
+                                    "BusinessDocument": {
+                                        "__deferred": {
+                                            "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/TechnicalAcknowledgements('5482a173f647486a933d7956b7d667db')/BusinessDocument"
+                                        }
+                                    },
+                                    "FunctionalAcknowledgement": {
+                                        "__deferred": {
+                                            "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/TechnicalAcknowledgements('5482a173f647486a933d7956b7d667db')/FunctionalAcknowledgement"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/TechnicalAcknowledgements('{Id}')/$value": {
+            "get": {
+                "description": "You can use the following request to get technical acknowledgement by Guid.",
+                "summary": "Get technical acknowledgement by Guid.",
+                "tags": [
+                    "Technical Acknowledgement"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Value of Technical Acknowledgement",
+                        "schema": {
+                            "title": "Collection of technical acknowledgements",
+                            "type": "string"
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/FunctionalAcknowledgements('{Id}')": {
+            "get": {
+                "description": "You can use the following request to get technical acknowledgement by Guid.",
+                "summary": "Get technical acknowledgement by Guid.",
+                "tags": [
+                    "Functional Acknowledgement"
+                ],
+                "parameters": [
+                    {
+                        "name": "Id",
+                        "in": "path",
+                        "required": true,
+                        "description": "Guid of the functional acknowledgement",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved functional acknowledgement",
+                        "schema": {
+                            "title": "Collection of sender functional acknowledgement",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.FunctionalAcknowledgement"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "__metadata": {
+                                        "id": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/FunctionalAcknowledgements('7a268f5f012743e594e598008bcd9b13')",
+                                        "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/FunctionalAcknowledgements('7a268f5f012743e594e598008bcd9b13')",
+                                        "type": "com.sap.hci.api.FunctionalAcknowledgement",
+                                        "content_type": "application/octet-stream",
+                                        "media_src": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/FunctionalAcknowledgements('7a268f5f012743e594e598008bcd9b13')/$value",
+                                        "edit_media": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/FunctionalAcknowledgements('7a268f5f012743e594e598008bcd9b13')/$value"
+                                    },
+                                    "Id": "7a268f5f012743e594e598008bcd9b13",
+                                    "PayloadId": "7a268f5f012743e594e598008bcd9b13",
+                                    "PayloadContainerContentType": "None",
+                                    "PayloadContentType": "text/plain",
+                                    "DocumentId": "c67bfe2785374ceea702c2b75e9b40bb",
+                                    "MessageType": "Type",
+                                    "DocumentStandard": "AS2",
+                                    "Direction": "OUTBOUND",
+                                    "Status": "EXPECTED",
+                                    "TransmissionStatus": "IN_TRANSMISSION",
+                                    "TransmissionErrorInformation": "Sender Error: need t",
+                                    "TransmissionHttpCode": 500,
+                                    "BusinessDocumentProcessingEvents": {
+                                        "__deferred": {
+                                            "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/FunctionalAcknowledgements('7a268f5f012743e594e598008bcd9b13')/BusinessDocumentProcessingEvents"
+                                        }
+                                    },
+                                    "BusinessDocument": {
+                                        "__deferred": {
+                                            "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/FunctionalAcknowledgements('7a268f5f012743e594e598008bcd9b13')/BusinessDocument"
+                                        }
+                                    },
+                                    "TechnicalAcknowledgement": {
+                                        "__deferred": {
+                                            "uri": "https://firebirddev01.it-acdev005.cfapps.eu12.hana.ondemand.com:443/api/v1/FunctionalAcknowledgements('7a268f5f012743e594e598008bcd9b13')/TechnicalAcknowledgement"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/FunctionalAcknowledgements('{Id}')/$value": {
+            "get": {
+                "description": "You can use the following request to get functional acknowledgement value by Guid.",
+                "summary": "Get functional acknowledgement value by Guid.",
+                "tags": [
+                    "Functional Acknowledgement"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Value of functional acknowledgement",
+                        "schema": {
+                            "title": "Collection of functional acknowledgement", 
+                            "type": "string"
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/activateB2BArchivingConfiguration": {
+            "post": {
+                "description": "This API is only present in the <b>Cloud Foundry environment.</b>\n You can use the following request to acitvate the archiving functionality in your tenant.",
+                "summary": "Enable archiving",
+                "tags": [
+                    "Data Archiving"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Archiving was enabled",
+                        "schema": {
+                            "title": "Collection of archiving configuration",
+                            "type": "object"
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "results": [
+                                        {
+                                            "": "Archiving successfully enabled for tenant xy"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Access forbidden - you did not have the required permissions to activate the archiving in this tenant.<br>\n\nIn API sandbox any write access is refused",
+                        "schema": {
+                            "$ref": "#/definitions/odata.error"
+                        },
+                        "examples": {
+                            "application/json": {
+                                "error": {
+                                    "code": "Forbidden",
+                                    "message": {
+                                        "lang": "en",
+                                        "value": null
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error - parameter values are not provided in the expected hex encoded format.",
+                        "schema": {
+                            "$ref": "#/definitions/odata.error"
+                        },
+                        "examples": {
+                            "application/json": {
+                                "error": {
+                                    "code": "Internal Server Error",
+                                    "message": {
+                                        "lang": "en",
+                                        "value": "Internal Server Error"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/B2BArchivingConfigurations('{TenantName}')": {
+            "get": {
+                "description": "This API is only present in the <b>Cloud Foundry environment.</b>\n You can use the following request to acitvate the archiving functionality in your tenant.",
+                "summary": "Get archiving configuration for a tenant",
+                "tags": [
+                    "Data Archiving"
+                ],
+                "parameters": [
+                    {
+                        "name": "TenantName",
+                        "in": "path",
+                        "required": true,
+                        "description": "Tenant name",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved value for archiving configuration of this tenant",
+                        "schema": {
+                            "title": "Collection of archiving configuration",
+                            "type": "object"
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "results": [
+                                        {
+                                            "": "Archiving configured has value: true on tenant xy"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/B2BArchivingKeyPerformanceIndicators": {
+            "get": {
+                "description": "This API is only present in the <b>Cloud Foundry environment.</b>\n You can use the following request to get the Key Performance Indicators (KPIs) of the archiving runs.",
+                "summary": "Get Key Performance Indicators of the archiving run",
+                "tags": [
+                    "Data Archiving"
+                ],
+                "parameters": [
+                    {
+                        "name": "$filter",
+                        "in": "query",
+                        "description": "Filter items by property values.<br>\nFor any Id filter use only the 'eq' operator.",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved archiving key performance indicators",
+                        "schema": {
+                            "title": "Collection of B2B archiving key performance indicators",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.B2BArchivingKeyPerformanceIndicators"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "com.sap.hci.api.OrphanedInterchange": {
+            "type": "object",
+            "properties": {
+                "Id": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "AdapterType": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "Date": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "ProcessingStatus": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "title": "OrphanedInterchange"
+        },
+        "com.sap.hci.api.BusinessDocument": {
+            "type": "object",
+            "properties": {
+                "Id": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "SenderMessageType": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "SenderGroupControlNumber": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "SenderDocumentStandard": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "SenderInterchangeControlNumber": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "SenderMessageNumber": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "SenderTradingPartnerName": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "SenderSystemId": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "SenderAdapterType": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "SenderCommunicationPartnerName": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "ReceiverMessageType": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "ReceiverGroupControlNumber": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "ReceiverDocumentStandard": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "ReceiverInterchangeControlNumber": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "ReceiverMessageNumber": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "ReceiverSystemId": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "ReceiverAdapterType": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "ReceiverTradingPartnerName": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "ReceiverCommunicationPartnerName": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "AgreedSenderIdentiferAtSenderSide": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "AgreedSenderIdentiferQualifierAtSenderSide": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "AgreedReceiverIdentiferAtSenderSide": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "AgreedReceiverIdentiferQualifierAtSenderSide": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "AgreedSenderIdentiferAtReceiverSide": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "AgreedSenderIdentiferQualifierAtReceiverSide": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "AgreedReceiverIdentiferAtReceiverSide": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "AgreedReceiverIdentiferQualifierAtReceiverSide": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "Bulk": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "TransactionDocumentType": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "ProcessingStatus": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "ReceiverFunctionalAckStatus": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "ReceiverTechnicalAckStatus": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "OverallStatus": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "StartedAt": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "EndedAt": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "DocumentCreationTime": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "TechnicalAckDueTime": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "FunctionalAckDueTime": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "ResendAllowed": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "RetryAllowed": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "AgreementTypeName": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "TransactionTypeName": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "ArchivingStatus": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "InterchangeName": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "InterchangeDirection": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "TransactionActivityType": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "title": "BusinessDocument"
+        },
+        "com.sap.hci.api.ErrorDetail": {
+            "type": "object",
+            "properties": {
+                "Id": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "ErrorInformation": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "ErrorCategory": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "IsTransientError": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "title": "ErrorDetail"
+        },
+        "com.sap.hci.api.TechnicalAcknowledgement": {
+            "type": "object",
+            "properties": {
+                "Id": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "Type": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "Direction": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "PayloadId": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "Status": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "PayloadContainerContentType": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "PayloadContentType": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "title": "TechnicalAcknowledgement"
+        },
+        "com.sap.hci.api.FunctionalAcknowledgement": {
+            "type": "object",
+            "properties": {
+                "Id": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "PayloadId": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "PayloadContainerContentType": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "PayloadContentType": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "DocumentId": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "MessageType": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "DocumentStandard": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "Direction": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "Status": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "TransmissionStatus": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "TransmissionErrorInformation": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "TransmissionHttpCode": {
+                    "type": [
+                        "integer",
+                        "null"
+                    ]
+                }
+            },
+            "title": "TechnicalAcknowledgement"
+        },
+        "com.sap.hci.api.BusinessDocumentProcessingEvent": {
+            "type": "object",
+            "properties": {
+                "Id": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "EventType": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "Date": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "MonitoringType": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "MonitoringId": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "title": "BusinessDocumentProcessingEvent"
+        },
+        "com.sap.hci.api.BusinessDocumentProtocolHeader": {
+            "type": "object",
+            "properties": {
+                "Id": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "Name": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "Value": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "title": "BusinessDocumentProtocolHeaders"
+        },
+        "com.sap.hci.api.BusinessDocumentPayload": {
+            "type": "object",
+            "properties": {
+                "Id": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "ProcessingState": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "Direction": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "PayloadId": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "PayloadContainerContentType": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "PayloadContentType": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "ArchivingRelevant": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "title": "BusinessDocumentPayload"
+        },
+        "com.sap.hci.api.BusinessDocumentNote": {
+            "type": "object",
+            "properties": {
+                "Id": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "UserId": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "CreateTimeStamp": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "Text": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "Type": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "title": "BusinessDocumentNote"
+        },
+        "com.sap.hci.api.CustomObjects": {
+            "type": "object",
+            "properties": {
+                "Id": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "SearchFieldValue1": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "SearchFieldValue2": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "SearchFieldValue3": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "SearchFieldValue4": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "SearchFieldValue5": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "SearchFieldValue6": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "SearchFieldValue7": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "SearchFieldValue8": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "SearchFieldValue9": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "SearchFieldValue10": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "title": "CustomObjects"
+        },
+        "com.sap.hci.api.BusinessDocumentExtFields": {
+            "type": "object",
+            "properties": {
+                "Id": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "title": "BusinessDocumentExtFields"
+        },
+        "com.sap.hci.api.B2BArchivingKeyPerformanceIndicators": {
+            "type": "object",
+            "properties": {
+                "RunStart": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "RunDurationInMinutes": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "DataCollectionDurationInMinutes": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "DataCompressionDurationInMinutes": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "DataUploadDurationInMinutes": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "DocumentsToBeArchived": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "DocumentsArchived": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "DocumentsArchivingFailed": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "DocumentsArchivedUntilDate": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "DateOfOldestDocumentToBeArchivedAfterRun": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "DataUploadedInMb": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "RunStatus": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "RunFailedPhase": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "title": "B2BArchivingKeyPerformanceIndicators"
+        },
+        "odata.error": {
+            "type": "object",
+            "required": [
+                "error"
+            ],
+            "properties": {
+                "error": {
+                    "$ref": "#/definitions/odata.error.main"
+                }
+            }
+        },
+        "odata.error.main": {
+            "type": "object",
+            "required": [
+                "code",
+                "message"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "object",
+                    "required": [
+                        "lang",
+                        "value"
+                    ],
+                    "properties": {
+                        "lang": {
+                            "type": "string"
+                        },
+                        "value": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "odata.error.detail": {
+            "type": "object",
+            "required": [
+                "code",
+                "message"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "target": {
+                    "type": "string"
+                }
+            }
+        }
+    },
+    "parameters": {
+        "top": {
+            "name": "$top",
+            "in": "query",
+            "description": "Show only the first n items.",
+            "type": "integer",
+            "minimum": 0
+        },
+        "skip": {
+            "name": "$skip",
+            "in": "query",
+            "description": "Skip the first n items.",
+            "type": "integer",
+            "minimum": 0
+        },
+        "filter": {
+            "name": "$filter",
+            "in": "query",
+            "description": "Filter items by property values.",
+            "type": "string"
+        }
+    },
+    "responses": {
+        "400": {
+            "description": "Bad Request. Wrong format or structure of the provided request body.",
+            "schema": {
+                "$ref": "#/definitions/odata.error"
+            }
+        },
+        "401": {
+            "description": "Unauthorized. Authorization information is missing or invalid.",
+            "schema": {
+                "$ref": "#/definitions/odata.error"
+            }
+        },
+        "403": {
+            "description": "Access forbidden - you did not have the required permissions to access the resource.<br>\n\nIn API sandbox any write access is refused.",
+            "schema": {
+                "$ref": "#/definitions/odata.error"
+            },
+            "examples": {
+                "application/json": {
+                    "code": "UNAUTHORIZED_OPERATION",
+                    "message": "Sorry! API sandbox only supports the 'Try-it-out' feature for GET operations. To test a write operation, please test the API against your own tenant account of SAP Cloud Integration by configuring the corresponding API endpoint."
+                }
+            }
+        },
+        "404": {
+            "description": "Not found",
+            "schema": {
+                "$ref": "#/definitions/odata.error"
+            }
+        },
+        "500": {
+            "description": "Internal server error. The requested operation led to an error during execution.",
+            "schema": {
+                "$ref": "#/definitions/odata.error"
+            }
+        },
+        "error": {
+            "description": "Error",
+            "schema": {
+                "$ref": "#/definitions/odata.error"
+            },
+            "examples": {
+                "application/json": {
+                    "error": {
+                        "code": "<error code>",
+                        "message": {
+                            "lang": "en",
+                            "value": "<error text>"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

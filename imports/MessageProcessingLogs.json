@@ -1,0 +1,2802 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "title": "Message Processing Logs",
+        "version": "1.0.0",
+        "description": "Message processing logs enable you to store data about the messages processed on a tenant and - for each processed message - information about the individual processing steps.  \nThis API is implemented based on OData version 2 specification."
+    },
+    "externalDocs": {
+        "description": "SAP Cloud Integration documentation: OData API - Message Monitoring",
+        "url": "https://help.sap.com/viewer/368c481cd6954bdfa5d0435479fd4eaf/Cloud/en-US/827a2d7e9c6f4866a1d6c0e647bcacd2.html"
+    },
+    "x-sap-api-type": "ODATA",
+    "x-sap-shortText": "Get an overview of the messages processed on a tenant and get the details for individual messages.",
+    "schemes": [
+        "https"
+    ],
+    "host": "sandbox.api.sap.com",
+    "basePath": "/cpi/api/v1",
+    "x-servers": [
+        {
+            "url": "https://{Account Short Name}-tmn.{SSL Host}.{landscapehost}/api/v1",
+            "description": "SAP Cloud Integration REST API Endpoint",
+            "templates": {
+                "Account Short Name": {
+                    "description": "SAP BTP subaccount short name where Cloud Integration is provided"
+                },
+                "SSL Host": {
+                        "description": "SSL Host"
+                },                
+                "landscapehost": {
+                    "description": "SAP BTP Region Host",
+                    "enum": [
+                        "ae1.hana.ondemand.com",
+                        "ap1.hana.ondemand.com",
+                        "br1.hana.ondemand.com",
+                        "ca1.hana.ondemand.com",
+                        "cn1.hana.ondemand.com",
+                        "eu1.hana.ondemand.com",
+                        "eu2.hana.ondemand.com",
+                        "eu3.hana.ondemand.com",
+                        "hana.ondemand.com",
+                        "hanatrial.ondemand.com",
+                        "jp1.hana.ondemand.com",
+                        "sa1.hana.ondemand.com",
+                        "us1.hana.ondemand.com",
+                        "us2.hana.ondemand.com",
+                        "us3.hana.ondemand.com",
+                        "us4.hana.ondemand.com"
+                    ],
+                    "default": "hana.ondemand.com"
+                }
+            }
+        },
+        {
+            "url": "https://{Custom Name}.{Domain}/api/v1",
+            "description": "SAP Cloud Integration Custom Domain Endpoint - see [Configuring Custom Domains](https://help.sap.com/viewer/368c481cd6954bdfa5d0435479fd4eaf/Cloud/en-US/7230b9ff41914cc0969223e6a020104b.html)",
+            "templates": {
+                "Custom Name": {
+                    "description": "Your defined name for your Cloud Integration account."
+                },                
+                "Domain": {
+                    "description": "Your custom domain"
+                }
+            }
+        }
+    ],
+    "securityDefinitions": {
+        "BasicAuthentication": {
+            "type": "basic"
+        }
+    },
+    "security": [
+        {
+            "BasicAuthentication": []
+        }
+    ],
+    "consumes": [
+        "application/json"
+    ],
+    "produces": [
+        "application/json"
+    ],
+    "tags": [
+        {
+            "name": "Logs"
+        },
+        {
+            "name": "Adapter Attributes"
+        },
+        {
+            "name": "Attachments"
+        },
+        {
+            "name": "Custom Header Properties"
+        },
+        {
+            "name": "Error Information"
+        },
+        {
+            "name": "ID Mapper"
+        },
+        {
+            "name": "Idempotent Repository"
+        },
+        {
+            "name": "Data Archiving"
+        }        
+    ],
+    "paths": {
+        "/MessageProcessingLogs": {
+            "get": {
+                "description": "Get all message processing logs.<br>\n\nIn API sandbox the available integration flows provide the following log information:\n* '__Integration Flow with Message Store entries - COMPLETED PROCESSING__': Attachments and message store entries\n* '__Integration Flow with Adapter Data - FAILED PROCESSING__': Message processing log error information, attachments, custom header properties and adapter data",
+                "summary": "Get all message processing logs.",
+                "tags": [
+                    "Logs"
+                ],
+                "parameters": [
+                    {
+                        "name": "$inlinecount",
+                        "in": "query",
+                        "description": "Count the number of retrieved entries by selecting ```allpages```.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "allpages"
+                            ]
+                        }
+                    },                    
+                    {
+                        "$ref": "#/parameters/top"
+                    },
+                    {
+                        "$ref": "#/parameters/skip"
+                    },
+                    {
+                        "name": "$filter",
+                        "in": "query",
+                        "description": "Filter items by property values.<br>\nFor any Id filter use only the 'eq' operator.<br>\nExample: ```Status eq 'FAILED'``` returns message processing logs with status 'FAILED'.<br>\nIntegrationFlowName is deprecated. In queries filtering for IntegrationFlowName, this will be substituted automatically by IntegrationFlow/Id",
+                        "type": "string"
+                    },
+                    {
+                        "name": "$orderby",
+                        "in": "query",
+                        "description": "Order items by property values.<br>\nIntegrationFlowName is deprecated.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "LogEnd",
+                                "LogEnd desc",
+                                "LogStart", 
+                                "LogStart desc",
+                                "Status,LogEnd desc",
+                                "ApplicationMessageId"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "$select",
+                        "in": "query",
+                        "description": "Select properties to be returned.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "MessageGuid",
+                                "CorrelationId",
+                                "ApplicationMessageId",
+                                "ApplicationMessageType",
+                                "IntegrationFlowName",
+                                "IntegrationArtifact",
+                                "Status",
+                                "CustomStatus",                           
+                                "LogLevel",
+                                "LogStart",
+                                "LogEnd",
+                                "Sender",
+                                "Receiver",
+                                "AlternateWebLink",
+                                "ArchivingStatus",
+                                "ArchivingSenderChannelMessages",
+                                "ArchivingReceiverChannelMessages",
+                                "ArchivingLogAttachments",
+                                "ArchivingPersistedMessages"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved message processing logs",
+                        "schema": {
+                            "title": "Collection of MessageProcessingLog",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.MessageProcessingLog"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "results": [
+                                        {
+                                            "MessageGuid": "AFq478Bblxi4wCjBcDb_G0vAGGZG",
+                                            "CorrelationId": "AFq478Bmn-aPieAWVy0mMGPLWsjx",
+                                            "ApplicationMessageId": null,
+                                            "ApplicationMessageType": null,
+                                            "LogStart": "/Date(1522069440003)/",
+                                            "LogEnd": "/Date(1522069440200)/",
+                                            "Sender": null,
+                                            "Receiver": null,
+                                            "IntegrationFlowName": "IntegrationFlow_AdapterData_FAILED_PROCESSING",
+                                            "Status": "FAILED",
+                                            "AlternateWebLink": "https://sandbox.api.sap.com:443:443/itspaces/shell/monitoring/MessageDetails/%7B%22messageGuid%22%3A%22AFq478Bblxi4wCjBcDb_G0vAGGZG%22%7D",
+                                            "IntegrationArtifact": {
+                                                "Id": "IntegrationFlow_AdapterData_FAILED_PROCESSING",
+                                                "Name": "Integration Flow with Adapter Data - FAILED PROCESSING",
+                                                "Type": "INTEGRATION_FLOW",
+                                                "PackageId": "PackageId",
+                                                "PackageName": "PackageName"
+                                            },
+                                            "LogLevel": "INFO",
+                                            "CustomStatus": "FAILED",
+                                            "ArchivingStatus": "NOT_RELEVANT",
+                                            "ArchivingSenderChannelMessages": "false",
+                                            "ArchivingReceiverChannelMessages": "false",
+                                            "ArchivingLogAttachments": "false",
+                                            "ArchivingPersistedMessages": "false",
+                                            "TransactionId": "636260297acc487198a65955d3648c49",
+                                            "PreviousComponentName": "CPI_cpisbsa1",
+                                            "LocalComponentName": "CPI_cpisbsa1",
+                                            "OriginComponentName": null,
+                                            "CustomHeaderProperties": {
+                                                "__deferred": {
+                                                    "uri": "https://sandbox.api.sap.com:443:443/cpi/api/v1/MessageProcessingLogs('AFq478Bblxi4wCjBcDb_G0vAGGZG')/CustomHeaderProperties"
+                                                }
+                                            },
+                                            "MessageStoreEntries": {
+                                                "__deferred": {
+                                                    "uri": "https://sandbox.api.sap.com:443:443/cpi/api/v1/MessageProcessingLogs('AFq478Bblxi4wCjBcDb_G0vAGGZG')/MessageStoreEntries"
+                                                }
+                                            },
+                                            "ErrorInformation": {
+                                                "__deferred": {
+                                                    "uri": "https://sandbox.api.sap.com:443:443/cpi/api/v1/MessageProcessingLogs('AFq478Bblxi4wCjBcDb_G0vAGGZG')/ErrorInformation"
+                                                }
+                                            },
+                                            "AdapterAttributes": {
+                                                "__deferred": {
+                                                    "uri": "https://sandbox.api.sap.com:443:443/cpi/api/v1/MessageProcessingLogs('AFq478Bblxi4wCjBcDb_G0vAGGZG')/AdapterAttributes"
+                                                }
+                                            },
+                                            "Attachments": {
+                                                "__deferred": {
+                                                    "uri": "https://sandbox.api.sap.com:443:443/cpi/api/v1/MessageProcessingLogs('AFq478Bblxi4wCjBcDb_G0vAGGZG')/Attachments"
+                                                }
+                                            },
+                                            "Runs": {
+                                                "__deferred": {
+                                                    "uri": "https://sandbox.api.sap.com:443:443/cpi/api/v1/MessageProcessingLogs('AFq478Bblxi4wCjBcDb_G0vAGGZG')/Runs"
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "MessageGuid": "AFq571kVtZ0shxJbJTj05LIFsKQf",
+                                            "CorrelationId": "AFq571ngxrynvRfJauu1Y5XKBon-",
+                                            "ApplicationMessageId": null,
+                                            "ApplicationMessageType": null,
+                                            "LogStart": "/Date(1522134873130)/",
+                                            "LogEnd": "/Date(1522134873336)/",
+                                            "Sender": null,
+                                            "Receiver": null,
+                                            "IntegrationFlowName": "IntegrationFlow_AdapterData_FAILED_PROCESSING",
+                                            "Status": "FAILED",
+                                            "AlternateWebLink": "https://sandbox.api.sap.com:443:443/itspaces/shell/monitoring/MessageDetails/%7B%22messageGuid%22%3A%22AFq571kVtZ0shxJbJTj05LIFsKQf%22%7D",
+                                            "IntegrationArtifact": {
+                                                "Id": "IntegrationFlow_AdapterData_FAILED_PROCESSING",
+                                                "Name": "Integration Flow with Adapter Data - FAILED PROCESSING",
+                                                "Type": "INTEGRATION_FLOW",
+                                                "PackageId": "PackageId",
+                                                "PackageName": "PackageName"
+                                            },
+                                            "LogLevel": "INFO",
+                                            "CustomStatus": "FAILED",
+                                            "ArchivingStatus": "NOT_RELEVANT",
+                                            "ArchivingSenderChannelMessages": "false",
+                                            "ArchivingReceiverChannelMessages": "false",
+                                            "ArchivingLogAttachments": "false",
+                                            "ArchivingPersistedMessages": "false",
+                                            "TransactionId": "a1c611b381a7466fa5e30bb991876a9c",
+                                            "PreviousComponentName": "CPI_cpisbsa1",
+                                            "LocalComponentName": "CPI_cpisbsa1",
+                                            "OriginComponentName": null,                                            
+                                            "CustomHeaderProperties": {
+                                                "__deferred": {
+                                                    "uri": "https://sandbox.api.sap.com:443:443/cpi/api/v1/MessageProcessingLogs('AFq571kVtZ0shxJbJTj05LIFsKQf')/CustomHeaderProperties"
+                                                }
+                                            },
+                                            "MessageStoreEntries": {
+                                                "__deferred": {
+                                                    "uri": "https://sandbox.api.sap.com:443:443/cpi/api/v1/MessageProcessingLogs('AFq571kVtZ0shxJbJTj05LIFsKQf')/MessageStoreEntries"
+                                                }
+                                            },
+                                            "ErrorInformation": {
+                                                "__deferred": {
+                                                    "uri": "https://sandbox.api.sap.com:443:443/cpi/api/v1/MessageProcessingLogs('AFq571kVtZ0shxJbJTj05LIFsKQf')/ErrorInformation"
+                                                }
+                                            },
+                                            "AdapterAttributes": {
+                                                "__deferred": {
+                                                    "uri": "https://sandbox.api.sap.com:443:443/cpi/api/v1/MessageProcessingLogs('AFq571kVtZ0shxJbJTj05LIFsKQf')/AdapterAttributes"
+                                                }
+                                            },
+                                            "Attachments": {
+                                                "__deferred": {
+                                                    "uri": "https://sandbox.api.sap.com:443:443/cpi/api/v1/MessageProcessingLogs('AFq571kVtZ0shxJbJTj05LIFsKQf')/Attachments"
+                                                }
+                                            },
+                                            "Runs": {
+                                                "__deferred": {
+                                                    "uri": "https://sandbox.api.sap.com:443:443/cpi/api/v1/MessageProcessingLogs('AFq571kVtZ0shxJbJTj05LIFsKQf')/Runs"
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            } 
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/MessageProcessingLogs('{MessageGuid}')": {
+            "get": {
+                "description": "You can use the following request to get message processing log by message Guid.<br>\n\nIn API sandbox the integration flows provide the following log information:\n* '__Integration Flow with message store entries COMPLETED PROCESSING__': Attachments and message store entries\n* '__Integration Flow with Adapter Data - FAILED PROCESSING__': Message processing log error information, attachments, custom header properties and adapter data",
+                "summary": "Get message processing log by message Guid.",
+                "tags": [
+                    "Logs"
+                ],
+                "parameters": [
+                    {
+                        "name": "MessageGuid",
+                        "in": "path",
+                        "required": true,
+                        "description": "Guid of the message for which the message processing log is written",
+                        "type": "string"
+                    },
+                    {
+                        "name": "$select",
+                        "in": "query",
+                        "description": "Select properties to be returned.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "CorrelationId",
+                                "ApplicationMessageId",
+                                "ApplicationMessageType",
+                                "IntegrationFlowName",
+                                "IntegrationArtifact",
+                                "Status",
+                                "CustomStatus",                           
+                                "LogLevel",
+                                "LogStart",
+                                "LogEnd",
+                                "Sender",
+                                "Receiver",
+                                "AlternateWebLink",
+                                "ArchivingStatus",
+                                "ArchivingSenderChannelMessages",
+                                "ArchivingReceiverChannelMessages",
+                                "ArchivingLogAttachments",
+                                "ArchivingPersistedMessages"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "$expand",
+                        "in": "query",
+                        "description": "Expand related entities.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "AdapterAttributes",
+                                "CustomHeaderProperties"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved message processing log",
+                        "schema": {
+                            "title": "MessageProcessingLog",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "$ref": "#/definitions/com.sap.hci.api.MessageProcessingLog"
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "MessageGuid": "AFq478Bblxi4wCjBcDb_G0vAGGZG",
+                                    "CorrelationId": "AFq478Bmn-aPieAWVy0mMGPLWsjx",
+                                     "ApplicationMessageId": null,
+                                     "ApplicationMessageType": null,
+                                     "LogStart": "/Date(1522069440003)/",
+                                    "LogEnd": "/Date(1522069440200)/",
+                                    "Sender": null,
+                                    "Receiver": null,
+                                    "IntegrationFlowName": "IntegrationFlow_AdapterData_FAILED_PROCESSING",
+                                    "Status": "FAILED",
+                                    "AlternateWebLink": "https://sandbox.api.sap.com:443:443/itspaces/shell/monitoring/MessageDetails/%7B%22messageGuid%22%3A%22AFq478Bblxi4wCjBcDb_G0vAGGZG%22%7D",
+                                    "IntegrationArtifact": {
+                                        "Id": "IntegrationFlow_AdapterData_FAILED_PROCESSING",
+                                        "Name": "Integration Flow with Adapter Data - FAILED PROCESSING",
+                                        "Type": "INTEGRATION_FLOW",
+                                        "PackageId": "PackageId",
+                                        "PackageName": "PackageName"
+                                    },
+                                    "LogLevel": "INFO",
+                                    "CustomStatus": "FAILED",
+                                    "ArchivingStatus": "NOT_RELEVANT",
+                                    "ArchivingSenderChannelMessages": "false",
+                                    "ArchivingReceiverChannelMessages": "false",
+                                    "ArchivingLogAttachments": "false",
+                                    "ArchivingPersistedMessages": "false",
+                                    "CustomHeaderProperties": {
+                                        "__deferred": {
+                                            "uri": "https://sandbox.api.sap.com:443:443/cpi/api/v1/MessageProcessingLogs('AFq478Bblxi4wCjBcDb_G0vAGGZG')/CustomHeaderProperties"
+                                        }
+                                    },
+                                    "MessageStoreEntries": {
+                                        "__deferred": {
+                                            "uri": "https://sandbox.api.sap.com:443:443/cpi/api/v1/MessageProcessingLogs('AFq478Bblxi4wCjBcDb_G0vAGGZG')/MessageStoreEntries"
+                                        }
+                                    },
+                                    "ErrorInformation": {
+                                        "__deferred": {
+                                            "uri": "https://sandbox.api.sap.com:443:443/cpi/api/v1/MessageProcessingLogs('AFq478Bblxi4wCjBcDb_G0vAGGZG')/ErrorInformation"
+                                        }
+                                    },
+                                    "AdapterAttributes": {
+                                        "__deferred": {
+                                            "uri": "https://sandbox.api.sap.com:443:443/cpi/api/v1/MessageProcessingLogs('AFq478Bblxi4wCjBcDb_G0vAGGZG')/AdapterAttributes"
+                                        }
+                                    },
+                                    "Attachments": {
+                                        "__deferred": {
+                                            "uri": "https://sandbox.api.sap.com:443:443/cpi/api/v1/MessageProcessingLogs('AFq478Bblxi4wCjBcDb_G0vAGGZG')/Attachments"
+                                        }
+                                    },
+                                    "Runs": {
+                                        "__deferred": {
+                                            "uri": "https://sandbox.api.sap.com:443:443/cpi/api/v1/MessageProcessingLogs('AFq478Bblxi4wCjBcDb_G0vAGGZG')/Runs"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/MessageProcessingLogs/$count": {
+            "get": {
+                "description": "You can use the following request to get number of all message processing logs.",
+                "summary": "Get number of all message processing logs.",
+                "tags": [
+                    "Logs"
+                ],
+                "parameters": [
+                    {
+                        "name": "$filter",
+                        "in": "query",
+                        "description": "Filter items by property values.<br>\n For any Id filter use only the 'eq' operator.<br>\nExample: ```Status eq 'FAILED'``` returns the number of message processing logs with status 'FAILED'<br>\nIntegrationFlowName is deprecated. In queries filtering for IntegrationFlowName, this will be substituted automatically by IntegrationFlow/Id.",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Number of retrieved message processing logs"
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/MessageProcessingLogs('{MessageGuid}')/AdapterAttributes": {
+            "get": {
+                "description": "You can use the following request to get the adapter attributes of the message processing log with the specified message Guid.<br>\n\nIn API sandbox only the deployed integration flow '__Integration Flow with Adapter Data - FAILED PROCESSING__' provides the required adapter data",
+                "summary": "Get adapter attributes of message processing log by message Guid.",
+                "tags": [
+                    "Adapter Attributes"
+                ],
+                "parameters": [
+                    {
+                        "name": "MessageGuid",
+                        "in": "path",
+                        "required": true,
+                        "description": "Guid of the message for which the message processing log is written",
+                        "type": "string"
+                    },
+                    {
+                        "name": "$select",
+                        "in": "query",
+                        "description": "Select properties to be returned.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "Id",
+                                "AdapterId",
+                                "AdapterMessageId",
+                                "Name",
+                                "Value"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved message processing log adapter attributes",
+                        "schema": {
+                            "title": "Collection of MessageProcessingLogAdapterAttribute",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {                              
+                                                "$ref": "#/definitions/com.sap.hci.api.MessageProcessingLogAdapterAttribute"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "results": [
+                                        {
+                                            "Id": "111",
+                                            "AdapterId": "AS2 Receiver",
+                                            "AdapterMessageId": "<d91b7688-bbae-4135-a418-cb05796b78fd@OwnAS2>",
+                                            "Name": "SAP_MplCorrelationId",
+                                            "Value": "AFq478Bmn-aPieAWVy0mMGPLWsjx"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },                    
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/MessageProcessingLogs('{MessageGuid}')/Attachments": {
+            "get": {
+                "description": "You can use the following request to get the attachments of the message processing log with the specified message Guid.<br>\n\nIn API sandbox the following integration flows provide the required message processing log attachments:\n* '__Integration Flow with message store entries COMPLETED PROCESSING__' \n* '__Integration Flow with Adapter Data FAILED PROCESSING__'",
+                "summary": "Get attachments of message processing log by message Guid.",
+                "tags": [
+                    "Attachments"
+                ],
+                "parameters": [
+                    {
+                        "name": "MessageGuid",
+                        "in": "path",
+                        "required": true,
+                        "description": "Guid of the message for which the message processing log is written",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved message processing log attachments",
+                        "schema": {
+                            "title": "Collection of MessageProcessingLogAttachment",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {                              
+                                                "$ref": "#/definitions/com.sap.hci.api.MessageProcessingLogAttachment"
+                                             }
+                                         }
+                                     }                                     
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "results": [
+                                        {
+                                            "Id": "sap-it-res:msg:ae15c0dda:623fab5f-1bfa-44b7-ae95-d4d1958dc0a6",
+                                            "MessageGuid": "AFq478Bblxi4wCjBcDb_G0vAGGZG",
+                                            "TimeStamp": "/Date(1522069440106)/",
+                                            "Name": "Test Attachment1",
+                                            "ContentType": "text/plain",
+                                            "PayloadSize": "26"
+                                        },
+                                        {
+                                            "Id": "sap-it-res:msg:ae15c0dda:a499bb96-a9c8-4aaf-9da4-da9fbb188f63",
+                                            "MessageGuid": "AFq478Bblxi4wCjBcDb_G0vAGGZG",
+                                            "TimeStamp": "/Date(1522069440106)/",
+                                            "Name": "Test Attachment2",
+                                            "ContentType": "text/plain",
+                                            "PayloadSize": "56"
+                                        }                                        
+                                    ]
+                                }
+                            } 
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },                    
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/MessageProcessingLogs('{MessageGuid}')/CustomHeaderProperties": {
+            "get": {
+                "description": "You can use the following request to get custom header properties of message processing log with the specified message Guid.<br>\n\nIn API sandbox only the deployed integration flow '__Integration Flow with Adapter Data - FAILED PROCESSING__' provides the required custom header properties",
+                "summary": "Get custom header properties of message processing log by message Guid.",
+                "tags": [
+                    "Custom Header Properties"
+                ],
+                "parameters": [
+                    {
+                        "name": "MessageGuid",
+                        "in": "path",
+                        "required": true,
+                        "description": "Guid of the message for which the message processing log is written",
+                        "type": "string"
+                    },
+                    {
+                        "$ref": "#/parameters/top"
+                    },
+                    {
+                        "$ref": "#/parameters/skip"
+                    },
+                    {
+                        "name": "$filter",
+                        "in": "query",
+                        "description": "Filter items by property values",
+                        "type": "string"
+                    },
+                    {
+                        "name": "$orderby",
+                        "in": "query",
+                        "description": "Order items by property values",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "Name",
+                                "Name desc",
+                                "Name,Value",
+                                "Value desc"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "$select",
+                        "in": "query",
+                        "description": "Select properties to be returned.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "Id",
+                                "Name",
+                                "Value"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved entities",
+                        "schema": {
+                            "title": "Collection of MessageProcessingLogCustomHeaderProperty",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.MessageProcessingLogCustomHeaderProperty"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "results": [
+                                        {
+                                            "Id": "166",
+                                            "Name": "myCustomHeaderProperty",
+                                            "Value": "myCustomHeaderPropertyValue"                            
+                                        }
+                                    ]
+                                }
+                            } 
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },                    
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/MessageProcessingLogs('{MessageGuid}')/ErrorInformation": {
+            "get": {
+                "description": "You can use the following request to get error information for the message with the specified message Guid.<br>\nIn API sandbox only the deployed integration flow '__Integration Flow with Adapter Data - FAILED PROCESSING__' provides the required error information",
+                "summary": "Get error information of message processing log by message Guid.",
+                "tags": [
+                    "Error Information"
+                ],
+                "parameters": [
+                    {
+                        "name": "MessageGuid",
+                        "in": "path",
+                        "required": true,
+                        "description": "Guid of the message for which the message processing log is written",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved entity",
+                        "schema": {
+                            "title": "MessageProcessingLogErrorInformation",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "$ref": "#/definitions/com.sap.hci.api.MessageProcessingLogErrorInformation"
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "MessageGuid": "AFq478Bblxi4wCjBcDb_G0vAGGZG",
+                                    "Type": "text/plain",
+                                    "LastErrorModelStepId": "MessageFlow_11"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },                    
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/MessageProcessingLogs('{MessageGuid}')/ErrorInformation/$value": {
+            "get": {
+                "description": "You can use the following request to get error information text for the message with the specified message Guid.<br>\n\nIn API sandbox only the deployed integration flow '__Integration Flow with Adapter Data - FAILED PROCESSING__' provides the required error information",
+                "summary": "Get error information text of message processing log by message Guid.",
+                "tags": [
+                    "Error Information"
+                ],
+                "parameters": [
+                    {
+                        "name": "MessageGuid",
+                        "in": "path",
+                        "required": true,
+                        "description": "Guid of the message for which the message processing log is written",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved error information text"
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },                    
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/IdMapFromIds('{Source ID}')/ToIds": {
+            "get": {
+                "description": "You can use the following request to get all target Ids for the given source Id, which are stored in the Id mapper.",            
+                "summary": "Get all target Ids for the given source Id.",
+                "tags": ["ID Mapper"],
+                "parameters": [
+                    {
+                        "name": "Source ID",
+                        "in": "path",
+                        "required": true,
+                        "description": "Source Id, which is stored in the Id mapper",
+                        "type": "string"                
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved target Ids",
+                        "schema": {
+                            "title": "Collection of IdMapFromId2",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.IdMapToId"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "results": [
+                                        {
+                                            "ToId": "TO_KEY1",
+                                            "FromId_": "KEY1",
+                                            "Mapper": "TEST1",
+                                            "ExpirationTime": "/Date(1544181877000)/",
+                                            "Qualifier": "",
+                                            "Context": "MapperTest"
+                                        },
+                                        {
+                                            "ToId": "TO_KEY2",
+                                            "FromId_": "KEY1",
+                                            "Mapper": "TEST2",
+                                            "ExpirationTime": "/Date(1544181877000)/",
+                                            "Qualifier": "",
+                                            "Context": "MapperTest"
+                                        }                                        
+                                    ]
+                                }
+                            } 
+                        }                        
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },                    
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/IdMapToIds('{Target ID}')/FromId2s": {
+            "get": {
+                "description": "You can use the following request to get all source Ids for the given target Id, which are stored in the Id mapper.",
+                "summary": "Get source Ids for a given target Id",
+                "tags": ["ID Mapper"],
+                "parameters": [
+                    {
+                        "name": "Target ID",
+                        "in": "path",
+                        "required": true,
+                        "description": "Target Id, which is stored in the Id mapper",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved source Ids",
+                        "schema": {
+                            "title": "Collection of IdMapToId",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.IdMapFromId2"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "results": [
+                                        {
+                                            "FromId": "KEY1",
+                                            "ToId2": "TO_KEY1",
+                                            "Mapper": "TEST2",
+                                            "ExpirationTime": "/Date(1544181877000)/",
+                                            "Qualifier": "",
+                                            "Context": "MapperTest"
+                                        },
+                                        {
+                                            "FromId": "KEY2",
+                                            "ToId2": "TO_KEY1",
+                                            "Mapper": "TEST3",
+                                            "ExpirationTime": "/Date(1544181877000)/",
+                                            "Qualifier": "",
+                                            "Context": "MapperTest"
+                                        }                                        
+                                    ]
+                                }
+                            } 
+                        }                        
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/IdempotentRepositoryEntries": {
+            "get": {
+                "deprecated": true,
+                "description": "This path is deprecated. Please use the __/GenericIdempotentRepositoryEntries__ path.<br>\n\nYou can use the following request to get entries from Idempotent Repository with the same id.",
+                "summary": "Get Idempotent Repository entries by id.",
+                "tags": ["Idempotent Repository"],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "query",
+                        "required": true,
+                        "description": "Entry ID of Idempotent Repository - for SFTP adapter &lt;source directory&gt;/&lt;file name&gt; and for XI adapter the XI message ID needs to be entered.",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved Idempotent Repository entries",
+                        "schema": {
+                            "title": "Collection of IdempotentRepositoryEntry",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.IdempotentRepositoryEntry"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "results": [
+                                        {
+                                            "HexSource": "7573657240686F7374",
+                                            "HexEntry": "496e707574466f6c6465722f66696c652e786d6c",
+                                            "Source": "user@host",
+                                            "Entry": "InputFolder/file.xml",
+                                            "Component": "SFTP",
+                                            "CreationTime": "1541682861073",
+                                            "ExpirationTime": "1549458861073"
+                                        }
+                                    ]
+                                }
+                            } 
+                        }                                
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },                    
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },        
+        "/IdempotentRepositoryEntries(HexSource='{HexSource}',HexEntry='{HexEntry}')": {
+            "get": {
+                "deprecated": true,
+                "description": "This path is deprecated. Please use the __/GenericIdempotentRepositoryEntries__ path.<br>\n\nYou can use the following request to get entry from Idempotent Repository by hex encoded source and entry values.",
+                "summary": "Get Idempotent Repository entry.",
+                "tags": ["Idempotent Repository"],
+                "parameters": [
+                    {
+                        "name": "HexSource",
+                        "in": "path",
+                        "required": true,
+                        "description": "Hex encoded processor, which is either &lt;user@host&gt; for SFTP adapter or a generated ID for XI adapter.",
+                        "type": "string"
+                    }, 
+                    {
+                        "name": "HexEntry",
+                        "in": "path",
+                        "required": true,
+                        "description": "Hex encoded entry ID, which is either &lt;source directory&gt;/&lt;file name&gt; for SFTP adapter or XI message ID for XI adapter.",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved Idempotent Repository entry",
+                        "schema": {
+                            "$ref": "#/definitions/com.sap.hci.api.IdempotentRepositoryEntry"
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                       "HexSource": "7573657240686F7374",
+                                       "HexEntry": "496e707574466f6c6465722f66696c652e786d6c",
+                                      "Source": "user@host",
+                                       "Entry": "InputFolder/file.xml",
+                                       "Component": "SFTP",
+                                       "CreationTime": "1541682861073",
+                                       "ExpirationTime": "1549458861073"
+                                }
+                            } 
+                        }            
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "500": {
+                        "description": "Internal server error - parameter values are not provided in the expected hex encoded format.",
+                        "schema": {
+                            "$ref": "#/definitions/odata.error"
+                        },
+                        "examples": {
+                            "application/json": {                        
+                                "error": {
+                                    "code": "Internal Server Error",
+                                    "message": {
+                                        "lang": "en",
+                                        "value": "Problem during reading an idempotent repository entry with source null and entry null"
+                                    }
+                                }
+                            }
+                        }
+                    },                    
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            },
+            "delete": {
+                "deprecated": true,
+                "description": "This path is deprecated. Please use the __/GenericIdempotentRepositoryEntries__ path.<br>\n\nYou can use the following request to delete entry from Idempotent Repository.<br>\nIn API sandbox only read APIs could be tested. You need to configure an API endpoint for your account, where you have the required write permissions to delete entries from the Idempotent Repository.",
+                "summary": "Delete Idempotent Repository entry.",
+                "tags": ["Idempotent Repository"],
+                "parameters": [
+                    {
+                        "name": "HexSource",
+                        "in": "path",
+                        "required": true,
+                        "description": "Hex encoded processor, which is either &lt;user@host&gt; for SFTP adapter or a generated ID for XI adapter.",
+                        "type": "string"
+                    }, 
+                    {
+                        "name": "HexEntry",
+                        "in": "path",
+                        "required": true,
+                        "description": "Hex encoded Entry ID, which is either &lt;source directory&gt;/&lt;file name&gt; for SFTP adapter or XI message ID for XI adapter.",
+                        "type": "string"
+                    },
+                    {
+                        "description": "CSRF token that is valid for the current session (see resource 'CSRF Token Handling')",
+                        "in": "header",
+                        "name": "X-CSRF-Token",
+                        "type": "string",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Success or entry does not exist."
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "500": {
+                        "description": "Internal server error - parameter values are not provided in the expected hex encoded format.",
+                        "schema": {
+                            "$ref": "#/definitions/odata.error"
+                        },
+                        "examples": {
+                            "application/json": {                        
+                                "error": {
+                                    "code": "Internal Server Error",
+                                    "message": {
+                                        "lang": "en",
+                                        "value": "Problem during deletion of an idempotent repository entry with source null and entry null"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/GenericIdempotentRepositoryEntries": {
+            "get": {
+                "description": "You can use the following request to get entries from Idempotent Repository with the same id.",
+                "summary": "Get Idempotent Repository entries by id.",
+                "tags": ["Idempotent Repository"],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "query",
+                        "required": true,
+                        "description": "Entry ID of Idempotent Repository - for SFTP adapter &lt;source directory&gt;/&lt;file name&gt; and for XI adapter the XI message ID needs to be entered.",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved Idempotent Repository entries",
+                        "schema": {
+                            "title": "Collection of IdempotentRepositoryEntry",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.GenericIdempotentRepositoryEntry"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "results": [
+                                        {
+                                            "HexVendor": "7573657240686F7374",
+                                            "HexSource": "7573657240686F7374",
+                                            "HexEntry": "496e707574466f6c6465722f66696c652e786d6c",
+                                            "HexComponent": "7573657240686F7374",
+                                            "Source": "user@host",
+                                            "Entry": "InputFolder/file.xml",
+                                            "Component": "SFTP",
+                                            "Vendor": "SAP",
+                                            "CreationTime": "1541682861073",
+                                            "ExpirationTime": "1549458861073"
+                                        }
+                                    ]
+                                }
+                            } 
+                        }                                
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },        
+        "/GenericIdempotentRepositoryEntries(HexVendor='{HexVendor}',HexSource='{HexSource}',HexEntry='{HexEntry}',HexComponent='{HexComponent}')": {
+            "get": {
+                "description": "You can use the following request to get entry from Idempotent Repository by hex encoded vendor, source, entry and component values.",
+                "summary": "Get Idempotent Repository entry.",
+                "tags": ["Idempotent Repository"],
+                "parameters": [
+                    {
+                        "name": "HexVendor",
+                        "in": "path",
+                        "required": true,
+                        "description": "Hex encoded value of the vendor (e.g. adapter provider) - example value: 'SAP'.",
+                        "type": "string"
+                    },                 
+                    {
+                        "name": "HexSource",
+                        "in": "path",
+                        "required": true,
+                        "description": "Hex encoded processor, which is either &lt;user@host&gt; for SFTP adapter or a generated ID for XI adapter.",
+                        "type": "string"
+                    }, 
+                    {
+                        "name": "HexEntry",
+                        "in": "path",
+                        "required": true,
+                        "description": "Hex encoded entry ID, which is either &lt;source directory&gt;/&lt;file name&gt; for SFTP adapter or XI message ID for XI adapter.",
+                        "type": "string"
+                    },
+                    {
+                        "name": "HexComponent",
+                        "in": "path",
+                        "required": true,
+                        "description": "Hex encoded value of the component field, e.g. the adapter type/name.",
+                        "type": "string"
+                    }                     
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved Idempotent Repository entry",
+                        "schema": {
+                            "$ref": "#/definitions/com.sap.hci.api.GenericIdempotentRepositoryEntry"
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                       "HexVendor": "7573657240686F7374",                                
+                                       "HexSource": "7573657240686F7374",
+                                       "HexEntry": "496e707574466f6c6465722f66696c652e786d6c",
+                                       "HexComponent": "7573657240686F7374",                                       
+                                      "Source": "user@host",
+                                       "Entry": "InputFolder/file.xml",
+                                       "Component": "SFTP",
+                                       "Vendor": "SAP",
+                                       "CreationTime": "1541682861073",
+                                       "ExpirationTime": "1549458861073"
+                                }
+                            } 
+                        }            
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "500": {
+                        "description": "Internal server error - parameter values are not provided in the expected hex encoded format.",
+                        "schema": {
+                            "$ref": "#/definitions/odata.error"
+                        },
+                        "examples": {
+                            "application/json": {                        
+                                "error": {
+                                    "code": "Internal Server Error",
+                                    "message": {
+                                        "lang": "en",
+                                        "value": "Problem during reading an idempotent repository entry with source null and entry null"
+                                    }
+                                }
+                            }
+                        }
+                    }, 
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            },
+            "delete": {
+                "description": "You can use the following request to delete entry from Idempotent Repository.<br>\nIn API sandbox only read APIs could be tested. You need to configure an API endpoint for your account, where you have the required write permissions to delete entries from the Idempotent Repository.",
+                "summary": "Delete Idempotent Repository entry.",
+                "tags": ["Idempotent Repository"],
+                "parameters": [
+                    {
+                        "name": "HexVendor",
+                        "in": "path",
+                        "required": true,
+                        "description": "Hex encoded value of the vendor - for example the adapter provider.",
+                        "type": "string"
+                    },
+                    {
+                        "name": "HexSource",
+                        "in": "path",
+                        "required": true,
+                        "description": "Hex encoded processor, which is either &lt;user@host&gt; for SFTP adapter or a generated ID for XI adapter.",
+                        "type": "string"
+                    }, 
+                    {
+                        "name": "HexEntry",
+                        "in": "path",
+                        "required": true,
+                        "description": "Hex encoded Entry ID, which is either &lt;source directory&gt;/&lt;file name&gt; for SFTP adapter or XI message ID for XI adapter.",
+                        "type": "string"
+                    },
+                    {
+                        "name": "HexComponent",
+                        "in": "path",
+                        "required": true,
+                        "description": "Hex encoded value of the component field, e.g. the adapter type/name.",
+                        "type": "string"
+                    },                    
+                    {
+                        "description": "CSRF token that is valid for the current session (see resource 'CSRF Token Handling')",
+                        "in": "header",
+                        "name": "X-CSRF-Token",
+                        "type": "string",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Success or entry does not exist."
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "500": {
+                        "description": "Internal server error - parameter values are not provided in the expected hex encoded format.",
+                        "schema": {
+                            "$ref": "#/definitions/odata.error"
+                        },
+                        "examples": {
+                            "application/json": {                        
+                                "error": {
+                                    "code": "Internal Server Error",
+                                    "message": {
+                                        "lang": "en",
+                                        "value": "Problem during deletion of an idempotent repository entry with source null and entry null"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/activateExternalLogging": {
+            "post": {
+                "description": "This API is only present in the <b>Cloud Foundry environment.</b>\n You can use the following request to acitvate external logging on your tenant.<br>If no response body is returned, there's an authentication issue. Make sure the request is authorized and that your user has the ActivateExternalLogging role.<br>For more information, see SAP Help Portal documentation at [External Logging](https://help.sap.com/docs/integration-suite/sap-integration-suite/external-logging-cloud-foundry-environment).",
+                "summary": "Activate external logging",
+                "tags": ["External Logging"],
+                "parameters": [
+                    {
+                        "name": "defaultLogLevel",
+                        "in": "query",
+                        "description": "Set the default external log level for new or existing integration flows that have no individual external log level configured.",
+                        "required": true,
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "NONE",
+                                "INFO",
+                                "ERROR"
+                            ],
+                            "default": "NONE"
+                        },
+                        "default": "NONE"
+                    },
+                    {
+                        "description": "CSRF token that is valid for the current session (see resource 'CSRF Token Handling').",
+                        "in": "header",
+                        "name": "X-CSRF-Token",
+                        "type": "string",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "ExternalLogging successfully enabled",
+                        "schema": {
+                            "title": "activateExternalLogging",
+                            "type": "object"                
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "results": [
+                                        {
+                                            "": "ExternalLogging successfully enabled for tenant xy"
+                                        }                                        
+                                    ]
+                                }
+                            } 
+                        }                        
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "500": {
+                        "description": "An error occurred during configuration validation or activation of external logging. <br>For information on more possible error situations and response bodies, see SAP Help Portal documentation at [Possible Errors During External Logging Activation](https://help.sap.com/docs/integration-suite/sap-integration-suite/possible-errors-during-external-logging-activation).",
+                        "schema": {
+                            "$ref": "#/definitions/odata.error"
+                        },
+                        "examples": {
+                            "application/json": {                        
+                                "error": {
+                                    "code": "Internal Server Error",
+                                    "message": {
+                                        "lang": "en",
+                                        "value": "Internal Server Error"
+                                    }
+                                }
+                            }
+                        }
+                    },                    
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/deactivateExternalLogging": {
+            "post": {
+                "description": "This API is only present in the <b>Cloud Foundry environment.</b>\n You can use the following request to deacitvate external logging on your tenant.<br>If no response body is returned, there's an authentication issue. Make sure the request is authorized and that your user has the ActivateExternalLogging role.<br>For more information, see SAP Help Portal documentation at [External Logging](https://help.sap.com/docs/integration-suite/sap-integration-suite/external-logging-cloud-foundry-environment).",
+                "summary": "Deactivate external logging",
+                "tags": ["External Logging"],
+                "responses": {
+                    "200": {
+                        "description": "ExternalLogging successfully deactivated",
+                        "schema": {
+                            "title": "deactivateExternalLogging",
+                            "type": "object"                
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "results": [
+                                        {
+                                            "": "External logging successfully disabled for tenant xy"
+                                        }                                        
+                                    ]
+                                }
+                            } 
+                        }                        
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "500": {
+                        "description": "An error occurred during deactivation of external logging.<br>For information on more possible error situations and response bodies, see SAP Help Portal documentation at [Possible Errors During External Logging Activation](https://help.sap.com/docs/integration-suite/sap-integration-suite/possible-errors-during-external-logging-activation).",
+                        "schema": {
+                            "$ref": "#/definitions/odata.error"
+                        },
+                        "examples": {
+                            "application/json": {                        
+                                "error": {
+                                    "code": "Internal Server Error",
+                                    "message": {
+                                        "lang": "en",
+                                        "value": "Internal Server Error"
+                                    }
+                                }
+                            }
+                        }
+                    },                    
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/ExternalLoggingActivationStatus('{TenantName}')": {
+            "get": {
+                "description": "This API is only present in the <b>Cloud Foundry environment.</b>\n ",
+                "summary": "Get external logging status for a tenant",
+                "tags": ["External Logging"],
+                "parameters": [
+                    {
+                        "name": "TenantName",
+                        "in": "path",
+                        "required": true,
+                        "description": "Tenant name",
+                        "type": "string"
+                    }
+                ],                
+                "responses": {
+                    "200": {
+                        "description": "Retrieved value for external logging configuration of this tenant",
+                        "schema": {
+                            "title": "ExternalLoggingActivationStatus",
+                            "type": "object"                        
+                        },
+                        "examples": {
+                            "application/json": {
+                                  "entry": {
+                                    "title": "ExternalLoggingActivationStatus",
+                                    "updated": "2023-07-25T01:57:29.032Z",
+                                    "category": "",
+                                    "link": "",
+                                    "content": {
+                                          "properties": {
+                                               "Id": "TENANT",
+                                            "Active": true
+                                          }
+                                    }
+                                  }
+                            }    
+                        }                    
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/activateArchivingConfiguration": {
+            "post": {
+                "description": "This API is only present in the <b>Cloud Foundry environment.</b>\n You can use the following request to acitvate the archiving functionality in your tenant.",
+                "summary": "Enable archiving",
+                "tags": ["Data Archiving"],
+                "responses": {
+                    "200": {
+                        "description": "Archiving was enabled",
+                        "schema": {
+                            "title": "activateArchivingConfiguration",
+                            "type": "object"                
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "results": [
+                                        {
+                                            "": "Archiving successfully enabled for tenant xy"
+                                        }                                        
+                                    ]
+                                }
+                            } 
+                        }                        
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },                    
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/ArchivingConfigurations('{TenantName}')": {
+            "get": {
+                "description": "This API is only present in the <b>Cloud Foundry environment.</b>\n You can use the following request to acitvate the archiving functionality in your tenant.",
+                "summary": "Get archiving configuration for a tenant",
+                "tags": ["Data Archiving"],
+                "parameters": [
+                    {
+                        "name": "TenantName",
+                        "in": "path",
+                        "required": true,
+                        "description": "Tenant name",
+                        "type": "string"
+                    }
+                ],                
+                "responses": {
+                    "200": {
+                        "description": "Retrieved value for archiving configuration of this tenant",
+                        "schema": {
+                            "title": "ArchivingConfiguration",
+                            "type": "object"                        
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "results": [
+                                        {
+                                            "": "Archiving configured has value: true on tenant xy"
+                                        }                                        
+                                    ]
+                                }
+                            } 
+                        }                        
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },                                        
+        "/ArchivingKeyPerformanceIndicators": {
+            "get": {
+                "description": "This API is only present in the <b>Cloud Foundry environment.</b>\n You can use the following request to get the Key Performance Indicators (KPIs) of the archiving runs.",
+                "summary": "Get Key Performance Indicators of the archiving run",
+                "tags": ["Data Archiving"],
+                "parameters": [
+                    {
+                        "name": "$filter",
+                        "in": "query",
+                        "description": "Filter items by property values.<br>\nFor any Id filter use only the 'eq' operator.<br>\nExample: ```MplsToBeArchived eq 5000```",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved archiving key performance indicators",
+                        "schema": {
+                            "title": "ArchivingKeyPerformanceIndicators",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.ArchivingKeyPerformanceIndicators"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "results": [
+                                        {
+                                            "RunStart": "2021-05-28T15:11:47.633",
+                                            "RunDurationInMinutes": "63",
+                                            "DataCollectionDurationInMinutes": "53",
+                                            "DataCompressionDurationInMinutes": "0",
+                                            "DataUploadDurationInMinutes": "11",
+                                            "MplsToBeArchived": "5000",
+                                            "MplsArchived": "5000",
+                                            "MplsArchivingFailed": "0",
+                                            "MplsArchivedUntilDate": "2021-05-28T15:11:47.633",
+                                            "DateOfOldestMplToBeArchivedAfterRun": "2021-05-28T15:12:00.01",
+                                            "DataUploadedInMb": "17",
+                                            "RunStatus": "COMPLETED",
+                                            "RunFailedPhase": ""
+                                        }                                        
+                                    ]
+                                }
+                            } 
+                        }                        
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },                    
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },                
+        "/": {
+            "get": {
+                "tags": [
+                    "CSRF Token Handling"
+                ],
+                "produces": [
+                    "application/json"                   
+                ],                
+                "description": "You can use the following request to get the CSRF token for this session, which is required for write access via POST, PUT and DELETE operations. Copy the received X-CSRF-Token from the response header.<br>\n\n**In API sandbox this request is not relevant!**",
+                "summary": "Get CSRF token.",
+                "parameters": [
+                    {
+                        "description": "To retrieve a new CSRF token the value of the header must be set to ```Fetch```.",
+                        "in": "header",
+                        "name": "X-CSRF-Token",
+                        "required": true,
+                        "type": "string",
+                        "default": "Fetch"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The header provides the CSRF token for this session.",
+                        "headers": {
+                            "X-CSRF-Token": {
+                                "description": "CSRF token that can be used for all modifying requests within the same session.",
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        }        
+    },
+    "definitions": {
+        "com.sap.hci.api.MessageStoreEntry": {
+            "type": "object",
+            "properties": {
+                "Id": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "MessageGuid": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "MessageStoreId": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "TimeStamp": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "format": "date-time",
+                    "example": "2017-04-13T15:51:04"
+                },
+                "HasAttachments": {
+                    "type": [
+                        "boolean",
+                        "null"
+                    ]
+                },
+                "Attachments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/com.sap.hci.api.MessageStoreEntryAttachment"
+                    }
+                },
+                "Properties": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/com.sap.hci.api.MessageStoreEntryProperty"
+                    }
+                }
+            },
+            "title": "MessageStoreEntry"
+        },
+        "com.sap.hci.api.MessageProcessingLog": {
+            "type": "object",
+            "properties": {
+                "MessageGuid": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "CorrelationId": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "ApplicationMessageId": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "ApplicationMessageType": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "LogStart": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "format": "date-time",
+                    "example": "2017-04-13T15:51:04"
+                },
+                "LogEnd": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "format": "date-time",
+                    "example": "2017-04-13T15:51:04"
+                },
+                "Sender": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "Receiver": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "IntegrationFlowName": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "Status": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "AlternateWebLink": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "IntegrationArtifact": {
+                    "$ref": "#/definitions/com.sap.hci.api.IntegrationArtifact"
+                },
+                "LogLevel": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "CustomStatus": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "ArchivingStatus": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "ArchivingSenderChannelMessages": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "ArchivingReceiverChannelMessages": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "ArchivingLogAttachments": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "ArchivingPersistedMessages": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },                                                                                
+                "TransactionId": {
+                    "type": [
+                        "string", 
+                        "null"
+                    ]
+                },
+                "PreviousComponentName": {
+                    "type": [
+                        "string", 
+                        "null"
+                    ]
+                },
+                "LocalComponentName": {
+                    "type": [
+                        "string", 
+                        "null"
+                    ]
+                },
+                "OriginComponentName": {
+                    "type": [
+                        "string", 
+                        "null"
+                    ]                    
+                },
+                "CustomHeaderProperties": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/com.sap.hci.api.MessageProcessingLogCustomHeaderProperty"
+                    }
+                },
+                "MessageStoreEntries": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/com.sap.hci.api.MessageStoreEntry"
+                    }
+                },
+                "ErrorInformation": {
+                    "$ref": "#/definitions/com.sap.hci.api.MessageProcessingLogErrorInformation"
+                },
+                "AdapterAttributes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/com.sap.hci.api.MessageProcessingLogAdapterAttribute"
+                    }
+                },
+                "Attachments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/com.sap.hci.api.MessageProcessingLogAttachment"
+                    }
+                }
+            },
+            "title": "MessageProcessingLog"
+        },
+        "com.sap.hci.api.MessageStoreEntryProperty": {
+            "type": "object",
+            "properties": {
+                "MessageId": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "Name": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "Value": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "title": "MessageStoreEntryProperty"
+        },
+        "com.sap.hci.api.MessageProcessingLogErrorInformation": {
+            "type": "object",
+            "properties": {
+                "MessageGuid": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "Type": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "LastErrorModelStepId": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "title": "MessageProcessingLogErrorInformation"
+        },
+        "com.sap.hci.api.MessageProcessingLogAttachment": {
+            "type": "object",
+            "properties": {
+                "Id": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "MessageGuid": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "TimeStamp": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "format": "date-time",
+                    "example": "2017-04-13T15:51:04"
+                },
+                "Name": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "ContentType": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "PayloadSize": {
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "format": "int64"
+                }                
+            },
+            "title": "MessageProcessingLogAttachment"
+        },
+        "com.sap.hci.api.MessageProcessingLogCustomHeaderProperty": {
+            "type": "object",
+            "properties": {
+                "Id": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "Name": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "Value": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "Log": {
+                    "$ref": "#/definitions/com.sap.hci.api.MessageProcessingLog"
+                }
+            },
+            "title": "MessageProcessingLogCustomHeaderProperty"
+        },
+        "com.sap.hci.api.MessageProcessingLogAdapterAttribute": {
+            "type": "object",
+            "properties": {
+                "Id": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "AdapterId": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "AdapterMessageId": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "Name": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "Value": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "MessageProcessingLog": {
+                    "$ref": "#/definitions/com.sap.hci.api.MessageProcessingLog"
+                }
+            },
+            "title": "MessageProcessingLogAdapterAttribute"
+        },
+        "com.sap.hci.api.MessageStoreEntryAttachmentProperty": {
+            "type": "object",
+            "properties": {
+                "AttachmentId": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "Name": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "Value": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "title": "MessageStoreEntryAttachmentProperty"
+        },
+        "com.sap.hci.api.MessageStoreEntryAttachment": {
+            "type": "object",
+            "properties": {
+                "Id": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "Name": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "ContentType": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "Properties": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/com.sap.hci.api.MessageStoreEntryAttachmentProperty"
+                    }
+                }
+            },
+            "title": "MessageStoreEntryAttachment"
+        },
+        "com.sap.hci.api.IntegrationArtifact": {
+            "type": "object",
+            "properties": {
+                "Id": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "Name": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "Type": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "PackageId": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "PackageName": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "title": "IntegrationArtifact"
+        },
+         "com.sap.hci.api.IdMapToId": {
+            "type": "object",
+            "properties": {
+                "ToId": {
+                    "type": "string"
+                },
+                "FromId_": {
+                    "type": ["string", "null"],
+                    "example": "string"
+                },
+                "Mapper": {
+                    "type": ["string", "null"],
+                    "example": "string"
+                },
+                "ExpirationTime": {
+                    "type": ["string", "null"],
+                    "example": "/Date(1492098664000)/"
+                },
+                "Qualifier": {
+                    "type": ["string", "null"],
+                    "example": "string"
+                },
+                "Context": {
+                    "type": ["string", "null"],
+                    "example": "string"
+                }            
+            },
+            "title": "IdMapToId"
+        },
+        "com.sap.hci.api.IdMapFromId2": {
+            "type": "object",
+            "properties": {
+                "FromId": {
+                    "type": "string"
+                },
+                "ToId2": {
+                    "type": ["string", "null"],
+                    "example": "string"
+                },
+                "Mapper": {
+                    "type": ["string", "null"],
+                    "example": "string"
+                },
+                "ExpirationTime": {
+                    "type": ["string", "null"],
+                    "example": "/Date(1492098664000)/"
+                },
+                "Qualifier": {
+                    "type": ["string", "null"],
+                    "example": "string"
+                },
+                "Context": {
+                    "type": ["string", "null"],
+                    "example": "string"
+                }                
+            },
+            "title": "IdMapFromId2"
+        },
+        "com.sap.hci.api.IdempotentRepositoryEntry": {
+            "type": "object",
+            "properties": {
+                "HexSource": {
+                    "type": ["string", "null"],
+                    "example": "7573657240686F7374"
+                },
+                "HexEntry": {
+                    "type": ["string", "null"],
+                    "example": "496e707574466f6c6465722f66696c652e786d6c"
+                },
+                "Source": {
+                    "type": ["string", "null"],
+                    "example": "user@host"
+                },
+                "Entry": {
+                    "type": ["string", "null"],
+                    "example": "InputFolder/file.xml"
+                },
+                "Component": {
+                    "type": ["string", "null"],
+                    "example": "SFTP or XI"
+                },
+                "CreationTime": {
+                    "type": ["integer", "string", "null"],
+                    "format": "int64",
+                    "example": "1550564603"
+                },
+                "ExpirationTime": {
+                    "type": ["integer", "string", "null"],
+                    "format": "int64",
+                    "example": "1550564603"
+                }
+            },
+            "title": "IdempotentRepositoryEntry"
+        },
+        "com.sap.hci.api.GenericIdempotentRepositoryEntry": {
+            "type": "object",
+            "properties": {
+                "HexVendor": {
+                    "type": ["string", "null"],
+                    "example": "7573657240686F7374"
+                },            
+                "HexSource": {
+                    "type": ["string", "null"],
+                    "example": "7573657240686F7374"
+                },
+                "HexEntry": {
+                    "type": ["string", "null"],
+                    "example": "496e707574466f6c6465722f66696c652e786d6c"
+                },
+                "HexComponent": {
+                    "type": ["string", "null"],
+                    "example": "7573657240686F7374"
+                },                
+                "Source": {
+                    "type": ["string", "null"],
+                    "example": "user@host"
+                },
+                "Entry": {
+                    "type": ["string", "null"],
+                    "example": "InputFolder/file.xml"
+                },
+                "Component": {
+                    "type": ["string", "null"],
+                    "example": "SFTP or XI"
+                },
+                "Vendor": {
+                    "type": ["string", "null"],
+                    "example": "SAP"
+                },                
+                "CreationTime": {
+                    "type": ["integer", "string", "null"],
+                    "format": "int64",
+                    "example": "1550564603"
+                },
+                "ExpirationTime": {
+                    "type": ["integer", "string", "null"],
+                    "format": "int64",
+                    "example": "1550564603"
+                }
+            },
+            "title": "GenericIdempotentRepositoryEntry"
+        },
+        "com.sap.hci.api.ArchivingKeyPerformanceIndicators": {
+            "type": "object",
+            "properties": {
+                "RunStart": {
+                    "type": ["string", "null"],
+                    "format": "date-time",
+                    "example": "2017-04-13T15:51:04"
+                },            
+                "RunDurationInMinutes": {
+                    "type": ["integer", "string", "null"],
+                    "format": "int32",
+                    "example": "34"
+                },
+                "DataCollectionDurationInMinutes": {
+                    "type": ["integer", "string", "null"],
+                    "format": "int32",
+                    "example": "1"
+                },
+                "DataCompressionDurationInMinutes": {
+                    "type": ["integer", "string", "null"],
+                    "format": "int32",
+                    "example": "1"
+                },                
+                "DataUploadDurationInMinutes": {
+                    "type": ["integer", "string", "null"],
+                    "format": "int32",
+                    "example": "1"
+                },
+                "MplsToBeArchived": {
+                    "type": ["integer", "string", "null"],
+                    "format": "int32",
+                    "example": "2000"
+                },
+                "MplsArchived": {
+                    "type": ["integer", "string", "null"],
+                    "format": "int32",
+                    "example": "2000"
+                },
+                "MplsArchivingFailed": {
+                    "type": ["integer", "string", "null"],
+                    "format": "int32",
+                    "example": "0"
+                },                
+                "MplsArchivedUntilDate": {
+                    "type": ["integer", "string", "null"],
+                    "format": "int32",
+                    "example": "2000"
+                },
+                "DateOfOldestMplToBeArchivedAfterRun": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "format": "date-time",
+                    "example": "2017-04-13T15:51:04"
+                },
+                "DataUploadedInMb": {
+                    "type": ["integer", "string", "null"],
+                    "format": "int64",
+                    "example": "15"
+                },
+                "RunStatus": {
+                    "type": ["string", "null"],
+                    "example": "COMPLETED"
+                },
+                "RunFailedPhase": {
+                    "type": ["string", "null"],
+                    "example": ""
+                }
+            },
+            "title": "ArchivingKeyPerfomranceIndicators"
+        },                                
+        "odata.error": {
+            "type": "object",
+            "required": [
+                "error"
+            ],
+            "properties": {
+                "error": {
+                    "$ref": "#/definitions/odata.error.main"
+                }
+            }
+        },
+        "odata.error.main": {
+            "type": "object",
+            "required": [
+                "code",
+                "message"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "object",
+                    "required": [
+                        "lang",
+                        "value"
+                    ],
+                    "properties": {
+                        "lang": {
+                            "type": "string"
+                        },
+                        "value": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "odata.error.detail": {
+            "type": "object",
+            "required": [
+                "code",
+                "message"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "target": {
+                    "type": "string"
+                }
+            }
+        }
+    },
+    "parameters": {
+        "top": {
+            "name": "$top",
+            "in": "query",
+            "description": "Show only the first n items.",
+            "type": "integer",
+            "minimum": 0
+        },
+        "skip": {
+            "name": "$skip",
+            "in": "query",
+            "description": "Skip the first n items.",
+            "type": "integer",
+            "minimum": 0
+        },
+        "filter": {
+            "name": "$filter",
+            "in": "query",
+            "description": "Filter items by property values.",
+            "type": "string"
+        }
+    },
+    "responses": {    
+        "400": {
+            "description": "Bad Request. Wrong format or structure of the provided request body or parameters."
+        },
+        "401": {
+            "description": "Unauthorized. Authorization information is missing or invalid."
+        },
+        "403": {
+            "description": "Forbidden. The required permissions to access the resource are missing."
+        },
+        "404": {
+            "description": "Not found. The requested resource could not be found."
+        },
+        "429": {
+            "description": "Too many requests. Server’s rate limit exceeded."
+        },
+        "500": {
+            "description": "Internal server error. The requested operation led to an error during execution."
+        },
+        "error": {
+            "description": "Error",
+            "schema": {
+                "$ref": "#/definitions/odata.error"
+            },
+            "examples": {
+                "application/json": {                        
+                    "error": {
+                        "code": "<error code>",
+                        "message": {
+                            "lang": "en",
+                            "value": "<error text>"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -415,7 +415,7 @@ export class SecurityContentClient {
    * const exportedKeystore = await client.exportKeystore('system');
    * // Process exportedKeystore (e.g., save as file)
    */
-  async exportKeystore(keystoreName: 'system' | 'backup_admin_system'): Promise<any> {
+  async exportKeystore(_keystoreName: 'system' | 'backup_admin_system'): Promise<any> {
     // This endpoint is GET /KeystoreResources('{KeystoreName}')/$value
     // Need to manually construct the path as the generated client doesn't expose $value directly here.
     // This is a limitation of the current generator setup. 

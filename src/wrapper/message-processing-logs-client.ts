@@ -9,7 +9,6 @@
 
 import { 
   Api as MessageProcessingLogsApi,
-  ComSapHciApiMessageProcessingLog,
   ComSapHciApiMessageProcessingLogAdapterAttribute,
   ComSapHciApiMessageProcessingLogAttachment,
   ComSapHciApiMessageProcessingLogCustomHeaderProperty,
@@ -23,8 +22,7 @@ import {
 
 import { 
   EnhancedMessageProcessingLog,
-  MessageProcessingLogsOptions,
-  DateFieldFilter 
+  MessageProcessingLogsOptions
 } from '../types/enhanced-logs';
 
 import { SapDateUtils } from '../utils/date-formatter';
@@ -112,7 +110,7 @@ export class MessageProcessingLogsClient {
    */
   async getMessageProcessingLogs(options: MessageProcessingLogsOptions = {}): Promise<{ logs: EnhancedMessageProcessingLog[], count?: number }> {
     // Build filter from filterObj if provided
-    let filterObj = options.filterObj || {};
+    const filterObj = options.filterObj || {};
     
     // Handle startDate and endDate parameters by adding them to filterObj
     if (options.startDate || options.endDate) {

@@ -12,8 +12,7 @@ import {
   ComSapHciApiIntegrationDesigntimeArtifact,
   ComSapHciApiScriptCollectionDesigntimeArtifact,
   ComSapHciApiMessageMappingDesigntimeArtifact,
-  ComSapHciApiValueMappingDesigntimeArtifact,
-  ComSapHciApiRuntimeArtifactErrorInformation
+  ComSapHciApiValueMappingDesigntimeArtifact
 } from '../../types/sap.IntegrationContent';
 
 import { PackageWithArtifacts, DetailedErrorInformation, ParsedErrorDetails } from '../../types/sap.ContentClient';

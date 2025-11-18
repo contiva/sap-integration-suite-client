@@ -29,7 +29,6 @@ import {
   ComSapHciApiDesignGuidelineExecutionResultsSkip,
   ComSapHciApiValueMappingDesigntimeArtifactCreate,
   ComSapHciApiMessageMappingDesigntimeArtifactCreate,
-  ComSapHciApiMessageMappingDesigntimeArtifactUpdate,
   ComSapHciApiScriptCollectionDesigntimeArtifactCreate,
   ComSapHciApiScriptCollectionDesigntimeArtifactUpdate, 
   ComSapHciApiResource,
@@ -268,7 +267,7 @@ export class IntegrationContentClient {
     try {
       // Für diesen API-Call verwenden wir direkt axios, da wir einen binären Response benötigen
       // und der generierte HTTP-Client nicht optimal mit arraybuffer umgeht
-      const axios = require('axios');
+      const axios = (await import('axios')).default;
       
       // Erhalte das Security-Token (wird von der API-Client-Instanz verwaltet)
       const securityWorker = this.api['securityWorker'];

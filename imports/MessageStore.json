@@ -1,0 +1,2690 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "title": "Message Stores",
+        "version": "1.0.0",
+        "description": "Message store enables you get data for processed messages. You can access the stored message and analyze it at a later point in time. An integration flow stores messages in a message store through the Persist step for 90 days.  \nAdditionally, you can get information on the JMS resources available on the tenant as well as on those actually used by your integration flows.  \nThis API is implemented based on OData version 2 specification."
+    },
+    "externalDocs": {
+        "description": "SAP Cloud Integration documentation: OData API - Message Store",
+        "url": "https://help.sap.com/viewer/368c481cd6954bdfa5d0435479fd4eaf/Cloud/en-US/1aab5e9482f545539a7caae3e9887e4e.html"
+    },
+    "x-sap-api-type": "ODATA",
+    "x-sap-shortText": "Access message store entries, JMS resources and data store entries.",
+    "schemes": [
+        "https"
+    ],
+    "host": "sandbox.api.sap.com",
+    "basePath": "/cpi/api/v1",
+    "x-servers": [
+        {
+            "url": "https://{Account Short Name}-tmn.{SSL Host}.{landscapehost}/api/v1",
+            "description": "SAP Cloud Integration REST API Endpoint",
+            "templates": {
+                "Account Short Name": {
+                    "description": "SAP BTP subaccount short name where Cloud Integration is provided"
+                },
+                "SSL Host": {
+                    "description": "SSL Host"
+                },
+                "landscapehost": {
+                    "description": "SAP BTP Region Host",
+                    "enum": [
+                        "ae1.hana.ondemand.com",
+                        "ap1.hana.ondemand.com",
+                        "br1.hana.ondemand.com",
+                        "ca1.hana.ondemand.com",
+                        "cn1.hana.ondemand.com",
+                        "eu1.hana.ondemand.com",
+                        "eu2.hana.ondemand.com",
+                        "eu3.hana.ondemand.com",
+                        "hana.ondemand.com",
+                        "hanatrial.ondemand.com",
+                        "jp1.hana.ondemand.com",
+                        "sa1.hana.ondemand.com",
+                        "us1.hana.ondemand.com",
+                        "us2.hana.ondemand.com",
+                        "us3.hana.ondemand.com",
+                        "us4.hana.ondemand.com"
+                    ],
+                    "default": "hana.ondemand.com"
+                }
+            }
+        },
+        {
+            "url": "https://{Custom Name}.{Domain}/api/v1",
+            "description": "SAP Cloud Integration Custom Domain Endpoint - see [Configuring Custom Domains](https://help.sap.com/viewer/368c481cd6954bdfa5d0435479fd4eaf/Cloud/en-US/7230b9ff41914cc0969223e6a020104b.html)",
+            "templates": {
+                "Custom Name": {
+                    "description": "Your defined name for your Cloud Integration account."
+                },
+                "Domain": {
+                    "description": "Your custom domain"
+                }
+            }
+        }
+    ],
+    "securityDefinitions": {
+        "BasicAuthentication": {
+            "type": "basic"
+        }
+    },
+    "security": [
+        {
+            "BasicAuthentication": []
+        }
+    ],
+    "consumes": [
+        "application/json"
+    ],
+    "produces": [
+        "application/json"
+    ],
+    "tags": [
+        {
+            "name": "Entries"
+        },
+        {
+            "name": "Entry Attachments"
+        },
+        {
+            "name": "Entry Attachment Properties"
+        },
+        {
+            "name": "Entry Properties"
+        },
+        {
+            "name": "JMS Resources"
+        },
+        {
+            "name": "Number Ranges"
+        },
+        {
+            "name": "Data Stores"
+        },
+        {
+            "name": "Variables"
+        }
+    ],
+    "paths": {
+        "/MessageProcessingLogs('{MessageGuid}')/MessageStoreEntries": {
+            "get": {
+                "description": "You can use the following request to get message store entries for the specified message Guid.<br>\n\nIn API sandbox the integration flow '__Integration Flow with MessageStore - COMPLETED PROCESSING__' creates the corresponding message processing logs with message store entries.",
+                "summary": "Get message store entries by message Guid.",
+                "tags": [
+                    "Entries"
+                ],
+                "parameters": [
+                    {
+                        "name": "MessageGuid",
+                        "in": "path",
+                        "required": true,
+                        "description": "Guid of the message for which the message processing log is written",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved entities",
+                        "schema": {
+                            "title": "Collection of MessageStoreEntry",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.MessageStoreEntry"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "results": [
+                                        {
+                                            "Id": "sap-it-res:msg:ae15c0dda:111e8e08-7a44-4dd1-a0b5-0586105591cb",
+                                            "MessageGuid": "AFrAl1wLhV2Mkzho92oqdym8bq5v",
+                                            "MessageStoreId": "Persist1",
+                                            "TimeStamp": "/Date(1522571100123)/",
+                                            "HasAttachments": true,
+                                            "Attachments": {
+                                                "__deferred": {
+                                                    "uri": "https://sandbox.api.sap.com:443:443/cpi/api/v1/MessageStoreEntries('sap-it-res%3Amsg%3Aae15c0dda%3Ad6d3eee7-0b8e-4279-acd5-d5cbd22994e5')/Attachments"
+                                                }
+                                            },
+                                            "Properties": {
+                                                "__deferred": {
+                                                    "uri": "https://sandbox.api.sap.com:443:443/cpi/api/v1/MessageStoreEntries('sap-it-res%3Amsg%3Aae15c0dda%3Ad6d3eee7-0b8e-4279-acd5-d5cbd22994e5')/Properties"
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "Id": "sap-it-res:msg:ae15c0dda:531e5acb-05cb-4835-a45a-86fbdac0508a",
+                                            "MessageGuid": "AFq5745rgi7C6E2IVlCM22lEmgDt",
+                                            "MessageStoreId": "Persist2",
+                                            "TimeStamp": "/Date(1522134926543)/",
+                                            "HasAttachments": true,
+                                            "Attachments": {
+                                                "__deferred": {
+                                                    "uri": "https://sandbox.api.sap.com:443:443/cpi/api/v1/MessageStoreEntries('sap-it-res%3Amsg%3Aae15c0dda%3A531e5acb-05cb-4835-a45a-86fbdac0508a')/Attachments"
+                                                }
+                                            },
+                                            "Properties": {
+                                                "__deferred": {
+                                                    "uri": "https://sandbox.api.sap.com:443:443/cpi/api/v1/MessageStoreEntries('sap-it-res%3Amsg%3Aae15c0dda%3A531e5acb-05cb-4835-a45a-86fbdac0508a')/Properties"
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/MessageStoreEntries('{MessageStoreEntryId}')": {
+            "get": {
+                "description": "You can use the following request to get entry from message store for a specific entry Id.<br>\n\nIn API sandbox the integration flow '__Integration Flow with MessageStore COMPLETED PROCESSING__' creates the corresponding message processing logs with message store entries.",
+                "summary": "Get message store entry by Id.",
+                "tags": [
+                    "Entries"
+                ],
+                "parameters": [
+                    {
+                        "name": "MessageStoreEntryId",
+                        "in": "path",
+                        "required": true,
+                        "description": "Message store entry Id",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved entity",
+                        "schema": {
+                            "title": "MessageStoreEntry",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "$ref": "#/definitions/com.sap.hci.api.MessageStoreEntry"
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "Id": "sap-it-res:msg:ae15c0dda:111e8e08-7a44-4dd1-a0b5-0586105591cb",
+                                    "MessageGuid": "AFrAl1wLhV2Mkzho92oqdym8bq5v",
+                                    "MessageStoreId": "Persist1",
+                                    "TimeStamp": "/Date(1522571100123)/",
+                                    "HasAttachments": true,
+                                    "Attachments": {
+                                        "__deferred": {
+                                            "uri": "https://sandbox.api.sap.com:443:443/cpi/api/v1/MessageStoreEntries('sap-it-res%3Amsg%3Aae15c0dda%3Ad6d3eee7-0b8e-4279-acd5-d5cbd22994e5')/Attachments"
+                                        }
+                                    },
+                                    "Properties": {
+                                        "__deferred": {
+                                            "uri": "https://sandbox.api.sap.com:443:443/cpi/api/v1/MessageStoreEntries('sap-it-res%3Amsg%3Aae15c0dda%3Ad6d3eee7-0b8e-4279-acd5-d5cbd22994e5')/Properties"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/MessageStoreEntries('{MessageStoreEntryId}')/$value": {
+            "get": {
+                "description": "You can use the following request to get message payload from message store for a specific entry Id.<br>\n\nIn API sandbox the integration flow '__Integration Flow with MessageStore - COMPLETED PROCESSING__' creates the corresponding message processing logs with message store entries.",
+                "summary": "Get message payload from message store by entry Id.",
+                "tags": [
+                    "Entries"
+                ],
+                "parameters": [
+                    {
+                        "name": "MessageStoreEntryId",
+                        "in": "path",
+                        "required": true,
+                        "description": "Message store entry Id",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved payload of message store entry"
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/MessageStoreEntries('{MessageStoreEntryId}')/Attachments": {
+            "get": {
+                "description": "You can use the following request to get all attachments from the message store entry with specified entry Id.<br>\n\nIn API sandbox the integration flow '__Integration Flow with MessageStore COMPLETED PROCESSING__' creates the corresponding message processing logs with message store entries and attachments.",
+                "summary": "Get attachments from message store by entry Id.",
+                "tags": [
+                    "Entry Attachments"
+                ],
+                "parameters": [
+                    {
+                        "name": "MessageStoreEntryId",
+                        "in": "path",
+                        "required": true,
+                        "description": "Message store entry Id",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved entity",
+                        "schema": {
+                            "title": "Collection of MessageStoreEntryAttachment",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.MessageStoreEntryAttachment"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "results": [
+                                        {
+                                            "Id": "sap-it-res:att:ae15c0dda:2c79e3ef-fc37-43b0-80a7-73a8467cda43",
+                                            "Name": "attachment1.html",
+                                            "ContentType": "text/html; charset=iso-8859-1",
+                                            "Properties": {
+                                                "__deferred": {
+                                                    "uri": "https://sandbox.api.sap.com:443:443/cpi/api/v1/MessageStoreEntryAttachments('sap-it-res%3Aatt%3Aae15c0dda%3A2c79e3ef-fc37-43b0-80a7-73a8467cda43')/Properties"
+                                                }
+                                            }
+                                        },
+                                        {
+                                            "Id": "sap-it-res:att:ae15c0dda:9c787b0e-0fd6-4088-a0dc-67178eccc4f6",
+                                            "Name": "attachment2.html",
+                                            "ContentType": "text/html; charset=iso-8859-1",
+                                            "Properties": {
+                                                "__deferred": {
+                                                    "uri": "https://sandbox.api.sap.com:443:443/cpi/api/v1/MessageStoreEntryAttachments('sap-it-res%3Aatt%3Aae15c0dda%3A9c787b0e-0fd6-4088-a0dc-67178eccc4f6')/Properties"
+                                                }
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/MessageStoreEntryAttachments('{MessageStoreEntryAttachmentId}')": {
+            "get": {
+                "description": "You can use the following request to get the attachment of a message store entry with specified attachment Id.<br>\n\nIn API sandbox the integration flow '__Integration Flow with MessageStore - COMPLETED PROCESSING__' creates the corresponding message processing logs with message store entries and attachments.",
+                "summary": "Get attachment from message store by attachment Id.",
+                "tags": [
+                    "Entry Attachments"
+                ],
+                "parameters": [
+                    {
+                        "name": "MessageStoreEntryAttachmentId",
+                        "in": "path",
+                        "required": true,
+                        "description": "Attachment Id of the message store entry",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved entity",
+                        "schema": {
+                            "title": "MessageStoreEntryAttachment",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "$ref": "#/definitions/com.sap.hci.api.MessageStoreEntryAttachment"
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "Id": "sap-it-res:att:ae15c0dda:2c79e3ef-fc37-43b0-80a7-73a8467cda43",
+                                    "Name": "attachment1.html",
+                                    "ContentType": "text/html; charset=iso-8859-1",
+                                    "Properties": {
+                                        "__deferred": {
+                                            "uri": "https://sandbox.api.sap.com:443:443/cpi/api/v1/MessageStoreEntryAttachments('sap-it-res%3Aatt%3Aae15c0dda%3A2c79e3ef-fc37-43b0-80a7-73a8467cda43')/Properties"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/MessageStoreEntryAttachments('{MessageStoreEntryAttachmentId}')/$value": {
+            "get": {
+                "description": "You can use the following request to get the attachment content of a message store entry with specified Id.<br>\n\nIn API sandbox the integration flow '__Integration Flow with MessageStore - COMPLETED PROCESSING__' creates the corresponding message processing logs with message store entries and attachments.",
+                "summary": "Get attachment content from message store by attachment Id.",
+                "tags": [
+                    "Entry Attachments"
+                ],
+                "produces": [
+                    "application/octet-stream"
+                ],
+                "parameters": [
+                    {
+                        "name": "MessageStoreEntryAttachmentId",
+                        "in": "path",
+                        "required": true,
+                        "description": "Attachment Id of a message store entry",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved attachment content of message store entry"
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/MessageStoreEntryAttachments('{MessageStoreEntryAttachmentId}')/Properties": {
+            "get": {
+                "description": "You can use the following request to get attachment properties of a message store entry for specified attachment Id.<br>\n\nIn API sandbox the integration flow '__Integration Flow with MessageStore - COMPLETED PROCESSING__' creates the corresponding message processing logs with message store entries and attachments.",
+                "summary": "Get attachment properties from message store by attachment Id.",
+                "tags": [
+                    "Entry Attachment Properties"
+                ],
+                "parameters": [
+                    {
+                        "name": "MessageStoreEntryAttachmentId",
+                        "in": "path",
+                        "required": true,
+                        "description": "Attachment Id of a message store entry",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved entity",
+                        "schema": {
+                            "title": "Collection of MessageStoreEntryAttachmentProperty",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.MessageStoreEntryAttachmentProperty"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "results": [
+                                        {
+                                            "AttachmentId": "sap-it-res:att:ae15c0dda:2c79e3ef-fc37-43b0-80a7-73a8467cda43",
+                                            "Name": "Content-type",
+                                            "Value": "text/html; charset=iso-8859-1"
+                                        },
+                                        {
+                                            "AttachmentId": "sap-it-res:att:ae15c0dda:2c79e3ef-fc37-43b0-80a7-73a8467cda43",
+                                            "Name": "Content-Disposition",
+                                            "Value": "attachment; filename=\"attachment1.html\""
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/MessageStoreEntryAttachmentProperties(AttachmentId='{MessageStoreEntryAttachmentId}',Name='{Name}')": {
+            "get": {
+                "description": "You can use the following request to get attachment properties of a message store entry for specified attachment Id and property name.<br>\n\nIn API sandbox the integration flow '__Integration Flow with MessageStore - COMPLETED PROCESSING__' creates the corresponding message processing logs with message store entries and attachments.",
+                "summary": "Get attachment properties from message store by attachment Id and property name.",
+                "tags": [
+                    "Entry Attachment Properties"
+                ],
+                "parameters": [
+                    {
+                        "name": "MessageStoreEntryAttachmentId",
+                        "in": "path",
+                        "required": true,
+                        "description": "Attachment Id of a message store entry",
+                        "type": "string"
+                    },
+                    {
+                        "name": "Name",
+                        "in": "path",
+                        "required": true,
+                        "description": "Property name of the attachment for a message store entry",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved entity",
+                        "schema": {
+                            "title": "MessageStoreEntryAttachmentProperty",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "$ref": "#/definitions/com.sap.hci.api.MessageStoreEntryAttachmentProperty"
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "AttachmentId": "sap-it-res:att:ae15c0dda:2c79e3ef-fc37-43b0-80a7-73a8467cda43",
+                                    "Name": "Content-Disposition",
+                                    "Value": "attachment; filename=\"attachment1.html\""
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/MessageStoreEntries('{MessageStoreEntryId}')/Properties": {
+            "get": {
+                "description": "You can use the following request to get all properties of message store entry for the specified entry Id.<br>\n\nIn API sandbox the integration flow '__Integration Flow with MessageStore - COMPLETED PROCESSING__' creates the corresponding message processing logs with message store entries and properties.",
+                "summary": "Get all properties of message store by entry Id",
+                "tags": [
+                    "Entry Properties"
+                ],
+                "parameters": [
+                    {
+                        "name": "MessageStoreEntryId",
+                        "in": "path",
+                        "required": true,
+                        "description": "Message store entry Id",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved entity",
+                        "schema": {
+                            "title": "Collection of MessageStoreEntryProperty",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.MessageStoreEntryProperty"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "results": [
+                                        {
+                                            "MessageId": "sap-it-res:msg:ae15c0dda:111e8e08-7a44-4dd1-a0b5-0586105591cb",
+                                            "Name": "X-receiver",
+                                            "Value": "<testrecipient@nonexistent.wdf.sap.corp>"
+                                        },
+                                        {
+                                            "MessageId": "sap-it-res:msg:ae15c0dda:111e8e08-7a44-4dd1-a0b5-0586105591cb",
+                                            "Name": "TestHeader",
+                                            "Value": "Header Value"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/MessageStoreEntryProperties(MessageId='{MessageStoreEntryID}',Name='{PropertyName}')": {
+            "get": {
+                "description": "You can use the following request to get property of message store entry for the specified entry Id and property name.<br>\n\nIn API sandbox the integration flow '__Integration Flow with MessageStore - COMPLETED PROCESSING__' creates the corresponding message processing logs with message store entries and properties.",
+                "summary": "Get property from message store by entry Id and property name.",
+                "tags": [
+                    "Entry Properties"
+                ],
+                "parameters": [
+                    {
+                        "name": "MessageStoreEntryID",
+                        "in": "path",
+                        "required": true,
+                        "description": "Message store entry Id",
+                        "type": "string"
+                    },
+                    {
+                        "name": "PropertyName",
+                        "in": "path",
+                        "required": true,
+                        "description": "Property name for the message store entry",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved entity",
+                        "schema": {
+                            "title": "MessageStoreEntryProperty",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "$ref": "#/definitions/com.sap.hci.api.MessageStoreEntryProperty"
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "MessageId": "sap-it-res:msg:ae15c0dda:111e8e08-7a44-4dd1-a0b5-0586105591cb",
+                                    "Name": "X-receiver",
+                                    "Value": "<testrecipient@nonexistent.wdf.sap.corp>"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/JmsBrokers('Broker1')": {
+            "get": {
+                "description": "You can use the following request to get information on the JMS resources available on the tenant as well as on those actually used by your integration flows.<br>\n\nAdditional information about response values for some attributes: \n* __IsTransactedSessionsHigh__: \n__0__ - enough transactions available \n__1__ - number of transactions exceeding the allowed limit \n* __IsConsumerHigh__: \n__0__ - enough consumer available \n__1__ - number of consumers exceeding the allowed limits \n* __IsProducersHigh__: \n__0__ - enough producers available \n__1__ - number of producers exceeding the allowed limit",
+                "summary": "Get available resources of JMS queues.",
+                "tags": [
+                    "JMS Resources"
+                ],
+                "parameters": [
+                    {
+                        "name": "$expand",
+                        "in": "query",
+                        "description": "Expand related entities.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "QueueStates",
+                                "InactiveQueues"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved entity with expand on queue states",
+                        "schema": {
+                            "$ref": "#/definitions/com.sap.hci.api.JmsBrokerQueueStates"
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "Key": "Broker1",
+                                    "Capacity": "794616135",
+                                    "MaxCapacity": "9751756800",
+                                    "IsTransactedSessionsHigh": 0,
+                                    "IsConsumersHigh": 0,
+                                    "IsProducersHigh": 0,
+                                    "MaxQueueNumber": "30",
+                                    "QueueNumber": "16",
+                                    "CapacityOk": "16",
+                                    "CapacityWarning": "0",
+                                    "CapacityError": "0",
+                                    "QueueStates": {
+                                        "results": [
+                                            {
+                                                "Name": "CC",
+                                                "State": "0",
+                                                "Broker": {
+                                                    "__deferred": {
+                                                        "uri": "https://test.api.sap.com:443/api/v1/QueueStates('CC')/Broker"
+                                                    }
+                                                }
+                                            },
+                                            {
+                                                "Name": "TEST2",
+                                                "State": "0",
+                                                "Broker": {
+                                                    "__deferred": {
+                                                        "uri": "https://test.api.sap.com:443/api/v1/QueueStates('TEST2')/Broker"
+                                                    }
+                                                }
+                                            }
+                                        ]
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/NumberRanges": {
+            "get": {
+                "description": "You can use the following request to get the Number Range Objects available on the tenant.<br>\n\nThere are two Number Ranges defined in API sandbox: '__NumberRange1__' and '__NumberRange2__'",
+                "summary": "Get available Number Ranges.",
+                "tags": [
+                    "Number Ranges"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved entities",
+                        "schema": {
+                            "title": "Collection of NumberRanges",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.NumberRanges"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "results": [
+                                        {
+                                            "Name": "NumberRangeTest1",
+                                            "Description": "Test",
+                                            "MaxValue": "0000000005",
+                                            "MinValue": "0000000001",
+                                            "Rotate": "true",
+                                            "CurrentValue": "0000000001",
+                                            "FieldLength": "10",
+                                            "DeployedBy": "User",
+                                            "DeployedOn": "2020-07-06T16:08:49.83"
+                                        },
+                                        {
+                                            "Name": "NumberRangeTest2",
+                                            "Description": "Test",
+                                            "MaxValue": "0000000010",
+                                            "MinValue": "0000000006",
+                                            "Rotate": "true",
+                                            "CurrentValue": "0000000006",
+                                            "FieldLength": "10",
+                                            "DeployedBy": "User",
+                                            "DeployedOn": "2020-07-06T16:08:49.83"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            },
+            "post": {
+                "description": "You can use the following request to add a Number Range Object.<br>\n\nIn API sandbox only read APIs could be tested. You need to configure an API endpoint for your account, where you have the required write permissions to update integration flows.",
+                "summary": "Add a Number Range Object.",
+                "tags": [
+                    "Number Ranges"
+                ],
+                "parameters": [
+                    {
+                        "name": "NumberRanges",
+                        "in": "body",
+                        "description": "Attribute-values of the new NumberRange Object",
+                        "schema": {
+                            "$ref": "#/definitions/com.sap.hci.api.NumberRangesPut"
+                        }
+                    },
+                    {
+                        "description": "CSRF token that is valid for the current session (see resource 'CSRF Token Handling')",
+                        "in": "header",
+                        "name": "X-CSRF-Token",
+                        "type": "string",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted"
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/NumberRanges('{objectName}')": {
+            "get": {
+                "description": "You can use the following request to get the Number Range Object by a name.<br>\n\nThere are two Number Ranges defined in API sandbox: '__NumberRange1__' and '__NumberRange2__'",
+                "summary": "Get specific Number Range by it's name'.",
+                "tags": [
+                    "Number Ranges"
+                ],
+                "parameters": [
+                    {
+                        "name": "objectName",
+                        "in": "path",
+                        "required": true,
+                        "description": "Name of the Number Range object",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved entity",
+                        "schema": {
+                            "$ref": "#/definitions/com.sap.hci.api.NumberRanges"
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "Name": "NumberRangeTest1",
+                                    "Description": "Test",
+                                    "MaxValue": "0000000005",
+                                    "MinValue": "0000000001",
+                                    "Rotate": "true",
+                                    "CurrentValue": "0000000001",
+                                    "FieldLength": "10",
+                                    "DeployedBy": "User",
+                                    "DeployedOn": "2020-07-06T16:08:49.83"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            },
+            "put": {
+                "description": "You can use the following request to update a Number Range Object.<br>\n\nIn API sandbox only read APIs could be tested. You need to configure an API endpoint for your account, where you have the required write permissions to update integration flows.",
+                "summary": "Update a Number Range Object.",
+                "tags": [
+                    "Number Ranges"
+                ],
+                "parameters": [
+                    {
+                        "name": "objectName",
+                        "in": "path",
+                        "required": true,
+                        "description": "Name of the Number Range object",
+                        "type": "string"
+                    },
+                    {
+                        "name": "NumberRanges",
+                        "in": "body",
+                        "description": "New Attribute-values of the NumberRange Object. The Name must be the same as objectName in the path. You have to provide all attributes.",
+                        "schema": {
+                            "$ref": "#/definitions/com.sap.hci.api.NumberRangesPut"
+                        }
+                    },
+                    {
+                        "description": "CSRF token that is valid for the current session (see resource 'CSRF Token Handling')",
+                        "in": "header",
+                        "name": "X-CSRF-Token",
+                        "type": "string",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted"
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            },
+            "delete": {
+                "description": "You can use the following request to delete a Number Range Object.<br>\n\nIn API sandbox only read APIs could be tested. You need to configure an API endpoint for your account, where you have the required write permissions to update integration flows.",
+                "summary": "Delete a Number Range Object.",
+                "tags": [
+                    "Number Ranges"
+                ],
+                "parameters": [
+                    {
+                        "name": "objectName",
+                        "in": "path",
+                        "required": true,
+                        "description": "Name of the Number Range object",
+                        "type": "string"
+                    },
+                    {
+                        "description": "CSRF token that is valid for the current session (see resource 'CSRF Token Handling')",
+                        "in": "header",
+                        "name": "X-CSRF-Token",
+                        "type": "string",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted"
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/DataStores": {
+            "get": {
+                "description": "You can use the following request to get the Data Stores available on the tenant.<br>\n\n",
+                "summary": "Get available Data Stores.",
+                "tags": [
+                    "Data Stores"
+                ],
+                "parameters": [
+                    {
+                        "name": "overdueonly",
+                        "in": "query",
+                        "description": "If this parameter is ```true``` only Data Stores with overdue messages are shown. If it is ```false``` or not available all Data Stores are shown.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "true",
+                                "false"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved entities",
+                        "schema": {
+                            "title": "Collection of Data Stores",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.DataStores"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "results": [
+                                        {
+                                            "DataStoreName": "Name",
+                                            "IntegrationFlow": "Test",
+                                            "Type": "",
+                                            "Visibility": "Integration Flow",
+                                            "NumberOfMessages": "3",
+                                            "NumberOfOverdueMessages": "3"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/DataStores(DataStoreName='{DataStoreName}',IntegrationFlow='{IntegrationFlowId}',Type='{Type}')": {
+            "get": {
+                "description": "You can use the following request to get the Data Store by a name.<br>",
+                "summary": "Get specific Data Store by it's name'.",
+                "tags": [
+                    "Data Stores"
+                ],
+                "parameters": [
+                    {
+                        "name": "DataStoreName",
+                        "in": "path",
+                        "required": true,
+                        "description": "Name of the Data Store",
+                        "type": "string"
+                    },
+                    {
+                        "name": "IntegrationFlowId",
+                        "in": "path",
+                        "required": true,
+                        "description": "The ID of the IntegrationFlow",
+                        "type": "string"
+                    },
+                    {
+                        "name": "Type",
+                        "in": "path",
+                        "required": true,
+                        "description": "Is used for Data Stores that are created by Adapters (e.g. XI or AS4) or Flowsteps (e.g. Aggregator). Is empty if the visibility is Global or IntegrationFlow",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved entity",
+                        "schema": {
+                            "$ref": "#/definitions/com.sap.hci.api.DataStores"
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "DataStoreName": "DataStore1",
+                                    "IntegrationFlow": "IntegratoinFlow1",
+                                    "Type": "XI",
+                                    "Visibility": "Inegration Flow",
+                                    "NumberOfMessages": "19",
+                                    "NumberOfOverdueMessages": "19"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            },
+            "delete": {
+                "description": "You can use the following request to delete a Data Store.<br>\n\nIn API sandbox only read APIs could be tested. You need to configure an API endpoint for your account, where you have the required write permissions to delete Data Stores.",
+                "summary": "Delete a Data Store.",
+                "tags": [
+                    "Data Stores"
+                ],
+                "parameters": [
+                    {
+                        "name": "DataStoreName",
+                        "in": "path",
+                        "required": true,
+                        "description": "Name of the Data Store",
+                        "type": "string"
+                    },
+                    {
+                        "name": "IntegrationFlowId",
+                        "in": "path",
+                        "required": true,
+                        "description": "The ID of the IntegrationFlow",
+                        "type": "string"
+                    },
+                    {
+                        "name": "Type",
+                        "in": "path",
+                        "required": true,
+                        "description": "Is used for Data Stores that are created by Adapters (e.g. XI or AS4) or Flowsteps (e.g. Aggregator). Is empty if the visibility is Global or IntegrationFlow",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted"
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/DataStoreEntries": {
+            "get": {
+                "description": "You can use the following request to get all Data Store entries available on the tenant.<br>\n\n",
+                "summary": "Get all Data Store entries.",
+                "tags": [
+                    "Data Stores"
+                ],
+                "parameters": [
+                    {
+                        "name": "overdueonly",
+                        "in": "query",
+                        "description": "If this parameter is ```true``` only Data Store entries with overdue messages are shown. If it is ```false``` or not available all Data Store entries are shown.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "true",
+                                "false"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "messageid",
+                        "in": "query",
+                        "description": "Shows all Data Store Entries with the mpl id",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved entities",
+                        "schema": {
+                            "title": "Collection of Data Store entries",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.DataStoreEntries"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "results": [
+                                        {
+                                            "Id": "g59c94d8-553b-4471-8f12-4f135f61d8c1",
+                                            "DataStoreName": "Name",
+                                            "IntegrationFlow": "Test",
+                                            "Type": "",
+                                            "Status": "Overdue",
+                                            "MessageId": "BGAhYYq9SRemeZqvs3q2SSi-sRdy",
+                                            "DueAt": "2021-02-15T16:06:34.08",
+                                            "CreatedAt": "2021-02-15T16:06:34.08",
+                                            "RetainUntil": "2021-05-15T16:06:34.08"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/DataStores(DataStoreName='{DataStoreName}',IntegrationFlow='{IntegrationFlowId}',Type='{Type}')/Entries": {
+            "get": {
+                "description": "You can use the following request to get al Data Store entries for a specific Data Store available on the tenant.<br>\n\n",
+                "summary": "Get all Data Store entries for a specific Data Store.",
+                "tags": [
+                    "Data Stores"
+                ],
+                "parameters": [
+                    {
+                        "name": "DataStoreName",
+                        "in": "path",
+                        "required": true,
+                        "description": "Name of the Data Store",
+                        "type": "string"
+                    },
+                    {
+                        "name": "IntegrationFlowId",
+                        "in": "path",
+                        "required": true,
+                        "description": "The ID of the IntegrationFlow",
+                        "type": "string"
+                    },
+                    {
+                        "name": "Type",
+                        "in": "path",
+                        "required": true,
+                        "description": "Is used for Data Stores that are created by Adapters (e.g. XI or AS4) or Flowsteps (e.g. Aggregator). Is empty if the visibility is Global or IntegrationFlow",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "overdueonly",
+                        "in": "query",
+                        "description": "If this parameter is ```true``` only Data Store entries with overdue messages are shown. If it is ```false``` or not available all Data Store entries are shown.",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string",
+                            "enum": [
+                                "true",
+                                "false"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "messageid",
+                        "in": "query", 
+                        "description": "Shows all Data Store Entries with the mpl id",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved entities",
+                        "schema": {
+                            "title": "Collection of Data Store entries",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.DataStoreEntries"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "results": [
+                                        {
+                                            "Id": "g59c94d8-553b-4471-8f12-4f135f61d8c1",
+                                            "DataStoreName": "Name",
+                                            "IntegrationFlow": "Test",
+                                            "Type": "",
+                                            "Status": "Overdue",
+                                            "MessageId": "BGAhYYq9SRemeZqvs3q2SSi-sRdy",
+                                            "DueAt": "2021-02-15T16:06:34.08",
+                                            "CreatedAt": "2021-02-15T16:06:34.08",
+                                            "RetainUntil": "2021-05-15T16:06:34.08"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/DataStoreEntries(Id='{Id}',DataStoreName='{DataStoreName}',IntegrationFlow='{IntegrationFlowId}',Type='{Type}')": {
+            "get": {
+                "description": "You can use the following request to get a Data Store entry.<br>",
+                "summary": "Get specific Data Store entry by it's Id'.",
+                "tags": [
+                    "Data Stores"
+                ],
+                "parameters": [
+                    {
+                        "name": "Id",
+                        "in": "path",
+                        "required": true,
+                        "description": "Id of the Data Store entry",
+                        "type": "string"
+                    },
+                    {
+                        "name": "DataStoreName",
+                        "in": "path",
+                        "required": true,
+                        "description": "Name of the Data Store",
+                        "type": "string"
+                    },
+                    {
+                        "name": "IntegrationFlowId",
+                        "in": "path",
+                        "required": true,
+                        "description": "The ID of the IntegrationFlow",
+                        "type": "string"
+                    },
+                    {
+                        "name": "Type",
+                        "in": "path",
+                        "required": true,
+                        "description": "Is used for Data Stores that are created by Adapters (e.g. XI or AS4) or Flowsteps (e.g. Aggregator). Is empty if the visibility is Global or IntegrationFlow",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved entity",
+                        "schema": {
+                            "$ref": "#/definitions/com.sap.hci.api.DataStores"
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "Id": "g59c94d8-553b-4471-8f12-4f135f61d8c1",
+                                    "DataStoreName": "Name",
+                                    "IntegrationFlow": "Test",
+                                    "Type": "",
+                                    "Status": "Overdue",
+                                    "MessageId": "BGAhYYq9SRemeZqvs3q2SSi-sRdy",
+                                    "DueAt": "2021-02-15T16:06:34.08",
+                                    "CreatedAt": "2021-02-15T16:06:34.08",
+                                    "RetainUntil": "2021-05-15T16:06:34.08"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            },
+            "delete": {
+                "description": "You can use the following request to delete a Data Store entry.<br>\n\nIn API sandbox only read APIs could be tested. You need to configure an API endpoint for your account, where you have the required write permissions to delete Data Stores.",
+                "summary": "Delete a Data Store entry.",
+                "tags": [
+                    "Data Stores"
+                ],
+                "parameters": [
+                    {
+                        "name": "Id",
+                        "in": "path",
+                        "required": true,
+                        "description": "Id of the Data Store entry",
+                        "type": "string"
+                    },
+                    {
+                        "name": "DataStoreName",
+                        "in": "path",
+                        "required": true,
+                        "description": "Name of the Data Store",
+                        "type": "string"
+                    },
+                    {
+                        "name": "IntegrationFlowId",
+                        "in": "path",
+                        "required": true,
+                        "description": "The ID of the IntegrationFlow",
+                        "type": "string"
+                    },
+                    {
+                        "name": "Type",
+                        "in": "path",
+                        "required": true,
+                        "description": "Is used for Data Stores that are created by Adapters (e.g. XI or AS4) or Flowsteps (e.g. Aggregator). Is empty if the visibility is Global or IntegrationFlow",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted"
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/DataStoreEntries(Id='{Id}',DataStoreName='{DataStoreName}',IntegrationFlow='{IntegrationFlowId}',Type='{Type}')/$value": {
+            "get": {
+                "description": "You can use the following request to download a Data Store entry content.<br>",
+                "summary": "Download content of a specific Data Store entry by it's Id'.",
+                "tags": [
+                    "Data Stores"
+                ],
+                "parameters": [
+                    {
+                        "name": "Id",
+                        "in": "path",
+                        "required": true,
+                        "description": "Id of the Data Store entry",
+                        "type": "string"
+                    },
+                    {
+                        "name": "DataStoreName",
+                        "in": "path",
+                        "required": true,
+                        "description": "Name of the Data Store",
+                        "type": "string"
+                    },
+                    {
+                        "name": "IntegrationFlowId",
+                        "in": "path",
+                        "required": true,
+                        "description": "The ID of the IntegrationFlow",
+                        "type": "string"
+                    },
+                    {
+                        "name": "Type",
+                        "in": "path",
+                        "required": true,
+                        "description": "Is used for Data Stores that are created by Adapters (e.g. XI or AS4) or Flowsteps (e.g. Aggregator). Is empty if the visibility is Global or IntegrationFlow",
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved content"
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/Variables": {
+            "get": {
+                "description": "You can use the following request to get all Variables entries available on the tenant.<br>\n\n",
+                "summary": "Get all Variables entries.",
+                "tags": [
+                    "Variables"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved entities",
+                        "schema": {
+                            "title": "Collection of Variables entries",
+                            "type": "object",
+                            "properties": {
+                                "d": {
+                                    "type": "object",
+                                    "properties": {
+                                        "results": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/com.sap.hci.api.Variables"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "results": [
+                                        {
+                                            "VariableName": "g59c94d8-553b-4471-8f12-4f135f61d8c1",
+                                            "IntegrationFlow": "Test",
+                                            "Visibility": "Integration Flow",
+                                            "UpdatedAt": "2021-02-15T16:06:34.08",
+                                            "RetainUntil": "2021-05-15T16:06:34.08"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/Variables(VariableName='{VariableName}',IntegrationFlow='{IntegrationFlowId}')": {
+            "get": {
+                "description": "You can use the following request to get the Variable by a name.<br>",
+                "summary": "Get specific Variable by it's name'.",
+                "tags": [
+                    "Variables"
+                ],
+                "parameters": [
+                    {
+                        "name": "VariableName",
+                        "in": "path",
+                        "required": true,
+                        "description": "Name of the Variable",
+                        "type": "string"
+                    },
+                    {
+                        "name": "IntegrationFlowId",
+                        "in": "path",
+                        "required": true,
+                        "description": "The ID of the IntegrationFlow",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved entity",
+                        "schema": {
+                            "$ref": "#/definitions/com.sap.hci.api.Variables"
+                        },
+                        "examples": {
+                            "application/json": {
+                                "d": {
+                                    "VariableName": "VarName",
+                                    "IntegrationFlow": "IntegratoinFlow1",
+                                    "Visibility": "Global",
+                                    "UpdatedAt": "2021-02-15T16:06:34.08",
+                                    "RetainUntil": "2021-05-15T16:06:34.08"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            },
+            "delete": {
+                "description": "You can use the following request to delete a Variable.<br>\n\nIn API sandbox only read APIs could be tested. You need to configure an API endpoint for your account, where you have the required write permissions to delete Variables.",
+                "summary": "Delete a Variable.",
+                "tags": [
+                    "Variables"
+                ],
+                "parameters": [
+                    {
+                        "name": "VariableName",
+                        "in": "path",
+                        "required": true,
+                        "description": "Name of the Variable",
+                        "type": "string"
+                    },
+                    {
+                        "name": "IntegrationFlowId",
+                        "in": "path",
+                        "required": true,
+                        "description": "The ID of the IntegrationFlow",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted"
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },
+        "/Variables(VariableName='{VariableName}',IntegrationFlow='{IntegrationFlowId}')/$value": {
+            "get": {
+                "description": "You can use the following request to get the content of a Variable by a name.<br>",
+                "summary": "Downlaod Variable's content by it's name'.",
+                "tags": [
+                    "Variables"
+                ],
+                "parameters": [
+                    {
+                        "name": "VariableName",
+                        "in": "path",
+                        "required": true,
+                        "description": "Name of the Variable",
+                        "type": "string"
+                    },
+                    {
+                        "name": "IntegrationFlowId",
+                        "in": "path",
+                        "required": true,
+                        "description": "The ID of the IntegrationFlow",
+                        "type": "string"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Retrieved content"
+                    },
+                    "400": {
+                        "$ref": "#/responses/400"
+                    },
+                    "401": {
+                        "$ref": "#/responses/401"
+                    },
+                    "403": {
+                        "$ref": "#/responses/403"
+                    },
+                    "404": {
+                        "$ref": "#/responses/404"
+                    },
+                    "429": {
+                        "$ref": "#/responses/429"
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        },                        
+        "/": {
+            "get": {
+                "tags": [
+                    "CSRF Token Handling"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "description": "You can use the following request to get the CSRF token for this session, which is required for write access via POST, PUT and DELETE operations. Copy the received X-CSRF-Token from the response header.<br>\n\n**In API sandbox this request is not relevant!**",
+                "summary": "Get CSRF token.",
+                "parameters": [
+                    {
+                        "description": "To retrieve a new CSRF token the value of the header must be set to ```Fetch```.",
+                        "in": "header",
+                        "name": "X-CSRF-Token",
+                        "required": true,
+                        "type": "string",
+                        "default": "Fetch"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The header provides the CSRF token for this session.",
+                        "headers": {
+                            "X-CSRF-Token": {
+                                "description": "CSRF token that can be used for all modifying requests within the same session.",
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "default": {
+                        "$ref": "#/responses/error"
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "com.sap.hci.api.MessageStoreEntry": {
+            "type": "object",
+            "properties": {
+                "Id": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "MessageGuid": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "MessageStoreId": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "Timestamp": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "format": "date-time",
+                    "example": "2020-04-13T15:51:04Z"
+                },
+                "HasAttachments": {
+                    "type": [
+                        "boolean"
+                    ]
+                },
+                "Attachments": {
+                    "title": "Attachments of MessageStoreEntries",
+                    "type": "object",
+                    "properties": {
+                        "results": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/com.sap.hci.api.MessageStoreEntryAttachment"
+                            }
+                        }
+                    }
+                },
+                "Properties": {
+                    "title": "Properties of MessageStoreEntries",
+                    "type": "object",
+                    "properties": {
+                        "results": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/com.sap.hci.api.MessageStoreEntryProperty"
+                            }
+                        }
+                    }
+                }
+            },
+            "title": "MessageStoreEntry"
+        },
+        "com.sap.hci.api.MessageStoreEntryProperty": {
+            "type": "object",
+            "properties": {
+                "MessageId": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "Name": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "Value": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "title": "MessageStoreEntryProperty"
+        },
+        "com.sap.hci.api.MessageStoreEntryAttachmentProperty": {
+            "type": "object",
+            "properties": {
+                "AttachmentId": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "Name": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "Value": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                }
+            },
+            "title": "MessageStoreEntryAttachmentProperty"
+        },
+        "com.sap.hci.api.MessageStoreEntryAttachment": {
+            "type": "object",
+            "properties": {
+                "Id": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "Name": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "ContentType": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "Properties": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/com.sap.hci.api.MessageStoreEntryAttachmentProperty"
+                    }
+                }
+            },
+            "title": "MessageStoreEntryAttachment"
+        },
+        "com.sap.hci.api.JmsBroker": {
+            "type": "object",
+            "properties": {
+                "Key": {
+                    "type": "string"
+                },
+                "Capacity": {
+                    "type": [
+                        "integer",
+                        "string",
+                        "null"
+                    ],
+                    "format": "int64",
+                    "example": "42"
+                },
+                "MaxCapacity": {
+                    "type": [
+                        "integer",
+                        "string",
+                        "null"
+                    ],
+                    "format": "int64",
+                    "example": "42"
+                },
+                "IsTransactedSessionsHigh": {
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "format": "int32"
+                },
+                "IsConsumersHigh": {
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "format": "int32"
+                },
+                "IsProducersHigh": {
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "format": "int32"
+                },
+                "MaxQueueNumber": {
+                    "type": [
+                        "integer",
+                        "string",
+                        "null"
+                    ],
+                    "format": "int64",
+                    "example": "42"
+                },
+                "QueueNumber": {
+                    "type": [
+                        "integer",
+                        "string",
+                        "null"
+                    ],
+                    "format": "int64",
+                    "example": "42"
+                },
+                "CapacityOk": {
+                    "type": [
+                        "integer",
+                        "string",
+                        "null"
+                    ],
+                    "format": "int64",
+                    "example": "42"
+                },
+                "CapacityWarning": {
+                    "type": [
+                        "integer",
+                        "string",
+                        "null"
+                    ],
+                    "format": "int64",
+                    "example": "42"
+                },
+                "CapacityError": {
+                    "type": [
+                        "integer",
+                        "string",
+                        "null"
+                    ],
+                    "format": "int64",
+                    "example": "42"
+                }
+            },
+            "title": "JmsBroker"
+        },
+        "com.sap.hci.api.JmsBrokerQueueStates": {
+            "type": "object",
+            "properties": {
+                "Key": {
+                    "type": "string"
+                },
+                "Capacity": {
+                    "type": [
+                        "integer",
+                        "string",
+                        "null"
+                    ],
+                    "format": "int64",
+                    "example": "42"
+                },
+                "MaxCapacity": {
+                    "type": [
+                        "integer",
+                        "string",
+                        "null"
+                    ],
+                    "format": "int64",
+                    "example": "42"
+                },
+                "IsTransactedSessionsHigh": {
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "format": "int32"
+                },
+                "IsConsumersHigh": {
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "format": "int32"
+                },
+                "IsProducersHigh": {
+                    "type": [
+                        "integer",
+                        "null"
+                    ],
+                    "format": "int32"
+                },
+                "MaxQueueNumber": {
+                    "type": [
+                        "integer",
+                        "string",
+                        "null"
+                    ],
+                    "format": "int64",
+                    "example": "42"
+                },
+                "QueueNumber": {
+                    "type": [
+                        "integer",
+                        "string",
+                        "null"
+                    ],
+                    "format": "int64",
+                    "example": "42"
+                },
+                "CapacityOk": {
+                    "type": [
+                        "integer",
+                        "string",
+                        "null"
+                    ],
+                    "format": "int64",
+                    "example": "42"
+                },
+                "CapacityWarning": {
+                    "type": [
+                        "integer",
+                        "string",
+                        "null"
+                    ],
+                    "format": "int64",
+                    "example": "42"
+                },
+                "CapacityError": {
+                    "type": [
+                        "integer",
+                        "string",
+                        "null"
+                    ],
+                    "format": "int64",
+                    "example": "42"
+                },
+                "QueueStates": {
+                    "type": "object",
+                    "properties": {
+                        "Name": {
+                            "type": "string"
+                        },
+                        "State": {
+                            "type": [
+                                "integer",
+                                "string",
+                                "null"
+                            ],
+                            "format": "int64",
+                            "example": "0"
+                        }
+                    }
+                }
+            },
+            "title": "JmsBrokerQueueStates"
+        },
+        "com.sap.hci.api.NumberRanges": {
+            "type": "object",
+            "properties": {
+                "Name": {
+                    "type": "string"
+                },
+                "Description": {
+                    "type": "string"
+                },
+                "MaxValue": {
+                    "type": "string"
+                },
+                "MinValue": {
+                    "type": "string"
+                },
+                "Rotate": {
+                    "type": "string"
+                },
+                "CurrentValue": {
+                    "type": "string"
+                },
+                "FieldLength": {
+                    "type": "string"
+                },
+                "DeployedBy": {
+                    "type": "string"
+                },
+                "DeployedOn": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2021-04-13T15:51:04"
+                }
+            },
+            "title": "NumberRanges"
+        },
+        "com.sap.hci.api.NumberRangesPut": {
+            "type": "object",
+            "properties": {
+                "Name": {
+                    "type": "string"
+                },
+                "Description": {
+                    "type": "string"
+                },
+                "MaxValue": {
+                    "type": "string"
+                },
+                "MinValue": {
+                    "type": "string"
+                },
+                "Rotate": {
+                    "type": "string"
+                },
+                "CurrentValue": {
+                    "type": "string"
+                },
+                "FieldLength": {
+                    "type": "string"
+                }
+            },
+            "title": "NumberRanges-create"
+        },        
+        "odata.error": {
+            "type": "object",
+            "required": [
+                "error"
+            ],
+            "properties": {
+                "error": {
+                    "$ref": "#/definitions/odata.error.main"
+                }
+            }
+        },
+        "odata.error.main": {
+            "type": "object",
+            "required": [
+                "code",
+                "message"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "object",
+                    "required": [
+                        "lang",
+                        "value"
+                    ],
+                    "properties": {
+                        "lang": {
+                            "type": "string"
+                        },
+                        "value": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "odata.error.detail": {
+            "type": "object",
+            "required": [
+                "code",
+                "message"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "target": {
+                    "type": "string"
+                }
+            }
+        },
+        "com.sap.hci.api.DataStores": {
+            "type": "object",
+            "properties": {
+                "DataStoreName": {
+                    "type": "string"
+                },
+                "IntegrationFlow": {
+                    "type": "string"
+                },
+                "Type": {
+                    "type": "string"
+                },
+                "Visibility": {
+                    "type": "string"
+                },
+                "NumberOfMessages": {
+                    "type": "integer",
+                    "format": "int64",
+                    "example": "42"
+                },
+                "NumberOfOverdueMessages": {
+                    "type": "integer",
+                    "format": "int64",
+                    "example": "42"
+                }
+            },
+            "title": "DataStores"
+        },
+        "com.sap.hci.api.DataStoreEntries": {
+            "type": "object",
+            "properties": {
+                "Id": {
+                    "type": "string"
+                },
+                "DataStoreName": {
+                    "type": "string"
+                },
+                "IntegrationFlow": {
+                    "type": "string"
+                },
+                "Type": {
+                    "type": "string"
+                },
+                "Status": {
+                    "type": "string"
+                },
+                "Messageid": {
+                    "type": "string"
+                },
+                "DueAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2021-04-13T15:51:04"
+                },
+                "CreatedAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "20121-04-13T15:51:04"
+                },
+                "RetainUntil": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2021-04-13T15:51:04"
+                }
+            },
+            "title": "DataStoreEntries"
+        },
+        "com.sap.hci.api.Variables": {
+            "type": "object",
+            "properties": {
+                "VariableName": {
+                    "type": "string"
+                },
+                "IntegrationFlow": {
+                    "type": "string"
+                },
+                "Visibility": {
+                    "type": "string"
+                },
+                "UpdatedAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "20121-04-13T15:51:04"
+                },
+                "RetainUntil": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2021-04-13T15:51:04"
+                }
+            },
+            "title": "Variables"
+        }        
+    },
+    "parameters": {
+        "top": {
+            "name": "$top",
+            "in": "query",
+            "description": "Show only the first n items.",
+            "type": "integer",
+            "minimum": 0
+        },
+        "skip": {
+            "name": "$skip",
+            "in": "query",
+            "description": "Skip the first n items.",
+            "type": "integer",
+            "minimum": 0
+        },
+        "count": {
+            "name": "$count",
+            "in": "query",
+            "description": "Include count of items.",
+            "type": "boolean"
+        },
+        "filter": {
+            "name": "$filter",
+            "in": "query",
+            "description": "Filter items by property values.",
+            "type": "string"
+        }
+    },
+    "responses": {
+        "400": {
+            "description": "Bad Request. Wrong format or structure of the provided request body or parameters."
+        },
+        "401": {
+            "description": "Unauthorized. Authorization information is missing or invalid."
+        },
+        "403": {
+            "description": "Forbidden. The required permissions to access the resource are missing."
+        },
+        "404": {
+            "description": "Not found. The requested resource could not be found."
+        },
+        "429": {
+            "description": "Too many requests. Server’s rate limit exceeded."
+        },
+        "500": {
+            "description": "Internal server error. The requested operation led to an error during execution."
+        },
+        "error": {
+            "description": "Error",
+            "schema": {
+                "$ref": "#/definitions/odata.error"
+            },
+            "examples": {
+                "application/json": {                        
+                    "error": {
+                        "code": "<error code>",
+                        "message": {
+                            "lang": "en",
+                            "value": "<error text>"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
