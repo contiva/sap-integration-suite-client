@@ -208,13 +208,19 @@ export class CacheManager {
     }
 
     // Don't await - run in background
+    let timeoutId: NodeJS.Timeout | null = null;
+    
     Promise.race([
       fetchFn(),
-      new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Revalidation timeout')), REVALIDATION_TIMEOUT_MS)
-      ),
+      new Promise((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error('Revalidation timeout')), REVALIDATION_TIMEOUT_MS);
+      }),
     ])
       .then(async (freshData) => {
+        // Clear timeout to prevent memory leak
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
         // Update cache with fresh data
         await this.set(key, freshData, options);
         if (process.env.DEBUG === 'true') {
@@ -222,6 +228,10 @@ export class CacheManager {
         }
       })
       .catch((error) => {
+        // Clear timeout to prevent memory leak
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
         // Silently fail - keep old cache
         if (process.env.DEBUG === 'true') {
           console.log(`[CacheManager] Background revalidation failed for key: ${key}`, error.message);

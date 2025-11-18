@@ -130,6 +130,17 @@ export interface SapClientConfig {
    * Default: false
    */
   noCache?: boolean;
+  /**
+   * Custom logger function for cache events
+   * If provided, cache status logs will be sent to this function instead of console.log
+   */
+  cacheLogger?: (message: string) => void;
+  /**
+   * External CacheManager instance (optional)
+   * If provided, this instance will be used instead of creating a new one
+   * Useful for sharing a single Redis connection across multiple SapClient instances
+   */
+  cacheManager?: CacheManager;
 }
 
 /**
@@ -191,12 +202,16 @@ class SapClient {
   private customClients: Map<string, BaseCustomClient<any>> = new Map();
   /** Cache manager for Redis-based caching */
   private cacheManager: CacheManager | null = null;
+  /** Flag to track if cache manager is externally provided (don't disconnect on cleanup) */
+  private isExternalCacheManager: boolean = false;
   /** Hostname for cache key generation */
   private hostname: string;
   /** Force cache revalidation on every request */
   private forceRefreshCache: boolean = false;
   /** Disable caching completely */
   private noCache: boolean = false;
+  /** Custom logger for cache events */
+  private cacheLogger?: (message: string) => void;
   
   /** 
    * Integration Content API client
@@ -277,8 +292,8 @@ class SapClient {
     this.oauthClientSecret = config?.oauthClientSecret || process.env.SAP_OAUTH_CLIENT_SECRET || '';
     this.oauthTokenUrl = config?.oauthTokenUrl || process.env.SAP_OAUTH_TOKEN_URL || '';
     this.normalizeResponses = config?.normalizeResponses !== undefined ? config.normalizeResponses : true;
-    this.maxRetries = config?.maxRetries || 0;
-    this.retryDelay = config?.retryDelay || 1000;
+    this.maxRetries = config?.maxRetries !== undefined ? config.maxRetries : 3;
+    this.retryDelay = config?.retryDelay !== undefined ? config.retryDelay : 1000;
     this.enableCustomClients = config?.enableCustomClients !== undefined ? config.enableCustomClients : true;
     this.customClientRegistry = CustomClientRegistry.getInstance();
     
@@ -289,22 +304,38 @@ class SapClient {
       : (process.env.REDIS_ENABLED === 'true');
     this.forceRefreshCache = config?.forceRefreshCache || false;
     this.noCache = config?.noCache || false;
+    this.cacheLogger = config?.cacheLogger;
+    
+    // Enable debug mode if environment variable is set
+    const debugMode = process.env.DEBUG === 'true';
     
     // Extract hostname for cache key generation
     this.hostname = extractHostname(this.baseUrl);
     
-    // Initialize cache manager if Redis is enabled and not in noCache mode
-    if (redisEnabled && redisConnectionString && !this.noCache) {
-      this.cacheManager = new CacheManager(redisConnectionString, true);
-      // Connect to Redis asynchronously (non-blocking)
-      this.cacheManager.connect().catch((err) => {
-        console.error('[SapClient] Failed to connect to Redis:', err);
-        this.cacheManager = null;
-      });
+    // Initialize cache manager
+    if (!this.noCache) {
+      // Option 1: Use external cache manager if provided (connection pooling)
+      if (config?.cacheManager) {
+        this.cacheManager = config.cacheManager;
+        this.isExternalCacheManager = true;
+        if (debugMode) {
+          console.debug('[SapClient] Using external CacheManager instance (connection pooling)');
+        }
+      }
+      // Option 2: Create new cache manager if Redis is enabled
+      else if (redisEnabled && redisConnectionString) {
+        this.cacheManager = new CacheManager(redisConnectionString, true);
+        this.isExternalCacheManager = false;
+        // Connect to Redis asynchronously (non-blocking)
+        this.cacheManager.connect().catch((err) => {
+          console.error('[SapClient] Failed to connect to Redis:', err);
+          this.cacheManager = null;
+        });
+        if (debugMode) {
+          console.debug('[SapClient] Created new CacheManager instance');
+        }
+      }
     }
-    
-    // Enable debug mode if environment variable is set
-    const debugMode = process.env.DEBUG === 'true';
     if (debugMode) {
       console.debug('[SapClient] Initializing with config:', {
         baseUrl: this.baseUrl,
@@ -769,6 +800,9 @@ class SapClient {
       if (process.env.DEBUG === 'true') {
         console.log(`[SapClient] Cache check for ${url}: shouldCache=${shouldCache}, method=${method}, cacheManager=${!!this.cacheManager}, isReady=${this.cacheManager?.isReady()}, isCacheable=${isCacheableUrl(url)}`);
       }
+      
+      // Extract endpoint for logging
+      const endpoint = url.replace(this.baseUrl, '').split('?')[0];
 
       // Generate cache key if caching is enabled
       let cacheKey = '';
@@ -780,24 +814,36 @@ class SapClient {
         const cachedData = await this.cacheManager!.get(cacheKey);
         
         if (cachedData) {
-          // Check if cache is expired
-          if (this.cacheManager!.isExpired(cachedData)) {
-            // Cache is completely expired, fetch fresh data
-            if (process.env.DEBUG === 'true') {
-              console.log(`[SapClient] Cache expired for: ${url}`);
+          // Check if cache needs revalidation (either stale or expired)
+          if (this.cacheManager!.isExpired(cachedData) || this.cacheManager!.shouldRevalidate(cachedData, this.forceRefreshCache)) {
+            // Cache needs revalidation, use stale-while-revalidate pattern
+            // Return old data immediately and update in background
+            const isExpired = this.cacheManager!.isExpired(cachedData);
+            
+            const cacheStatus = isExpired ? 'HIT-EXPIRED' : 'HIT-STALE';
+            
+            // Log cache status
+            const logMessage = `[SapClient] ${cacheStatus === 'HIT-EXPIRED' ? '⏰' : '🔄'} ${endpoint} - ${cacheStatus === 'HIT-EXPIRED' ? 'Cache expired' : 'Cache stale'} - returning old data and revalidating in background`;
+            if (this.cacheLogger) {
+              this.cacheLogger(logMessage);
+            } else {
+              console.log(logMessage);
             }
-          } else if (this.cacheManager!.shouldRevalidate(cachedData, this.forceRefreshCache)) {
-            // Cache needs revalidation, use stale-while-revalidate
+            
             if (process.env.DEBUG === 'true') {
-              console.log(`[SapClient] Cache needs revalidation (stale): ${url}`);
+              console.log(`[SapClient] Cache ${isExpired ? 'expired' : 'stale'} for: ${url} - returning old data and revalidating in background`);
             }
 
-            // Return stale data immediately
+            // Return stale/expired data immediately
             const staleResponse = new Response(JSON.stringify(cachedData.data), {
               status: 200,
-              statusText: 'OK (from cache)',
-              headers: new Headers({ 'X-Cache': 'HIT-STALE' }),
+              statusText: 'OK (from cache - stale)',
+              headers: new Headers({ 'X-Cache': cacheStatus }),
             });
+            
+            // Add cache metadata to response object for logging
+            // @ts-ignore - Adding custom property for cache tracking
+            staleResponse._cacheStatus = cacheStatus;
 
             // Start background revalidation
             const revalidationTime = getRevalidationTime(url);
@@ -806,10 +852,35 @@ class SapClient {
               revalidateAfter: revalidationTime,
             };
 
+            // Start background revalidation with logging
+            const bgStartLog = `[SapClient] 🔄 ${endpoint} - Background revalidation started`;
+            if (this.cacheLogger) {
+              this.cacheLogger(bgStartLog);
+            } else {
+              console.log(bgStartLog);
+            }
+            
             this.cacheManager!.revalidateInBackground(
               cacheKey,
               async () => {
-                return await this.performRequest(url, method, headers, body);
+                try {
+                  const freshData = await this.performRequest(url, method, headers, body);
+                  const successLog = `[SapClient] ✅ ${endpoint} - Background revalidation completed`;
+                  if (this.cacheLogger) {
+                    this.cacheLogger(successLog);
+                  } else {
+                    console.log(successLog);
+                  }
+                  return freshData;
+                } catch (error) {
+                  const errorLog = `[SapClient] ❌ ${endpoint} - Background revalidation failed: ${(error as Error).message}`;
+                  if (this.cacheLogger) {
+                    this.cacheLogger(errorLog);
+                  } else {
+                    console.log(errorLog);
+                  }
+                  throw error;
+                }
               },
               cacheOptions
             );
@@ -817,17 +888,37 @@ class SapClient {
             return staleResponse;
           } else {
             // Cache is fresh, return it
+            const hitLog = `[SapClient] ✅ ${endpoint} - Cache HIT (fresh)`;
+            if (this.cacheLogger) {
+              this.cacheLogger(hitLog);
+            } else {
+              console.log(hitLog);
+            }
+            
             if (process.env.DEBUG === 'true') {
               console.log(`[SapClient] Cache hit (fresh): ${url}`);
             }
-            return new Response(JSON.stringify(cachedData.data), {
+            const freshResponse = new Response(JSON.stringify(cachedData.data), {
               status: 200,
               statusText: 'OK (from cache)',
               headers: new Headers({ 'X-Cache': 'HIT' }),
             });
+            
+            // Add cache metadata to response object for logging
+            // @ts-ignore - Adding custom property for cache tracking
+            freshResponse._cacheStatus = 'HIT';
+            
+            return freshResponse;
           }
         } else {
           // Cache miss
+          const missLog = `[SapClient] ❌ ${endpoint} - Cache MISS (fetching from SAP)`;
+          if (this.cacheLogger) {
+            this.cacheLogger(missLog);
+          } else {
+            console.log(missLog);
+          }
+          
           if (process.env.DEBUG === 'true') {
             console.log(`[SapClient] Cache miss: ${url}`);
           }
@@ -846,17 +937,30 @@ class SapClient {
         };
         await this.cacheManager!.set(cacheKey, responseData, cacheOptions);
         
+        const cachedLog = `[SapClient] 💾 ${endpoint} - Cached (TTL: ${CACHE_TTL.STANDARD / 86400}d, revalidate: ${revalidationTime / 3600}h)`;
+        if (this.cacheLogger) {
+          this.cacheLogger(cachedLog);
+        } else {
+          console.log(cachedLog);
+        }
+        
         if (process.env.DEBUG === 'true') {
           console.log(`[SapClient] Cached response with key: ${cacheKey}`);
         }
       }
 
-      // Convert to fetch Response
-      return new Response(JSON.stringify(responseData), {
+      // Convert to fetch Response with cache metadata
+      const response = new Response(JSON.stringify(responseData), {
         status: 200,
         statusText: 'OK',
         headers: new Headers({ 'X-Cache': shouldCache ? 'MISS' : 'BYPASS' }),
       });
+      
+      // Add cache metadata to response object for logging
+      // @ts-ignore - Adding custom property for cache tracking
+      response._cacheStatus = shouldCache ? 'MISS' : 'BYPASS';
+      
+      return response;
     } catch (error: any) {
       const requestMethod = init?.method || 'GET';
       const requestUrl = typeof input === 'string' 
@@ -1020,6 +1124,31 @@ class SapClient {
   ): void {
     this.customClientRegistry.register(type, factory);
     
+  }
+  
+  /**
+   * Closes all connections and cleans up resources
+   * 
+   * This method should be called when the SapClient is no longer needed
+   * to prevent memory leaks and ensure proper cleanup of resources like
+   * Redis connections.
+   * 
+   * @returns Promise that resolves when cleanup is complete
+   * 
+   * @example
+   * const client = new SapClient();
+   * // ... use client ...
+   * await client.disconnect();
+   */
+  public async disconnect(): Promise<void> {
+    // Only close cache manager if it's not externally provided
+    if (this.cacheManager && !this.isExternalCacheManager) {
+      await this.cacheManager.close();
+      this.cacheManager = null;
+    } else if (this.cacheManager && this.isExternalCacheManager) {
+      // External cache manager: just clear reference, don't close
+      this.cacheManager = null;
+    }
   }
 }
 

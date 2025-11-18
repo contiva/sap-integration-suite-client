@@ -10,6 +10,17 @@ import { SapDateUtils } from './date-formatter';
 import { DateFieldFilter } from '../types/enhanced-logs';
 
 /**
+ * Escapes single quotes in OData string values
+ * In OData, single quotes must be escaped by doubling them: ' becomes ''
+ * 
+ * @param value - The string value to escape
+ * @returns Escaped string safe for use in OData filters
+ */
+function escapeODataString(value: string): string {
+  return value.replace(/'/g, "''");
+}
+
+/**
  * Builds an OData filter string from a filter object
  * 
  * @param filterObj Object containing filter criteria
@@ -52,7 +63,7 @@ export function buildODataFilter(filterObj: Record<string, any>): string {
     } 
     // Handle string fields
     else if (typeof value === 'string') {
-      filterParts.push(`${key} eq '${value}'`);
+      filterParts.push(`${key} eq '${escapeODataString(value)}'`);
     } 
     // Handle boolean fields
     else if (typeof value === 'boolean') {

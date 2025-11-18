@@ -26,6 +26,7 @@
 
 // Core Client and Config
 import SapClient, { SapClientConfig } from './clients/sap-client';
+import { CacheManager } from './core/cache-manager';
 import { IntegrationContentClient } from './wrapper/integration-content-client';
 import { IntegrationContentAdvancedClient } from './wrapper/custom/integration-content-advanced-client';
 import { LogFilesClient } from './wrapper/log-files-client';
@@ -112,6 +113,12 @@ export {
    * Main client class for interacting with SAP APIs
    */
   SapClient,
+  
+  /**
+   * Cache Manager for Redis-based caching
+   * Can be shared across multiple SapClient instances for connection pooling
+   */
+  CacheManager,
   
   /**
    * Utility function to format SAP timestamps in API responses

@@ -25,12 +25,17 @@ export function generateCacheKey(
   url: string,
   queryParams?: any
 ): string {
+  // Validate required parameters
+  if (!hostname || !method || !url) {
+    throw new Error('hostname, method, and url are required for cache key generation');
+  }
+  
   // Normalize URL by removing /api/v1 prefix if present
   const normalizedUrl = url.replace(/^\/api\/v1/, '');
   
   // Generate a hash for query parameters if present
   let paramsHash = '';
-  if (queryParams && Object.keys(queryParams).length > 0) {
+  if (queryParams && typeof queryParams === 'object' && Object.keys(queryParams).length > 0) {
     const paramsString = JSON.stringify(queryParams);
     paramsHash = crypto.createHash('md5').update(paramsString).digest('hex').substring(0, 8);
   }
