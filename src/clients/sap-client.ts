@@ -180,8 +180,12 @@ class SapClient {
   private baseUrl: string;
   /** CSRF token for write operations */
   private csrfToken: string | null = null;
+  /** Promise for ongoing CSRF token fetch to prevent race conditions */
+  private csrfTokenPromise: Promise<void> | null = null;
   /** OAuth token with expiration information */
   private oauthToken: OAuthToken | null = null;
+  /** Promise for ongoing token refresh to prevent race conditions */
+  private tokenRefreshPromise: Promise<OAuthToken> | null = null;
   /** OAuth client ID */
   private oauthClientId: string;
   /** OAuth client secret */
@@ -212,6 +216,8 @@ class SapClient {
   private noCache: boolean = false;
   /** Custom logger for cache events */
   private cacheLogger?: (message: string) => void;
+  /** Cached debug mode flag for performance */
+  private readonly debugMode: boolean;
   
   /** 
    * Integration Content API client
@@ -306,8 +312,8 @@ class SapClient {
     this.noCache = config?.noCache || false;
     this.cacheLogger = config?.cacheLogger;
     
-    // Enable debug mode if environment variable is set
-    const debugMode = process.env.DEBUG === 'true';
+    // Cache debug mode flag for performance (avoid repeated process.env access)
+    this.debugMode = process.env.DEBUG === 'true';
     
     // Extract hostname for cache key generation
     this.hostname = extractHostname(this.baseUrl);
@@ -318,25 +324,25 @@ class SapClient {
       if (config?.cacheManager) {
         this.cacheManager = config.cacheManager;
         this.isExternalCacheManager = true;
-        if (debugMode) {
+        if (this.debugMode) {
           console.debug('[SapClient] Using external CacheManager instance (connection pooling)');
         }
       }
       // Option 2: Create new cache manager if Redis is enabled
       else if (redisEnabled && redisConnectionString) {
-        this.cacheManager = new CacheManager(redisConnectionString, true);
+      this.cacheManager = new CacheManager(redisConnectionString, true);
         this.isExternalCacheManager = false;
-        // Connect to Redis asynchronously (non-blocking)
-        this.cacheManager.connect().catch((err) => {
-          console.error('[SapClient] Failed to connect to Redis:', err);
-          this.cacheManager = null;
-        });
-        if (debugMode) {
+      // Connect to Redis asynchronously (non-blocking)
+      this.cacheManager.connect().catch((err) => {
+        console.error('[SapClient] Failed to connect to Redis:', err);
+        this.cacheManager = null;
+      });
+        if (this.debugMode) {
           console.debug('[SapClient] Created new CacheManager instance');
-        }
+    }
       }
     }
-    if (debugMode) {
+    if (this.debugMode) {
       console.debug('[SapClient] Initializing with config:', {
         baseUrl: this.baseUrl,
         normalizeResponses: this.normalizeResponses,
@@ -382,7 +388,7 @@ class SapClient {
             response.data = this.normalizeResponseFormat(response.data);
             
             // Extended debug logging to track what's happening with the normalization
-            if (process.env.DEBUG === 'true') {
+            if (this.debugMode) {
               const normalizedData = JSON.stringify(response.data).substring(0, 100);
               console.debug(
                 `[SapClient] Response normalized for ${response.config.method?.toUpperCase()} ${response.config.url}`,
@@ -399,18 +405,18 @@ class SapClient {
       );
     }
     
-    // Add response interceptor to handle token expiration (401 Unauthorized)
+    // Add response interceptor to handle token expiration (401 Unauthorized) and CSRF token expiration (403 Forbidden)
     this.axiosInstance.interceptors.response.use(
       (response) => response,
       async (error) => {
         const originalRequest = error.config;
         
-        // Check if error is due to invalid token (401) and this request hasn't been retried yet
-        if (error.response?.status === 401 && !originalRequest._retry) {
-          console.debug('Token expired or invalid, attempting to refresh...');
+        // Check if error is due to invalid OAuth token (401) and this request hasn't been retried yet
+        if (error.response?.status === 401 && !originalRequest._retryAuth) {
+          console.debug('OAuth token expired or invalid, attempting to refresh...');
           
-          // Mark request as retried to prevent infinite loops
-          originalRequest._retry = true;
+          // Mark request as auth retried to prevent infinite loops
+          originalRequest._retryAuth = true;
           
           // Invalidate current token
           this.oauthToken = null;
@@ -427,6 +433,36 @@ class SapClient {
           } catch (tokenError) {
             // If token refresh also fails, reject with the token error
             return Promise.reject(this.enhanceError(tokenError, 'Failed to refresh token after 401 Unauthorized'));
+          }
+        }
+        
+        // Check if error is due to invalid CSRF token (403 Forbidden) for write operations
+        if (error.response?.status === 403 && 
+            originalRequest.method && 
+            ['post', 'put', 'delete'].includes(originalRequest.method.toLowerCase()) &&
+            !originalRequest._retryCsrf) {
+          console.debug('CSRF token expired or invalid, attempting to refresh...');
+          
+          // Mark request as CSRF retried to prevent infinite loops
+          originalRequest._retryCsrf = true;
+          
+          // Invalidate current CSRF token
+          this.csrfToken = null;
+          
+          try {
+            // Get a fresh CSRF token
+            await this.ensureCsrfToken(true); // Force refresh
+            
+            // Update the X-CSRF-Token header with the new token
+            if (this.csrfToken) {
+              originalRequest.headers['X-CSRF-Token'] = this.csrfToken;
+            }
+            
+            // Retry the original request with the new CSRF token
+            return this.axiosInstance(originalRequest);
+          } catch (csrfError) {
+            // If CSRF token refresh also fails, reject with the error
+            return Promise.reject(this.enhanceError(csrfError, 'Failed to refresh CSRF token after 403 Forbidden'));
           }
         }
         
@@ -529,34 +565,45 @@ class SapClient {
       return this.oauthToken;
     }
 
-    // Otherwise, get a new token
-    try {
-      // Use params like in the direct implementation instead of basic auth
-      const tokenResponse = await axios.post(
-        this.oauthTokenUrl,
-        null,
-        {
-          params: {
-            grant_type: 'client_credentials',
-            client_id: this.oauthClientId,
-            client_secret: this.oauthClientSecret
-          },
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-          },
-        }
-      );
-
-      const token: OAuthToken = tokenResponse.data;
-      // Set expiration time (subtract 5 minutes for safety margin)
-      token.expiresAt = now + (token.expires_in * 1000) - 300000;
-      
-      this.oauthToken = token;
-      
-      return token;
-    } catch (error) {
-      throw this.enhanceError(error, 'Failed to obtain OAuth token');
+    // If a token refresh is already in progress, wait for it
+    if (this.tokenRefreshPromise) {
+      return this.tokenRefreshPromise;
     }
+
+    // Otherwise, get a new token
+    this.tokenRefreshPromise = (async () => {
+      try {
+        // Use params like in the direct implementation instead of basic auth
+        const tokenResponse = await axios.post(
+          this.oauthTokenUrl,
+          null,
+          {
+            params: {
+              grant_type: 'client_credentials',
+              client_id: this.oauthClientId,
+              client_secret: this.oauthClientSecret
+            },
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded'
+            },
+          }
+        );
+
+        const token: OAuthToken = tokenResponse.data;
+        // Set expiration time (subtract 5 minutes for safety margin)
+        token.expiresAt = now + (token.expires_in * 1000) - 300000;
+        
+        this.oauthToken = token;
+        this.tokenRefreshPromise = null; // Clear the promise after success
+        
+        return token;
+      } catch (error) {
+        this.tokenRefreshPromise = null; // Clear the promise on error
+        throw this.enhanceError(error, 'Failed to obtain OAuth token');
+      }
+    })();
+
+    return this.tokenRefreshPromise;
   }
 
   /**
@@ -571,7 +618,7 @@ class SapClient {
 
     // Handle array responses (already normalized)
     if (Array.isArray(data)) {
-      if (process.env.DEBUG === 'true') {
+      if (this.debugMode) {
         console.debug('[SapClient] Format detected: Already array', 
           `(length: ${data.length})`);
       }
@@ -580,7 +627,7 @@ class SapClient {
 
     // Handle OData v2 format (d.results)
     if (data.d && Array.isArray(data.d.results)) {
-      if (process.env.DEBUG === 'true') {
+      if (this.debugMode) {
         console.debug('[SapClient] Format detected: OData v2 (d.results)', 
           `(length: ${data.d.results.length})`);
       }
@@ -589,7 +636,7 @@ class SapClient {
 
     // Handle OData v2 format where d is directly the object (not an array)
     if (data.d && typeof data.d === 'object' && !Array.isArray(data.d) && !data.d.results) {
-      if (process.env.DEBUG === 'true') {
+      if (this.debugMode) {
         console.debug('[SapClient] Format detected: OData v2 (d as object)',
           `(keys: ${Object.keys(data.d).join(', ')})`);
       }
@@ -598,7 +645,7 @@ class SapClient {
 
     // Handle OData v4 format (value array)
     if (data.value && Array.isArray(data.value)) {
-      if (process.env.DEBUG === 'true') {
+      if (this.debugMode) {
         console.debug('[SapClient] Format detected: OData v4 (value array)',
           `(length: ${data.value.length})`);
       }
@@ -607,7 +654,7 @@ class SapClient {
 
     // Handle IntegrationPackages format
     if (data.IntegrationPackages && Array.isArray(data.IntegrationPackages)) {
-      if (process.env.DEBUG === 'true') {
+      if (this.debugMode) {
         console.debug('[SapClient] Format detected: IntegrationPackages array',
           `(length: ${data.IntegrationPackages.length})`);
       }
@@ -616,7 +663,7 @@ class SapClient {
 
     // Handle results property directly (some APIs return { results: [...] })
     if (data.results && Array.isArray(data.results)) {
-      if (process.env.DEBUG === 'true') {
+      if (this.debugMode) {
         console.debug('[SapClient] Format detected: Direct results array',
           `(length: ${data.results.length})`);
       }
@@ -625,7 +672,7 @@ class SapClient {
 
     // Handle specific nested formats that may contain arrays
     if (data.d && data.d.__next && data.d.results) {
-      if (process.env.DEBUG === 'true') {
+      if (this.debugMode) {
         console.debug('[SapClient] Format detected: OData with __next link',
           `(length: ${data.d.results.length})`);
       }
@@ -635,7 +682,7 @@ class SapClient {
     // If the data is an object and has only one property that is an array, return that array
     const keys = Object.keys(data);
     if (keys.length === 1 && Array.isArray(data[keys[0]])) {
-      if (process.env.DEBUG === 'true') {
+      if (this.debugMode) {
         console.debug('[SapClient] Format detected: Single property array',
           `(property: ${keys[0]}, length: ${data[keys[0]].length})`);
       }
@@ -644,14 +691,14 @@ class SapClient {
 
     // Special handling for OData queries with $count that return a string
     if (typeof data === 'string' && !isNaN(parseInt(data, 10))) {
-      if (process.env.DEBUG === 'true') {
+      if (this.debugMode) {
         console.debug('[SapClient] Format detected: Count string value', `(value: ${data})`);
       }
       return data; // Keep the string for count operations
     }
 
     // If we can't normalize, return the original data
-    if (process.env.DEBUG === 'true') {
+    if (this.debugMode) {
       console.debug('[SapClient] No normalization applied, returning original data',
         `(type: ${typeof data}, keys: ${typeof data === 'object' ? Object.keys(data).join(', ') : 'n/a'})`);
     }
@@ -781,7 +828,17 @@ class SapClient {
       
       const method = init?.method || 'GET';
       const headers = init?.headers as Record<string, string>;
-      const body = init?.body ? JSON.parse(init.body.toString()) : undefined;
+      
+      // Parse body safely - catch JSON parsing errors
+      let body: any = undefined;
+      if (init?.body) {
+        try {
+          body = JSON.parse(init.body.toString());
+        } catch {
+          // If parsing fails, use body as-is (might be FormData, Blob, etc.)
+          body = init.body;
+        }
+      }
 
       // Ensure Redis is connected if we have a cache manager
       if (this.cacheManager && !this.cacheManager.isReady()) {
@@ -797,7 +854,7 @@ class SapClient {
         && this.cacheManager.isReady() 
         && isCacheableUrl(url);
 
-      if (process.env.DEBUG === 'true') {
+      if (this.debugMode) {
         console.log(`[SapClient] Cache check for ${url}: shouldCache=${shouldCache}, method=${method}, cacheManager=${!!this.cacheManager}, isReady=${this.cacheManager?.isReady()}, isCacheable=${isCacheableUrl(url)}`);
       }
       
@@ -830,7 +887,7 @@ class SapClient {
               console.log(logMessage);
             }
             
-            if (process.env.DEBUG === 'true') {
+            if (this.debugMode) {
               console.log(`[SapClient] Cache ${isExpired ? 'expired' : 'stale'} for: ${url} - returning old data and revalidating in background`);
             }
 
@@ -859,7 +916,7 @@ class SapClient {
             } else {
               console.log(bgStartLog);
             }
-            
+
             this.cacheManager!.revalidateInBackground(
               cacheKey,
               async () => {
@@ -895,7 +952,7 @@ class SapClient {
               console.log(hitLog);
             }
             
-            if (process.env.DEBUG === 'true') {
+            if (this.debugMode) {
               console.log(`[SapClient] Cache hit (fresh): ${url}`);
             }
             const freshResponse = new Response(JSON.stringify(cachedData.data), {
@@ -919,7 +976,7 @@ class SapClient {
             console.log(missLog);
           }
           
-          if (process.env.DEBUG === 'true') {
+          if (this.debugMode) {
             console.log(`[SapClient] Cache miss: ${url}`);
           }
         }
@@ -944,7 +1001,7 @@ class SapClient {
           console.log(cachedLog);
         }
         
-        if (process.env.DEBUG === 'true') {
+        if (this.debugMode) {
           console.log(`[SapClient] Cached response with key: ${cacheKey}`);
         }
       }
@@ -989,10 +1046,8 @@ class SapClient {
     body?: any
   ): Promise<any> {
     // Get OAuth token and add it to headers
+    // Note: getOAuthToken() will throw an error if it fails, so no need to check for null
     const token = await this.getOAuthToken();
-    if (!token) {
-      throw new Error('Failed to get OAuth token');
-    }
     
     const authHeaders = {
       ...headers,
@@ -1015,9 +1070,9 @@ class SapClient {
       const originalData = responseData;
       responseData = this.normalizeResponseFormat(responseData);
       
-      // Debug log for normalization result
-      if (process.env.DEBUG === 'true') {
-        const isChanged = JSON.stringify(originalData) !== JSON.stringify(responseData);
+      // Debug log for normalization result (use reference equality for performance)
+      if (this.debugMode) {
+        const isChanged = originalData !== responseData;
         console.debug(
           `[SapClient] Response ${isChanged ? 'normalized' : 'not changed'} for ${method} ${url}`
         );
@@ -1031,13 +1086,26 @@ class SapClient {
    * Ensures a CSRF token is available for write operations
    * - Fetches a new token if one doesn't exist
    * - Uses OAuth token for authentication
+   * - Prevents race conditions with csrfTokenPromise
    * 
    * @private
+   * @param {boolean} forceRefresh - Force fetching a new token even if one exists
    * @returns {Promise<void>}
    * @throws {Error} If the CSRF token cannot be fetched
    */
-  private async ensureCsrfToken(): Promise<void> {
-    if (!this.csrfToken) {
+  private async ensureCsrfToken(forceRefresh: boolean = false): Promise<void> {
+    // If we have a valid token and not forcing refresh, return immediately
+    if (this.csrfToken && !forceRefresh) {
+      return;
+    }
+    
+    // If a CSRF token fetch is already in progress, wait for it
+    if (this.csrfTokenPromise) {
+      return this.csrfTokenPromise;
+    }
+    
+    // Start fetching a new CSRF token
+    this.csrfTokenPromise = (async () => {
       try {
         // Get OAuth token first
         const token = await this.getOAuthToken();
@@ -1053,10 +1121,14 @@ class SapClient {
         });
         
         this.csrfToken = response.headers['x-csrf-token'];
+        this.csrfTokenPromise = null; // Clear the promise after success
       } catch (error) {
+        this.csrfTokenPromise = null; // Clear the promise on error
         throw this.enhanceError(error, 'Failed to fetch CSRF token');
       }
-    }
+    })();
+    
+    return this.csrfTokenPromise;
   }
 
   /**

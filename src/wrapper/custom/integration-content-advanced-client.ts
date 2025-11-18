@@ -148,37 +148,41 @@ export class IntegrationContentAdvancedClient extends BaseCustomClient<Integrati
           }
         }
       } else {
-        // Sequentieller Ansatz wie bisher, aber optimiert mit Try-Catch
+        // Sequentieller Ansatz - optimiert mit effizientem Error Handling
         for (const [i, pkg] of packages.entries()) {
           const packageId = pkg.Id as string;
           
-          try {
-            // Hole alle Artefakte für dieses Paket
-            result[i].package.IntegrationDesigntimeArtifacts = await this.client.getIntegrationFlows(packageId).catch(() => []);
-          } catch (error) {
-            console.error(`Fehler beim Abrufen der Integrationsflows für Paket ${packageId}:`, error);
-            result[i].package.IntegrationDesigntimeArtifacts = [];
-          }
-
-          try {
-            result[i].package.MessageMappingDesigntimeArtifacts = await this.client.getMessageMappings(packageId).catch(() => []);
-          } catch (error) {
-            console.error(`Fehler beim Abrufen der Message Mappings für Paket ${packageId}:`, error);
-            result[i].package.MessageMappingDesigntimeArtifacts = [];
-          }
-
-          try {
-            result[i].package.ValueMappingDesigntimeArtifacts = await this.client.getValueMappings(packageId).catch(() => []);
-          } catch (error) {
-            console.error(`Fehler beim Abrufen der Value Mappings für Paket ${packageId}:`, error);
-            result[i].package.ValueMappingDesigntimeArtifacts = [];
-          }
-
-          try {
-            result[i].package.ScriptCollectionDesigntimeArtifacts = await this.client.getScriptCollections(packageId).catch(() => []);
-          } catch (error) {
-            console.error(`Fehler beim Abrufen der Script Collections für Paket ${packageId}:`, error);
-            result[i].package.ScriptCollectionDesigntimeArtifacts = [];
+          // Nutze Promise.allSettled für parallele Ausführung innerhalb eines Pakets
+          const [flows, mappings, valueMappings, scripts] = await Promise.allSettled([
+            this.client.getIntegrationFlows(packageId),
+            this.client.getMessageMappings(packageId),
+            this.client.getValueMappings(packageId),
+            this.client.getScriptCollections(packageId),
+          ]);
+          
+          result[i].package.IntegrationDesigntimeArtifacts = 
+            flows.status === 'fulfilled' ? flows.value : [];
+          result[i].package.MessageMappingDesigntimeArtifacts = 
+            mappings.status === 'fulfilled' ? mappings.value : [];
+          result[i].package.ValueMappingDesigntimeArtifacts = 
+            valueMappings.status === 'fulfilled' ? valueMappings.value : [];
+          result[i].package.ScriptCollectionDesigntimeArtifacts = 
+            scripts.status === 'fulfilled' ? scripts.value : [];
+          
+          // Log errors in debug mode
+          if (process.env.DEBUG === 'true') {
+            if (flows.status === 'rejected') {
+              console.error(`Fehler beim Abrufen der Integrationsflows für Paket ${packageId}:`, flows.reason);
+            }
+            if (mappings.status === 'rejected') {
+              console.error(`Fehler beim Abrufen der Message Mappings für Paket ${packageId}:`, mappings.reason);
+            }
+            if (valueMappings.status === 'rejected') {
+              console.error(`Fehler beim Abrufen der Value Mappings für Paket ${packageId}:`, valueMappings.reason);
+            }
+            if (scripts.status === 'rejected') {
+              console.error(`Fehler beim Abrufen der Script Collections für Paket ${packageId}:`, scripts.reason);
+            }
           }
         }
       }

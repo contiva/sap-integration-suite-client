@@ -37,7 +37,8 @@ export function generateCacheKey(
   let paramsHash = '';
   if (queryParams && typeof queryParams === 'object' && Object.keys(queryParams).length > 0) {
     const paramsString = JSON.stringify(queryParams);
-    paramsHash = crypto.createHash('md5').update(paramsString).digest('hex').substring(0, 8);
+    // Use SHA-256 instead of deprecated MD5
+    paramsHash = crypto.createHash('sha256').update(paramsString).digest('hex').substring(0, 8);
   }
   
   // Construct the cache key

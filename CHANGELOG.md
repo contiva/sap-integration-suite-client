@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.2] - 2025-11-18
+
+### Fixed - Critical Bugs
+- **Token Refresh Race Condition**: Multiple parallel requests no longer trigger simultaneous OAuth token refreshes. Now uses `tokenRefreshPromise` for synchronization.
+- **Unsafe JSON Parsing**: Fixed crash when request body is not JSON (FormData, Blob). Added safe try-catch fallback.
+- **Redis Connection Race Condition**: Replaced inefficient polling with Promise-based `connectPromise` for parallel connection attempts.
+- **CSRF Token Never Renewed**: Expired CSRF tokens are now automatically refreshed with 403 error retry using `csrfTokenPromise`.
+- **Unsafe Redis Connection String Parsing**: Added validation to prevent crashes with invalid connection string formats.
+- **Memory Leak - Event Listeners**: Redis event listeners are now properly removed in `CacheManager.close()`.
+
+### Performance Optimizations
+- Replaced redundant error handling patterns with `Promise.allSettled()` for parallel artifact loading
+- Removed unnecessary OAuth token null checks
+- Replaced expensive `JSON.stringify()` comparisons with reference equality (O(1) vs O(n))
+- Cache key generation upgraded from MD5 to SHA-256
+- Cached `DEBUG` environment variable to avoid repeated lookups (18+ per request)
+
+### Security
+- Cache key generation now uses SHA-256 instead of deprecated MD5 algorithm
+
 ## [2.0.1] - 2025-11-18
 
 ### Added

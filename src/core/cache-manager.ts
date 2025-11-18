@@ -16,6 +16,7 @@ export class CacheManager {
   private isConnected: boolean = false;
   private isEnabled: boolean = false;
   private connectionString: string;
+  private connectPromise: Promise<void> | null = null;
 
   /**
    * Creates a new CacheManager instance
@@ -40,21 +41,23 @@ export class CacheManager {
       return;
     }
     
-    // If already connecting, wait for it
-    if (this.client && !this.isConnected) {
-      // Wait a bit for connection to complete
-      for (let i = 0; i < 50; i++) {
-        if (this.isConnected) {
-          return;
-        }
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-      return;
+    // If a connection is already in progress, wait for it
+    if (this.connectPromise) {
+      return this.connectPromise;
     }
     
-    // Otherwise, initialize
+    // Otherwise, start a new connection
     if (this.isEnabled && this.connectionString) {
-      await this.initialize();
+      this.connectPromise = this.initialize()
+        .then(() => {
+          this.connectPromise = null;
+        })
+        .catch((error) => {
+          this.connectPromise = null;
+          throw error;
+        });
+      
+      return this.connectPromise;
     }
   }
 
@@ -66,7 +69,16 @@ export class CacheManager {
       // Parse the connection string (Azure Redis format)
       // Format: host:port,password=xxx,ssl=True,abortConnect=False
       const parts = this.connectionString.split(',');
+      
+      if (!parts[0] || !parts[0].includes(':')) {
+        throw new Error(`Invalid Redis connection string format. Expected format: host:port,password=xxx,ssl=True`);
+      }
+      
       const [host, port] = parts[0].split(':');
+      
+      if (!host || !port) {
+        throw new Error(`Invalid Redis connection string format. Missing host or port.`);
+      }
       
       let password = '';
       let ssl = false;
@@ -240,12 +252,22 @@ export class CacheManager {
   }
 
   /**
-   * Closes the Redis connection
+   * Closes the Redis connection and removes all event listeners
    */
   async close(): Promise<void> {
-    if (this.client && this.isConnected) {
-      await this.client.quit();
+    if (this.client) {
+      // Remove all event listeners to prevent memory leaks
+      this.client.removeAllListeners('error');
+      this.client.removeAllListeners('connect');
+      this.client.removeAllListeners('disconnect');
+      
+      // Close connection if connected
+      if (this.isConnected) {
+        await this.client.quit();
+      }
+      
       this.isConnected = false;
+      this.client = null;
     }
   }
 
