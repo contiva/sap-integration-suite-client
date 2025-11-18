@@ -24,6 +24,7 @@ Available on npm: [sap-integration-suite-client](https://www.npmjs.com/package/s
   - [Advanced Clients](#integration-content-advanced-example)
   - [Extension Framework](#extending-your-project)
 - [Error Handling](#-error-handling)
+- [API Documentation](#-api-documentation)
 - [Troubleshooting](#-troubleshooting)
 - [License](#-license)
 
@@ -112,6 +113,10 @@ SAP_OAUTH_TOKEN_URL=https://your-tenant.authentication.eu10.hana.ondemand.com/oa
 # Optional
 SAP_MAX_RETRIES=3
 SAP_RETRY_DELAY=1500
+
+# Redis Caching (Optional)
+REDIS_CONNECTION_STRING=your-redis-host:6380,password=xxx,ssl=True,abortConnect=False
+REDIS_ENABLED=true
 ```
 
 Then initialize without parameters:
@@ -139,11 +144,119 @@ const client = new SapClient({
   maxRetries: 3,              // Default: 0
   retryDelay: 1500,           // Default: 1000 (ms)
   normalizeResponses: true,   // Default: true
-  enableCustomClients: true   // Default: true - Enable advanced client extensions
+  enableCustomClients: true,  // Default: true - Enable advanced client extensions
+  
+  // Redis caching options
+  redisConnectionString: 'host:6380,password=xxx,ssl=True',
+  redisEnabled: true,         // Default: false
+  forceRefreshCache: false,   // Default: false - Force background revalidation
+  noCache: false              // Default: false - Disable caching completely
 });
 ```
 
 > **Note**: The `baseUrl` should point to the `/api/v1` endpoint of your tenant's API service URL.
+
+## 🚀 Redis Caching (Performance Optimization)
+
+This library supports optional Redis-based caching to significantly improve performance and reduce load on SAP systems.
+
+### Features
+
+- **Stale-While-Revalidate Pattern**: Returns cached data immediately while updating in the background
+- **Hostname-Aware**: Multi-tenant support with separate cache per SAP system
+- **Smart TTL Configuration**: 
+  - Standard APIs: 1 hour revalidation, 30 days storage
+  - Runtime APIs (MessageProcessingLogs, LogFiles): 5 minutes revalidation, 30 days storage
+- **Selective Caching**: Automatically excludes downloads and binary data
+- **Graceful Degradation**: Works seamlessly without Redis
+
+### Setup
+
+1. **Install and configure Redis** (Azure Redis Cache, local Redis, etc.)
+
+2. **Configure environment variables**:
+
+```env
+REDIS_CONNECTION_STRING=your-redis.redis.cache.windows.net:6380,password=yourpassword,ssl=True,abortConnect=False
+REDIS_ENABLED=true
+```
+
+3. **Use the client normally** - caching happens automatically:
+
+```typescript
+import SapClient from 'sap-integration-suite-client';
+
+const client = new SapClient({
+  // SAP configuration...
+  redisEnabled: true,
+  redisConnectionString: process.env.REDIS_CONNECTION_STRING,
+});
+
+// First call: fetches from SAP and caches (slower)
+const packages1 = await client.integrationContent.getIntegrationPackages();
+
+// Second call: returns from cache (much faster!)
+const packages2 = await client.integrationContent.getIntegrationPackages();
+```
+
+### Advanced Options
+
+#### Force Refresh Cache
+
+Force revalidation while still returning cached data (useful after deployments):
+
+```typescript
+const client = new SapClient({
+  // ... other config
+  redisEnabled: true,
+  forceRefreshCache: true  // Forces background revalidation on every request
+});
+```
+
+#### Disable Caching
+
+Completely bypass cache for specific client instances:
+
+```typescript
+const client = new SapClient({
+  // ... other config
+  noCache: true  // No cache reads or writes
+});
+```
+
+### What Gets Cached?
+
+**Cached:**
+- All GET requests to SAP APIs
+- Integration packages, flows, and configurations
+- Security content metadata
+- Message processing logs (with shorter TTL)
+
+**Not Cached:**
+- POST, PUT, DELETE requests
+- Binary downloads (`/value`, `/$value`, `/download` endpoints)
+- Custom API extensions (only direct SAP APIs are cached)
+- Requests with `noCache: true`
+
+### Performance Benefits
+
+Typical performance improvements with caching enabled:
+- **Cache Hit**: 50-95% faster response times
+- **Reduced SAP Load**: Fewer API calls to SAP systems
+- **Better Reliability**: Stale data served even during SAP outages (within TTL)
+
+### Monitoring Cache
+
+Enable debug mode to see cache behavior:
+
+```typescript
+process.env.DEBUG = 'true';
+
+// Console will show:
+// [SapClient] Cache miss: /IntegrationPackages
+// [SapClient] Cache hit (fresh): /IntegrationPackages
+// [SapClient] Cache needs revalidation (stale): /MessageProcessingLogs
+```
 
 ## 💡 Basic Usage
 
@@ -456,6 +569,28 @@ async function handleErrors() {
 
 handleErrors();
 ```
+
+## 📖 API Documentation
+
+Eine vollständige API-Dokumentation mit allen Klassen, Methoden, Interfaces und Typen ist verfügbar.
+
+### Dokumentation lokal generieren
+
+```bash
+# Dokumentation generieren
+npm run docs
+
+# Dokumentation im Browser öffnen
+npm run docs:serve
+```
+
+Die Dokumentation wird mit [TypeDoc](https://typedoc.org/) generiert und enthält:
+- 📚 Vollständige Methodensignaturen und Beschreibungen
+- 🔍 TypeScript-Typen für alle APIs
+- 💡 Code-Beispiele und Usage-Patterns
+- 🔗 Verlinkte Referenzen zwischen Typen
+
+**Weitere Details**: Siehe [DOCS.md](./DOCS.md) für eine ausführliche Anleitung zur Dokumentation.
 
 ## ❓ Troubleshooting
 

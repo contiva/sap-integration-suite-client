@@ -27,6 +27,11 @@ import { B2BScenariosClient } from '../wrapper/b2b-scenarios-client';
 import { PartnerDirectoryClient } from '../wrapper/partner-directory-client';
 import { CustomClientRegistry, CustomClientType } from '../wrapper/custom/custom-client-registry';
 import { BaseCustomClient, CustomClientFactory } from '../wrapper/custom/base-custom-client';
+import { CacheManager } from '../core/cache-manager';
+import { extractHostname } from '../utils/hostname-extractor';
+import { generateCacheKey, parseQueryParams } from '../utils/cache-key-generator';
+import { isCacheableUrl, getRevalidationTime, CACHE_TTL } from '../core/cache-config';
+import { CacheOptions } from '../types/cache';
 
 // Load environment variables from .env file
 config();
@@ -102,6 +107,29 @@ export interface SapClientConfig {
    * Default: true
    */
   enableCustomClients?: boolean;
+  /**
+   * Redis connection string for caching
+   * Format: host:port,password=xxx,ssl=True,abortConnect=False
+   * If not provided, the REDIS_CONNECTION_STRING environment variable will be used
+   */
+  redisConnectionString?: string;
+  /**
+   * Enable Redis caching
+   * Default: false (or REDIS_ENABLED environment variable)
+   */
+  redisEnabled?: boolean;
+  /**
+   * Force cache revalidation on every request
+   * Uses stale-while-revalidate pattern (returns cached data while updating in background)
+   * Default: false
+   */
+  forceRefreshCache?: boolean;
+  /**
+   * Disable caching completely for this client instance
+   * No cache reads or writes will be performed
+   * Default: false
+   */
+  noCache?: boolean;
 }
 
 /**
@@ -161,6 +189,14 @@ class SapClient {
   private customClientRegistry: CustomClientRegistry;
   /** Map der erstellten benutzerdefinierten Clients */
   private customClients: Map<string, BaseCustomClient<any>> = new Map();
+  /** Cache manager for Redis-based caching */
+  private cacheManager: CacheManager | null = null;
+  /** Hostname for cache key generation */
+  private hostname: string;
+  /** Force cache revalidation on every request */
+  private forceRefreshCache: boolean = false;
+  /** Disable caching completely */
+  private noCache: boolean = false;
   
   /** 
    * Integration Content API client
@@ -246,6 +282,27 @@ class SapClient {
     this.enableCustomClients = config?.enableCustomClients !== undefined ? config.enableCustomClients : true;
     this.customClientRegistry = CustomClientRegistry.getInstance();
     
+    // Redis caching configuration
+    const redisConnectionString = config?.redisConnectionString || process.env.REDIS_CONNECTION_STRING || '';
+    const redisEnabled = config?.redisEnabled !== undefined 
+      ? config.redisEnabled 
+      : (process.env.REDIS_ENABLED === 'true');
+    this.forceRefreshCache = config?.forceRefreshCache || false;
+    this.noCache = config?.noCache || false;
+    
+    // Extract hostname for cache key generation
+    this.hostname = extractHostname(this.baseUrl);
+    
+    // Initialize cache manager if Redis is enabled and not in noCache mode
+    if (redisEnabled && redisConnectionString && !this.noCache) {
+      this.cacheManager = new CacheManager(redisConnectionString, true);
+      // Connect to Redis asynchronously (non-blocking)
+      this.cacheManager.connect().catch((err) => {
+        console.error('[SapClient] Failed to connect to Redis:', err);
+        this.cacheManager = null;
+      });
+    }
+    
     // Enable debug mode if environment variable is set
     const debugMode = process.env.DEBUG === 'true';
     if (debugMode) {
@@ -253,7 +310,10 @@ class SapClient {
         baseUrl: this.baseUrl,
         normalizeResponses: this.normalizeResponses,
         maxRetries: this.maxRetries,
-        retryDelay: this.retryDelay
+        retryDelay: this.retryDelay,
+        cacheEnabled: !!this.cacheManager,
+        forceRefreshCache: this.forceRefreshCache,
+        noCache: this.noCache
       });
     }
     
@@ -664,6 +724,7 @@ class SapClient {
    * - Transforms axios responses to fetch API Response objects
    * - Implements retry logic
    * - Normalizes response formats
+   * - Implements Redis-based caching with stale-while-revalidate pattern
    * 
    * @private
    * @param {string | URL | Request} input - URL or Request object
@@ -691,53 +752,110 @@ class SapClient {
       const headers = init?.headers as Record<string, string>;
       const body = init?.body ? JSON.parse(init.body.toString()) : undefined;
 
-      // Get OAuth token and add it to headers
-      const token = await this.getOAuthToken();
-      if (!token) {
-        throw new Error('Failed to get OAuth token');
+      // Ensure Redis is connected if we have a cache manager
+      if (this.cacheManager && !this.cacheManager.isReady()) {
+        // Try to connect (will be quick if already connected or connecting)
+        await this.cacheManager.connect().catch(() => {
+          // Ignore connection errors - caching will be skipped
+        });
       }
-      
-      const authHeaders = {
-        ...headers,
-        'Authorization': `Bearer ${token.access_token}`
-      };
 
-      // Use retry logic for the request
-      const response = await this.requestWithRetry(() => 
-        this.axiosInstance.request({
-          url,
-          method,
-          headers: authHeaders,
-          data: body,
-        })
-      );
+      // Check if caching should be applied
+      const shouldCache = method === 'GET' 
+        && this.cacheManager 
+        && this.cacheManager.isReady() 
+        && isCacheableUrl(url);
 
-      // Normalize response if enabled and not already normalized by interceptor
-      if (this.normalizeResponses && response.data) {
-        const originalData = response.data;
-        response.data = this.normalizeResponseFormat(response.data);
+      if (process.env.DEBUG === 'true') {
+        console.log(`[SapClient] Cache check for ${url}: shouldCache=${shouldCache}, method=${method}, cacheManager=${!!this.cacheManager}, isReady=${this.cacheManager?.isReady()}, isCacheable=${isCacheableUrl(url)}`);
+      }
+
+      // Generate cache key if caching is enabled
+      let cacheKey = '';
+      if (shouldCache) {
+        const queryParams = parseQueryParams(url);
+        cacheKey = generateCacheKey(this.hostname, method, url, queryParams);
+
+        // Try to get from cache
+        const cachedData = await this.cacheManager!.get(cacheKey);
         
-        // Debug log for normalization result
-        if (process.env.DEBUG === 'true') {
-          const isChanged = JSON.stringify(originalData) !== JSON.stringify(response.data);
-          console.debug(
-            `[SapClient] customFetch: ${isChanged ? 'Response format normalized' : 'No normalization applied'} for ${method} ${url}`,
-            isChanged ? 
-              `\nFormat detected: ${Array.isArray(response.data) ? 
-                `Array with ${response.data.length} items` : 
-                typeof response.data === 'object' ? 
-                  `Object with keys [${Object.keys(response.data).join(', ')}]` : 
-                  `${typeof response.data}`}` :
-              ''
-          );
+        if (cachedData) {
+          // Check if cache is expired
+          if (this.cacheManager!.isExpired(cachedData)) {
+            // Cache is completely expired, fetch fresh data
+            if (process.env.DEBUG === 'true') {
+              console.log(`[SapClient] Cache expired for: ${url}`);
+            }
+          } else if (this.cacheManager!.shouldRevalidate(cachedData, this.forceRefreshCache)) {
+            // Cache needs revalidation, use stale-while-revalidate
+            if (process.env.DEBUG === 'true') {
+              console.log(`[SapClient] Cache needs revalidation (stale): ${url}`);
+            }
+
+            // Return stale data immediately
+            const staleResponse = new Response(JSON.stringify(cachedData.data), {
+              status: 200,
+              statusText: 'OK (from cache)',
+              headers: new Headers({ 'X-Cache': 'HIT-STALE' }),
+            });
+
+            // Start background revalidation
+            const revalidationTime = getRevalidationTime(url);
+            const cacheOptions: CacheOptions = {
+              ttl: CACHE_TTL.STANDARD,
+              revalidateAfter: revalidationTime,
+            };
+
+            this.cacheManager!.revalidateInBackground(
+              cacheKey,
+              async () => {
+                return await this.performRequest(url, method, headers, body);
+              },
+              cacheOptions
+            );
+
+            return staleResponse;
+          } else {
+            // Cache is fresh, return it
+            if (process.env.DEBUG === 'true') {
+              console.log(`[SapClient] Cache hit (fresh): ${url}`);
+            }
+            return new Response(JSON.stringify(cachedData.data), {
+              status: 200,
+              statusText: 'OK (from cache)',
+              headers: new Headers({ 'X-Cache': 'HIT' }),
+            });
+          }
+        } else {
+          // Cache miss
+          if (process.env.DEBUG === 'true') {
+            console.log(`[SapClient] Cache miss: ${url}`);
+          }
         }
       }
 
-      // Convert axios response to fetch Response
-      return new Response(JSON.stringify(response.data), {
-        status: response.status,
-        statusText: response.statusText,
-        headers: new Headers(response.headers as Record<string, string>),
+      // Perform the actual request
+      const responseData = await this.performRequest(url, method, headers, body);
+
+      // Cache the response if caching is enabled
+      if (shouldCache && cacheKey) {
+        const revalidationTime = getRevalidationTime(url);
+        const cacheOptions: CacheOptions = {
+          ttl: CACHE_TTL.STANDARD,
+          revalidateAfter: revalidationTime,
+        };
+        await this.cacheManager!.set(cacheKey, responseData, cacheOptions);
+        
+        if (process.env.DEBUG === 'true') {
+          console.log(`[SapClient] Cached response with key: ${cacheKey}`);
+        }
+      }
+
+      // Convert to fetch Response
+      return new Response(JSON.stringify(responseData), {
+        status: 200,
+        statusText: 'OK',
+        headers: new Headers({ 'X-Cache': shouldCache ? 'MISS' : 'BYPASS' }),
       });
     } catch (error: any) {
       const requestMethod = init?.method || 'GET';
@@ -748,6 +866,61 @@ class SapClient {
           : input.url;
       throw this.enhanceError(error, `Request failed: ${requestMethod} ${requestUrl}`);
     }
+  }
+
+  /**
+   * Performs the actual HTTP request to SAP
+   * 
+   * @private
+   * @param url - The URL to request
+   * @param method - HTTP method
+   * @param headers - Request headers
+   * @param body - Request body
+   * @returns The response data
+   */
+  private async performRequest(
+    url: string,
+    method: string,
+    headers: Record<string, string>,
+    body?: any
+  ): Promise<any> {
+    // Get OAuth token and add it to headers
+    const token = await this.getOAuthToken();
+    if (!token) {
+      throw new Error('Failed to get OAuth token');
+    }
+    
+    const authHeaders = {
+      ...headers,
+      'Authorization': `Bearer ${token.access_token}`
+    };
+
+    // Use retry logic for the request
+    const response = await this.requestWithRetry(() => 
+      this.axiosInstance.request({
+        url,
+        method,
+        headers: authHeaders,
+        data: body,
+      })
+    );
+
+    // Normalize response if enabled
+    let responseData = response.data;
+    if (this.normalizeResponses && responseData) {
+      const originalData = responseData;
+      responseData = this.normalizeResponseFormat(responseData);
+      
+      // Debug log for normalization result
+      if (process.env.DEBUG === 'true') {
+        const isChanged = JSON.stringify(originalData) !== JSON.stringify(responseData);
+        console.debug(
+          `[SapClient] Response ${isChanged ? 'normalized' : 'not changed'} for ${method} ${url}`
+        );
+      }
+    }
+
+    return responseData;
   }
 
   /**
