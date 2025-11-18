@@ -7,6 +7,7 @@
 import { createClient, RedisClientType } from 'redis';
 import { CachedData, CacheOptions } from '../types/cache';
 import { REVALIDATION_TIMEOUT_MS } from './cache-config';
+import * as crypto from 'crypto';
 
 /**
  * Manages caching operations with Redis
@@ -17,18 +18,119 @@ export class CacheManager {
   private isEnabled: boolean = false;
   private connectionString: string;
   private connectPromise: Promise<void> | null = null;
+  private encryptionKey: Buffer | null = null;
+  private encryptionEnabled: boolean = false;
 
   /**
    * Creates a new CacheManager instance
    * 
    * @param connectionString - Redis connection string
    * @param enabled - Whether caching is enabled
+   * @param encryptionSecret - Optional secret for encrypting cache values (recommended: use OAuth client secret)
    */
-  constructor(connectionString: string, enabled: boolean = true) {
+  constructor(connectionString: string, enabled: boolean = true, encryptionSecret?: string) {
     this.connectionString = connectionString;
     this.isEnabled = enabled;
     
+    // Initialize encryption if secret is provided
+    if (encryptionSecret) {
+      this.initializeEncryption(encryptionSecret);
+    }
+    
     // Don't initialize in constructor - let caller await it
+  }
+  
+  /**
+   * Initializes encryption key from the provided secret
+   * Uses PBKDF2 to derive a secure encryption key
+   * 
+   * @param secret - The secret to derive the encryption key from
+   */
+  private initializeEncryption(secret: string): void {
+    try {
+      // Use PBKDF2 to derive a 256-bit key from the secret
+      // Salt is fixed but that's okay since the secret itself should be unique per tenant
+      const salt = 'sap-cache-encryption-v1';
+      this.encryptionKey = crypto.pbkdf2Sync(secret, salt, 100000, 32, 'sha256');
+      this.encryptionEnabled = true;
+      console.log('[CacheManager] Cache encryption enabled (AES-256-GCM)');
+    } catch (error) {
+      console.error('[CacheManager] Failed to initialize encryption:', error);
+      this.encryptionKey = null;
+      this.encryptionEnabled = false;
+    }
+  }
+  
+  /**
+   * Encrypts data using AES-256-GCM
+   * 
+   * @param data - The data to encrypt
+   * @returns Encrypted data with IV prepended
+   */
+  private encrypt(data: string): string {
+    if (!this.encryptionEnabled || !this.encryptionKey) {
+      return data;
+    }
+    
+    try {
+      // Generate a random IV for each encryption
+      const iv = crypto.randomBytes(16);
+      
+      // Create cipher with AES-256-GCM
+      const cipher = crypto.createCipheriv('aes-256-gcm', this.encryptionKey, iv);
+      
+      // Encrypt the data
+      let encrypted = cipher.update(data, 'utf8', 'hex');
+      encrypted += cipher.final('hex');
+      
+      // Get the auth tag
+      const authTag = cipher.getAuthTag();
+      
+      // Combine IV + authTag + encrypted data
+      // Format: [IV(16 bytes)][AuthTag(16 bytes)][EncryptedData]
+      return iv.toString('hex') + authTag.toString('hex') + encrypted;
+    } catch (error) {
+      console.error('[CacheManager] Encryption failed:', error);
+      // Return unencrypted data as fallback
+      return data;
+    }
+  }
+  
+  /**
+   * Decrypts data using AES-256-GCM
+   * 
+   * @param encryptedData - The encrypted data with IV prepended
+   * @returns Decrypted data
+   */
+  private decrypt(encryptedData: string): string {
+    if (!this.encryptionEnabled || !this.encryptionKey) {
+      return encryptedData;
+    }
+    
+    try {
+      // Extract IV (first 32 hex chars = 16 bytes)
+      const iv = Buffer.from(encryptedData.slice(0, 32), 'hex');
+      
+      // Extract auth tag (next 32 hex chars = 16 bytes)
+      const authTag = Buffer.from(encryptedData.slice(32, 64), 'hex');
+      
+      // Extract encrypted data (rest)
+      const encrypted = encryptedData.slice(64);
+      
+      // Create decipher
+      const decipher = crypto.createDecipheriv('aes-256-gcm', this.encryptionKey, iv);
+      decipher.setAuthTag(authTag);
+      
+      // Decrypt the data
+      let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+      decrypted += decipher.final('utf8');
+      
+      return decrypted;
+    } catch (error) {
+      console.error('[CacheManager] Decryption failed:', error);
+      // Try to return as-is (might be unencrypted legacy data)
+      return encryptedData;
+    }
   }
   
   /**
@@ -137,10 +239,13 @@ export class CacheManager {
     }
 
     try {
-      const data = await this.client.get(key);
-      if (!data) {
+      const encryptedData = await this.client.get(key);
+      if (!encryptedData) {
         return null;
       }
+
+      // Decrypt if encryption is enabled
+      const data = this.decrypt(encryptedData);
 
       return JSON.parse(data) as CachedData;
     } catch (error) {
@@ -170,7 +275,12 @@ export class CacheManager {
         revalidateAfter: now + (options.revalidateAfter * 1000),
       };
 
-      await this.client.setEx(key, options.ttl, JSON.stringify(cachedData));
+      const jsonData = JSON.stringify(cachedData);
+      
+      // Encrypt if encryption is enabled
+      const encryptedData = this.encrypt(jsonData);
+
+      await this.client.setEx(key, options.ttl, encryptedData);
     } catch (error) {
       console.error('[CacheManager] Error setting cache:', error);
     }
@@ -263,7 +373,7 @@ export class CacheManager {
       
       // Close connection if connected
       if (this.isConnected) {
-        await this.client.quit();
+      await this.client.quit();
       }
       
       this.isConnected = false;

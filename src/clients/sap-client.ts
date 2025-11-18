@@ -330,7 +330,12 @@ class SapClient {
       }
       // Option 2: Create new cache manager if Redis is enabled
       else if (redisEnabled && redisConnectionString) {
-      this.cacheManager = new CacheManager(redisConnectionString, true);
+      // Use OAuth client secret for encryption if available
+      this.cacheManager = new CacheManager(
+        redisConnectionString, 
+        true, 
+        this.oauthClientSecret // Use client secret for cache encryption
+      );
         this.isExternalCacheManager = false;
       // Connect to Redis asynchronously (non-blocking)
       this.cacheManager.connect().catch((err) => {
@@ -572,35 +577,35 @@ class SapClient {
 
     // Otherwise, get a new token
     this.tokenRefreshPromise = (async () => {
-      try {
-        // Use params like in the direct implementation instead of basic auth
-        const tokenResponse = await axios.post(
-          this.oauthTokenUrl,
-          null,
-          {
-            params: {
-              grant_type: 'client_credentials',
-              client_id: this.oauthClientId,
-              client_secret: this.oauthClientSecret
-            },
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded'
-            },
-          }
-        );
+    try {
+      // Use params like in the direct implementation instead of basic auth
+      const tokenResponse = await axios.post(
+        this.oauthTokenUrl,
+        null,
+        {
+          params: {
+            grant_type: 'client_credentials',
+            client_id: this.oauthClientId,
+            client_secret: this.oauthClientSecret
+          },
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+        }
+      );
 
-        const token: OAuthToken = tokenResponse.data;
-        // Set expiration time (subtract 5 minutes for safety margin)
-        token.expiresAt = now + (token.expires_in * 1000) - 300000;
-        
-        this.oauthToken = token;
+      const token: OAuthToken = tokenResponse.data;
+      // Set expiration time (subtract 5 minutes for safety margin)
+      token.expiresAt = now + (token.expires_in * 1000) - 300000;
+      
+      this.oauthToken = token;
         this.tokenRefreshPromise = null; // Clear the promise after success
-        
-        return token;
-      } catch (error) {
+      
+      return token;
+    } catch (error) {
         this.tokenRefreshPromise = null; // Clear the promise on error
-        throw this.enhanceError(error, 'Failed to obtain OAuth token');
-      }
+      throw this.enhanceError(error, 'Failed to obtain OAuth token');
+    }
     })();
 
     return this.tokenRefreshPromise;
