@@ -932,6 +932,18 @@ export class IntegrationContentClient {
   }
 
   /**
+   * Gibt alle Message Mappings (tenant-weit) direkt vom globalen Endpunkt zurück.
+   * Dies ist eine interne Hilfsmethode für den Advanced Client.
+   * 
+   * @internal
+   * @returns {Promise<ComSapHciApiMessageMappingDesigntimeArtifact[]>} Promise mit einer Liste von Message Mappings
+   */
+  async _fetchAllMessageMappingsFromGlobalEndpoint(): Promise<ComSapHciApiMessageMappingDesigntimeArtifact[]> {
+    const response = await this.api.messageMappingDesigntimeArtifacts.messageMappingDesigntimeArtifactsList();
+    return this.normalizer.normalizeArrayResponse(response.data, 'getAllMessageMappings') as ComSapHciApiMessageMappingDesigntimeArtifact[];
+  }
+
+  /**
    * Gibt alle Message Mappings (tenant-weit) zurück.
    * 
    * @param {Object} options Optionale Parameter für die Anfrage
@@ -977,6 +989,18 @@ export class IntegrationContentClient {
       mappingData as unknown as ComSapHciApiValueMappingDesigntimeArtifactCreate 
     );
     return this.normalizer.normalizeEntityResponse(response.data, 'createMessageMapping');
+  }
+
+  /**
+   * Gibt alle Value Mappings (tenant-weit) direkt vom globalen Endpunkt zurück.
+   * Dies ist eine interne Hilfsmethode für den Advanced Client.
+   * 
+   * @internal
+   * @returns {Promise<ComSapHciApiValueMappingDesigntimeArtifact[]>} Promise mit einer Liste von Value Mappings
+   */
+  async _fetchAllValueMappingsFromGlobalEndpoint(): Promise<ComSapHciApiValueMappingDesigntimeArtifact[]> {
+    const response = await this.api.valueMappingDesigntimeArtifacts.valueMappingDesigntimeArtifactsList();
+    return this.normalizer.normalizeArrayResponse(response.data, 'getAllValueMappings') as ComSapHciApiValueMappingDesigntimeArtifact[];
   }
 
   /**

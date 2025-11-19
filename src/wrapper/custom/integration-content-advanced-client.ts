@@ -26,6 +26,9 @@ import { BaseCustomClient, CustomClientFactory } from './base-custom-client';
  * mit den SAP Integration Content APIs bereit.
  */
 export class IntegrationContentAdvancedClient extends BaseCustomClient<IntegrationContentClient> {
+  /** Counter für 429 Rate Limit Fehler */
+  private rateLimitErrors: number = 0;
+  
   /**
    * Erstellt einen neuen IntegrationContentAdvancedClient
    * 
@@ -33,6 +36,22 @@ export class IntegrationContentAdvancedClient extends BaseCustomClient<Integrati
    */
   constructor(client: IntegrationContentClient) {
     super(client);
+  }
+  
+  /**
+   * Gibt die Anzahl der 429 Rate Limit Fehler zurück
+   * 
+   * @returns {number} Anzahl der Rate Limit Fehler
+   */
+  getRateLimitErrorCount(): number {
+    return this.rateLimitErrors;
+  }
+  
+  /**
+   * Setzt den Rate Limit Error Counter zurück
+   */
+  resetRateLimitErrorCount(): void {
+    this.rateLimitErrors = 0;
   }
 
   /**
@@ -44,28 +63,47 @@ export class IntegrationContentAdvancedClient extends BaseCustomClient<Integrati
    * - Value Mappings
    * - Script Collections
    * 
+   * **Optimierungen:**
+   * - MessageMappings & ValueMappings werden über globale Endpunkte abgerufen (nur 2 API-Calls)
+   * - IntegrationFlows & ScriptCollections werden mit Concurrency-Limit abgerufen
+   * - Bis zu 50% weniger API-Aufrufe im Vergleich zur nicht-optimierten Variante
+   * 
+   * **Best Practices:**
+   * - Für kleine bis mittlere Systeme (bis 100 Packages): `concurrency: 7-10`
+   * - Für größere Systeme: Starte mit `concurrency: 5` und erhöhe schrittweise
+   * - 429 Rate Limit Fehler können mit `getRateLimitErrorCount()` überwacht werden
+   * 
    * @param {Object} options Optionale Parameter für die Anfrage
    * @param {number} [options.top] Maximale Anzahl der zurückzugebenden Pakete
    * @param {number} [options.skip] Anzahl der zu überspringenden Pakete
    * @param {boolean} [options.includeEmpty=false] Ob leere Pakete ohne Artefakte inkludiert werden sollen
    * @param {boolean} [options.parallel=false] Ob die Artefakte parallel abgerufen werden sollen (schneller, aber möglicherweise API-Limits)
+   * @param {number} [options.concurrency=2] Maximale Anzahl paralleler Requests (nur bei parallel=true). Default: 7 (optimal für die meisten Systeme)
    * @returns {Promise<PackageWithArtifacts[]>} Liste von Paketen mit ihren Artefakten
    * 
    * @example
-   * // Alle Pakete mit ihren Artefakten abrufen
+   * // Alle Pakete mit ihren Artefakten abrufen (sequentiell)
    * const packagesWithArtifacts = await client.getPackagesWithArtifacts();
    * 
    * // Nur die ersten 5 Pakete mit Artefakten abrufen
    * const packagesWithArtifacts = await client.getPackagesWithArtifacts({ top: 5 });
    * 
-   * // Alle Pakete mit parallelen API-Aufrufen abrufen (schneller)
+   * // Alle Pakete mit parallelen API-Aufrufen abrufen (mit optimalem Concurrency Limit)
+   * const packagesWithArtifacts = await client.getPackagesWithArtifacts({ parallel: true, concurrency: 7 });
+   * 
+   * // 429 Rate Limit Fehler überwachen
    * const packagesWithArtifacts = await client.getPackagesWithArtifacts({ parallel: true });
+   * const rateLimitErrors = client.getRateLimitErrorCount();
+   * if (rateLimitErrors > 0) {
+   *   console.warn(`${rateLimitErrors} Rate Limit Fehler aufgetreten - reduziere Concurrency`);
+   * }
    */
   async getPackagesWithArtifacts(options: { 
     top?: number; 
     skip?: number; 
     includeEmpty?: boolean;
     parallel?: boolean;
+    concurrency?: number;
   } = {}): Promise<PackageWithArtifacts[]> {
     // Hole alle Integrationspakete
     const packages = await this.client.getIntegrationPackages({
@@ -107,14 +145,19 @@ export class IntegrationContentAdvancedClient extends BaseCustomClient<Integrati
 
     try {
       if (options.parallel) {
-        // Hole alle Artefakte parallel für alle Pakete
-        // Die individuelle API-Calls haben bereits eingebaute Retry-Logik
-        const [allFlows, allMessageMappings, allValueMappings, allScriptCollections] = await Promise.all([
-          this.getAllIntegrationFlows({ packages }),
-          this.getAllMessageMappings({ packages }),
-          this.getAllValueMappings({ packages }),
-          this.getAllScriptCollections({ packages })
+        // Optimiert: Nutze globale Endpunkte für MessageMappings und ValueMappings
+        // Hole alle Artefakte parallel mit Concurrency-Limit - IntegrationFlows und ScriptCollections müssen pro Package abgerufen werden
+        const concurrency = options.concurrency || 7; // Default: 7 parallele Requests (optimal für die meisten Systeme)
+        
+        // Hole MessageMappings und ValueMappings global (nur 2 Calls)
+        const [allMessageMappings, allValueMappings] = await Promise.all([
+          this.client._fetchAllMessageMappingsFromGlobalEndpoint(),
+          this.client._fetchAllValueMappingsFromGlobalEndpoint()
         ]);
+        
+        // Hole IntegrationFlows und ScriptCollections mit Concurrency-Limit
+        const allFlows = await this.getAllIntegrationFlowsWithConcurrency({ packages, concurrency });
+        const allScriptCollections = await this.getAllScriptCollectionsWithConcurrency({ packages, concurrency });
 
         // Sortiere Flows nach PackageId
         for (const flow of allFlows) {
@@ -148,40 +191,76 @@ export class IntegrationContentAdvancedClient extends BaseCustomClient<Integrati
           }
         }
       } else {
-        // Sequentieller Ansatz - optimiert mit effizientem Error Handling
+        // Optimierter Sequentieller Ansatz
+        // Hole MessageMappings und ValueMappings einmal für alle Packages (globale Endpunkte)
+        // IntegrationFlows und ScriptCollections müssen pro Package abgerufen werden
+        const [allMessageMappings, allValueMappings] = await Promise.allSettled([
+          this.client._fetchAllMessageMappingsFromGlobalEndpoint(),
+          this.client._fetchAllValueMappingsFromGlobalEndpoint()
+        ]);
+        
+        // Erstelle Maps für schnellere Zuordnung
+        const messageMappingsByPackage = new Map<string, ComSapHciApiMessageMappingDesigntimeArtifact[]>();
+        const valueMappingsByPackage = new Map<string, ComSapHciApiValueMappingDesigntimeArtifact[]>();
+        
+        if (allMessageMappings.status === 'fulfilled') {
+          for (const mapping of allMessageMappings.value) {
+            if (mapping.PackageId) {
+              const pkgId = mapping.PackageId as string;
+              if (!messageMappingsByPackage.has(pkgId)) {
+                messageMappingsByPackage.set(pkgId, []);
+              }
+              messageMappingsByPackage.get(pkgId)!.push(mapping);
+            }
+          }
+        }
+        
+        if (allValueMappings.status === 'fulfilled') {
+          for (const mapping of allValueMappings.value) {
+            if (mapping.PackageId) {
+              const pkgId = mapping.PackageId as string;
+              if (!valueMappingsByPackage.has(pkgId)) {
+                valueMappingsByPackage.set(pkgId, []);
+              }
+              valueMappingsByPackage.get(pkgId)!.push(mapping);
+            }
+          }
+        }
+        
+        // Hole IntegrationFlows und ScriptCollections für jedes Package
         for (const [i, pkg] of packages.entries()) {
           const packageId = pkg.Id as string;
           
-          // Nutze Promise.allSettled für parallele Ausführung innerhalb eines Pakets
-          const [flows, mappings, valueMappings, scripts] = await Promise.allSettled([
+          // Nutze Promise.allSettled für parallele Ausführung der package-spezifischen Artefakte
+          const [flows, scripts] = await Promise.allSettled([
             this.client.getIntegrationFlows(packageId),
-            this.client.getMessageMappings(packageId),
-            this.client.getValueMappings(packageId),
             this.client.getScriptCollections(packageId),
           ]);
           
           result[i].package.IntegrationDesigntimeArtifacts = 
             flows.status === 'fulfilled' ? flows.value : [];
-          result[i].package.MessageMappingDesigntimeArtifacts = 
-            mappings.status === 'fulfilled' ? mappings.value : [];
-          result[i].package.ValueMappingDesigntimeArtifacts = 
-            valueMappings.status === 'fulfilled' ? valueMappings.value : [];
           result[i].package.ScriptCollectionDesigntimeArtifacts = 
             scripts.status === 'fulfilled' ? scripts.value : [];
+          
+          // Weise die bereits abgerufenen MessageMappings und ValueMappings zu
+          result[i].package.MessageMappingDesigntimeArtifacts = 
+            messageMappingsByPackage.get(packageId) || [];
+          result[i].package.ValueMappingDesigntimeArtifacts = 
+            valueMappingsByPackage.get(packageId) || [];
           
           // Log errors in debug mode
           if (process.env.DEBUG === 'true') {
             if (flows.status === 'rejected') {
               console.error(`Fehler beim Abrufen der Integrationsflows für Paket ${packageId}:`, flows.reason);
             }
-            if (mappings.status === 'rejected') {
-              console.error(`Fehler beim Abrufen der Message Mappings für Paket ${packageId}:`, mappings.reason);
-            }
-            if (valueMappings.status === 'rejected') {
-              console.error(`Fehler beim Abrufen der Value Mappings für Paket ${packageId}:`, valueMappings.reason);
-            }
             if (scripts.status === 'rejected') {
               console.error(`Fehler beim Abrufen der Script Collections für Paket ${packageId}:`, scripts.reason);
+            }
+            if (allMessageMappings.status === 'rejected') {
+              console.error(`Fehler beim Abrufen aller Message Mappings:`, allMessageMappings.reason);
+            }
+            if (allValueMappings.status === 'rejected') {
+              console.error(`Fehler beim Abrufen aller Value Mappings:`, allValueMappings.reason);
             }
           }
         }
@@ -202,6 +281,130 @@ export class IntegrationContentAdvancedClient extends BaseCustomClient<Integrati
       console.error(`Fehler beim Abrufen der Artefakte:`, error);
       throw error;
     }
+  }
+
+  /**
+   * Hilfsmethode: Führt Promises mit Concurrency-Limit aus
+   * 
+   * @private
+   * @param tasks Array von Promise-Factories
+   * @param concurrency Maximale Anzahl paralleler Promises
+   * @returns Promise mit allen Ergebnissen
+   */
+  private async executWithConcurrency<T>(
+    tasks: (() => Promise<T>)[],
+    concurrency: number
+  ): Promise<T[]> {
+    const results: T[] = [];
+    const executing: Set<Promise<any>> = new Set();
+    
+    for (const task of tasks) {
+      const promise = task().then(result => {
+        results.push(result);
+        executing.delete(promise);
+        return result;
+      }).catch(err => {
+        executing.delete(promise);
+        throw err;
+      });
+      
+      executing.add(promise);
+      
+      // Wenn wir das Concurrency-Limit erreicht haben, warte auf das erste fertige Promise
+      if (executing.size >= concurrency) {
+        await Promise.race(executing);
+      }
+    }
+    
+    // Warte auf alle verbleibenden Promises
+    await Promise.all(Array.from(executing));
+    return results;
+  }
+
+  /**
+   * Ruft alle Integrationsflows aller Pakete mit Concurrency-Limit ab
+   * 
+   * @private
+   * @param {Object} options Parameter für die Anfrage
+   * @param {ComSapHciApiIntegrationPackage[]} options.packages Pakete
+   * @param {number} options.concurrency Maximale Anzahl paralleler Requests
+   * @returns {Promise<ComSapHciApiIntegrationDesigntimeArtifact[]>} Liste aller Integrationsflows
+   */
+  private async getAllIntegrationFlowsWithConcurrency(options: { 
+    packages: ComSapHciApiIntegrationPackage[];
+    concurrency: number;
+  }): Promise<ComSapHciApiIntegrationDesigntimeArtifact[]> {
+    const allFlows: ComSapHciApiIntegrationDesigntimeArtifact[] = [];
+    
+    // Erstelle Tasks für jedes Package
+    const tasks = options.packages.map(pkg => () =>
+      this.client.getIntegrationFlows(pkg.Id as string)
+        .then(flows => {
+          flows.forEach(flow => {
+            if (!flow.PackageId && pkg.Id) {
+              flow.PackageId = pkg.Id;
+            }
+          });
+          allFlows.push(...flows);
+          return flows;
+        })
+        .catch(error => {
+          // Zähle 429 Fehler
+          if (error?.statusCode === 429 || error?.response?.status === 429) {
+            this.rateLimitErrors++;
+          }
+          if (process.env.DEBUG === 'true') {
+            console.error(`Fehler beim Abrufen der Flows für Paket ${pkg.Id}:`, error.message || error);
+          }
+          return [];
+        })
+    );
+    
+    await this.executWithConcurrency(tasks, options.concurrency);
+    return allFlows;
+  }
+
+  /**
+   * Ruft alle Script Collections aller Pakete mit Concurrency-Limit ab
+   * 
+   * @private
+   * @param {Object} options Parameter für die Anfrage
+   * @param {ComSapHciApiIntegrationPackage[]} options.packages Pakete
+   * @param {number} options.concurrency Maximale Anzahl paralleler Requests
+   * @returns {Promise<ComSapHciApiScriptCollectionDesigntimeArtifact[]>} Liste aller Script Collections
+   */
+  private async getAllScriptCollectionsWithConcurrency(options: { 
+    packages: ComSapHciApiIntegrationPackage[];
+    concurrency: number;
+  }): Promise<ComSapHciApiScriptCollectionDesigntimeArtifact[]> {
+    const allScripts: ComSapHciApiScriptCollectionDesigntimeArtifact[] = [];
+    
+    // Erstelle Tasks für jedes Package
+    const tasks = options.packages.map(pkg => () =>
+      this.client.getScriptCollections(pkg.Id as string)
+        .then(scripts => {
+          scripts.forEach(script => {
+            if (!script.PackageId && pkg.Id) {
+              script.PackageId = pkg.Id;
+            }
+          });
+          allScripts.push(...scripts);
+          return scripts;
+        })
+        .catch(error => {
+          // Zähle 429 Fehler
+          if (error?.statusCode === 429 || error?.response?.status === 429) {
+            this.rateLimitErrors++;
+          }
+          if (process.env.DEBUG === 'true') {
+            console.error(`Fehler beim Abrufen der Script Collections für Paket ${pkg.Id}:`, error.message || error);
+          }
+          return [];
+        })
+    );
+    
+    await this.executWithConcurrency(tasks, options.concurrency);
+    return allScripts;
   }
 
   /**

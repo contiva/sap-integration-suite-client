@@ -442,7 +442,16 @@ accessLogs().catch(console.error);
 
 ### Integration Content Advanced Example
 
-The library provides advanced clients with enhanced capabilities:
+The library provides advanced clients with enhanced capabilities and **optimized performance**:
+
+#### 🚀 Performance Optimizations
+
+The `getPackagesWithArtifacts` method includes significant optimizations:
+- **50% fewer API calls**: MessageMappings & ValueMappings are fetched via global endpoints
+- **Concurrency control**: Prevents rate limiting (HTTP 429) errors
+- **Configurable parallelization**: Adjust concurrency based on your system size
+
+#### Basic Usage
 
 ```typescript
 import SapClient from 'sap-integration-suite-client';
@@ -450,11 +459,10 @@ import SapClient from 'sap-integration-suite-client';
 const client = new SapClient();
 
 async function advancedOperations() {
-  // Get packages with all their artifacts in a single operation
+  // Get packages with all their artifacts in a single operation (sequentially)
   const packagesWithArtifacts = await client.integrationContentAdvanced.getPackagesWithArtifacts({
     top: 5,
-    includeEmpty: false,  // Skip packages without artifacts
-    parallel: true        // Use parallel requests for better performance
+    includeEmpty: false  // Skip packages without artifacts
   });
   
   console.log(`Retrieved ${packagesWithArtifacts.length} packages with their artifacts`);
@@ -471,6 +479,41 @@ async function advancedOperations() {
 }
 
 advancedOperations().catch(console.error);
+```
+
+#### ⚡ Parallel Mode with Optimal Concurrency
+
+```typescript
+// Fetch packages with optimal parallelization
+const packagesWithArtifacts = await client.integrationContentAdvanced.getPackagesWithArtifacts({
+  parallel: true,
+  concurrency: 7  // Optimal for most systems (up to 100 packages)
+});
+
+// Monitor rate limit errors
+const rateLimitErrors = client.integrationContentAdvanced.getRateLimitErrorCount();
+if (rateLimitErrors > 0) {
+  console.warn(`⚠️ ${rateLimitErrors} rate limit errors occurred - consider reducing concurrency`);
+}
+```
+
+#### 📊 Best Practices for Concurrency
+
+| System Size | Recommended Concurrency | Notes |
+|------------|------------------------|-------|
+| Small (< 50 packages) | `concurrency: 10` | Safe for most small systems |
+| Medium (50-100 packages) | `concurrency: 7` | **Default - optimal for most** |
+| Large (100+ packages) | `concurrency: 5` | Start low, monitor 429 errors |
+| Very Large (200+ packages) | `concurrency: 3-5` | Increase carefully |
+
+**Finding your optimal concurrency:**
+
+```bash
+# Use the included test script
+./find-optimal-concurrency.sh
+
+# Or manually test different values
+node your-script.js --concurrency 7
 ```
 
 ### Extending Your Project
