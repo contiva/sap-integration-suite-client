@@ -198,6 +198,10 @@ class SapClient {
   private maxRetries: number = 3;
   /** Delay between retries in milliseconds */
   private retryDelay: number = 1000;
+  /** Minimum delay between consecutive requests (rate limiting prevention) */
+  private minRequestDelay: number = 50; // 50ms minimum between requests
+  /** Timestamp of last request */
+  private lastRequestTime: number = 0;
   /** Whether to enable custom client extensions */
   private enableCustomClients: boolean = true;
   /** Registry für benutzerdefinierte Client-Erweiterungen */
@@ -719,7 +723,28 @@ class SapClient {
    * @returns {any} Enhanced error object
    */
   private enhanceError(error: any, message?: string): any {
-    // Create a new error with a more descriptive message
+    // For 429 errors, create a simplified error to reduce log noise
+    if (error.response?.status === 429) {
+      const enhancedError = new Error(
+        message 
+          ? `${message}: Rate limit exceeded (429)`
+          : 'Rate limit exceeded (429)'
+      );
+      
+      // Add only essential properties for 429 errors
+      (enhancedError as any).statusCode = 429;
+      (enhancedError as any).statusText = 'Too Many Requests';
+      
+      // Add Retry-After header if present
+      const retryAfter = error.response?.headers?.['retry-after'] || error.response?.headers?.['Retry-After'];
+      if (retryAfter) {
+        (enhancedError as any).retryAfter = retryAfter;
+      }
+      
+      return enhancedError;
+    }
+    
+    // For other errors, create a full enhanced error
     const enhancedError = new Error(
       message 
         ? `${message}: ${error.message}`
@@ -779,6 +804,17 @@ class SapClient {
    * @returns {Promise<any>} Promise resolving to the response
    */
   private async requestWithRetry(requestFn: () => Promise<any>, retries: number = this.maxRetries): Promise<any> {
+    // Rate limiting prevention: Wait if needed before making the request
+    const now = Date.now();
+    const timeSinceLastRequest = now - this.lastRequestTime;
+    if (timeSinceLastRequest < this.minRequestDelay) {
+      const waitTime = this.minRequestDelay - timeSinceLastRequest;
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
+    
+    // Update last request time
+    this.lastRequestTime = Date.now();
+    
     try {
       return await requestFn();
     } catch (error: any) {
@@ -789,8 +825,45 @@ class SapClient {
          error.response.status === 429);  // Rate limiting
 
       if (retries > 0 && isRetryable) {
+        // Calculate delay with exponential backoff
+        // Iteration 1 (retries=max): 2^0 * delay = 1 * delay
+        // Iteration 2 (retries=max-1): 2^1 * delay = 2 * delay
+        // Iteration 3 (retries=max-2): 2^2 * delay = 4 * delay
+        let delay = this.retryDelay * Math.pow(2, this.maxRetries - retries);
+        
+        // If 429 and Retry-After header is present, use it
+        if (error.response.status === 429 && error.response.headers) {
+          // Header lookup should be case-insensitive, but axios headers are usually lowercase
+          const retryAfter = error.response.headers['retry-after'] || error.response.headers['Retry-After'];
+          
+          if (retryAfter) {
+            // Retry-After can be seconds or HTTP date
+            if (/^\d+$/.test(String(retryAfter))) {
+              // It's seconds
+              delay = parseInt(String(retryAfter), 10) * 1000;
+            } else {
+              // Try to parse as date
+              const date = Date.parse(String(retryAfter));
+              if (!isNaN(date)) {
+                delay = Math.max(0, date - Date.now());
+              }
+            }
+          }
+        }
+
+        // Add some jitter (randomness 0-100ms) to prevent thundering herd
+        const jitter = Math.random() * 100;
+        delay += jitter;
+
+        // Simplified logging for 429 errors
+        if (error.response.status === 429) {
+          console.warn(`[SapClient] Rate limit hit (429). Retrying in ${Math.round(delay)}ms... (${retries} retries left)`);
+        } else if (this.debugMode) {
+          console.debug(`[SapClient] Request failed with status ${error.response.status}. Retrying in ${Math.round(delay)}ms... (${retries} retries left)`);
+        }
+
         // Wait before retrying
-        await new Promise(resolve => setTimeout(resolve, this.retryDelay));
+        await new Promise(resolve => setTimeout(resolve, delay));
         // Retry with one less retry attempt
         return this.requestWithRetry(requestFn, retries - 1);
       }

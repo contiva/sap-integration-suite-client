@@ -108,7 +108,7 @@ export class IntegrationContentAdvancedClient extends BaseCustomClient<Integrati
     try {
       if (options.parallel) {
         // Hole alle Artefakte parallel für alle Pakete
-        // Dies ist schneller, kann aber API-Limits überschreiten
+        // Die individuelle API-Calls haben bereits eingebaute Retry-Logik
         const [allFlows, allMessageMappings, allValueMappings, allScriptCollections] = await Promise.all([
           this.getAllIntegrationFlows({ packages }),
           this.getAllMessageMappings({ packages }),
@@ -229,10 +229,18 @@ export class IntegrationContentAdvancedClient extends BaseCustomClient<Integrati
     // Sammel alle Flows
     const allFlows: ComSapHciApiIntegrationDesigntimeArtifact[] = [];
     
-    // Arrays von Promises für Promise.all
-    const promises = packages.map(pkg => 
+    // Arrays von Promises für Promise.all - Retry-Logik ist bereits in den Basis-Methoden implementiert
+    const promises = packages.map(pkg =>
       this.client.getIntegrationFlows(pkg.Id as string)
-        .then(flows => allFlows.push(...flows))
+        .then(flows => {
+          // Stelle sicher, dass die PackageId in den Flows gesetzt ist
+          flows.forEach(flow => {
+            if (!flow.PackageId && pkg.Id) {
+              flow.PackageId = pkg.Id;
+            }
+          });
+          allFlows.push(...flows);
+        })
         .catch(error => {
           console.error(`Fehler beim Abrufen der Flows für Paket ${pkg.Id}:`, error);
           return []; // Fehler ignorieren
@@ -269,10 +277,18 @@ export class IntegrationContentAdvancedClient extends BaseCustomClient<Integrati
     // Sammel alle Script Collections
     const allScripts: ComSapHciApiScriptCollectionDesigntimeArtifact[] = [];
     
-    // Arrays von Promises für Promise.all
-    const promises = packages.map(pkg => 
+    // Arrays von Promises für Promise.all - Retry-Logik ist bereits in den Basis-Methoden implementiert
+    const promises = packages.map(pkg =>
       this.client.getScriptCollections(pkg.Id as string)
-        .then(scripts => allScripts.push(...scripts))
+        .then(scripts => {
+          // Stelle sicher, dass die PackageId in den Script Collections gesetzt ist
+          scripts.forEach(script => {
+            if (!script.PackageId && pkg.Id) {
+              script.PackageId = pkg.Id;
+            }
+          });
+          allScripts.push(...scripts);
+        })
         .catch(error => {
           console.error(`Fehler beim Abrufen der Script Collections für Paket ${pkg.Id}:`, error);
           return []; // Fehler ignorieren
@@ -308,10 +324,18 @@ export class IntegrationContentAdvancedClient extends BaseCustomClient<Integrati
     if (options.packages && options.packages.length > 0) {
       const allMappings: ComSapHciApiMessageMappingDesigntimeArtifact[] = [];
       
-      // Arrays von Promises für Promise.all
-      const promises = options.packages.map(pkg => 
+      // Arrays von Promises für Promise.all - Retry-Logik ist bereits in den Basis-Methoden implementiert
+      const promises = options.packages.map(pkg =>
         this.client.getMessageMappings(pkg.Id as string)
-          .then(mappings => allMappings.push(...mappings))
+          .then(mappings => {
+            // Stelle sicher, dass die PackageId in den Message Mappings gesetzt ist
+            mappings.forEach(mapping => {
+              if (!mapping.PackageId && pkg.Id) {
+                mapping.PackageId = pkg.Id;
+              }
+            });
+            allMappings.push(...mappings);
+          })
           .catch(error => {
             console.error(`Fehler beim Abrufen der Message Mappings für Paket ${pkg.Id}:`, error);
             return []; // Fehler ignorieren
@@ -351,10 +375,18 @@ export class IntegrationContentAdvancedClient extends BaseCustomClient<Integrati
     if (options.packages && options.packages.length > 0) {
       const allMappings: ComSapHciApiValueMappingDesigntimeArtifact[] = [];
       
-      // Arrays von Promises für Promise.all
-      const promises = options.packages.map(pkg => 
+      // Arrays von Promises für Promise.all - Retry-Logik ist bereits in den Basis-Methoden implementiert
+      const promises = options.packages.map(pkg =>
         this.client.getValueMappings(pkg.Id as string)
-          .then(mappings => allMappings.push(...mappings))
+          .then(mappings => {
+            // Stelle sicher, dass die PackageId in den Value Mappings gesetzt ist
+            mappings.forEach(mapping => {
+              if (!mapping.PackageId && pkg.Id) {
+                mapping.PackageId = pkg.Id;
+              }
+            });
+            allMappings.push(...mappings);
+          })
           .catch(error => {
             console.error(`Fehler beim Abrufen der Value Mappings für Paket ${pkg.Id}:`, error);
             return []; // Fehler ignorieren
