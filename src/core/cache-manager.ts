@@ -387,5 +387,102 @@ export class CacheManager {
   isReady(): boolean {
     return this.isEnabled && this.isConnected;
   }
+
+  /**
+   * Finds cache keys matching a pattern using Redis SCAN
+   * Uses SCAN instead of KEYS for better performance in production
+   * 
+   * @param pattern - The pattern to match (supports wildcards like *)
+   * @returns Array of matching cache keys
+   * 
+   * @example
+   * const keys = await cacheManager.findKeysByPattern('sap:hostname:GET:/IntegrationRuntimeArtifacts*');
+   */
+  async findKeysByPattern(pattern: string): Promise<string[]> {
+    if (!this.isEnabled || !this.isConnected || !this.client) {
+      return [];
+    }
+
+    try {
+      const keys: string[] = [];
+      let cursor = 0;
+
+      do {
+        const result = await this.client.scan(cursor, {
+          MATCH: pattern,
+          COUNT: 100, // Scan in batches of 100
+        });
+        
+        cursor = result.cursor;
+        keys.push(...result.keys);
+      } while (cursor !== 0);
+
+      return keys;
+    } catch (error) {
+      console.error('[CacheManager] Error finding keys by pattern:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Updates a partial cache entry by applying an update function
+   * Reads the cache entry, applies the update function, and writes it back
+   * 
+   * @param key - The cache key to update
+   * @param updateFn - Function that receives the cached data and returns updated data
+   * @returns true if update was successful, false otherwise
+   * 
+   * @example
+   * await cacheManager.updatePartial('my-key', (cachedData) => {
+   *   cachedData.data.status = 'updated';
+   *   return cachedData;
+   * });
+   */
+  async updatePartial(key: string, updateFn: (cachedData: CachedData) => CachedData): Promise<boolean> {
+    if (!this.isEnabled || !this.isConnected || !this.client) {
+      return false;
+    }
+
+    try {
+      // Read current cache entry
+      const cachedData = await this.get(key);
+      if (!cachedData) {
+        if (process.env.DEBUG === 'true') {
+          console.log(`[CacheManager] Cache key not found for update: ${key}`);
+        }
+        return false;
+      }
+
+      // Apply update function
+      const updatedData = updateFn(cachedData);
+
+      // Calculate remaining TTL
+      const now = Date.now();
+      const remainingTtl = Math.max(0, Math.floor((updatedData.expiresAt - now) / 1000));
+      
+      if (remainingTtl <= 0) {
+        // Cache entry has expired, don't update
+        if (process.env.DEBUG === 'true') {
+          console.log(`[CacheManager] Cache entry expired, skipping update: ${key}`);
+        }
+        return false;
+      }
+
+      // Write updated cache entry back
+      const jsonData = JSON.stringify(updatedData);
+      const encryptedData = this.encrypt(jsonData);
+      
+      await this.client.setEx(key, remainingTtl, encryptedData);
+
+      if (process.env.DEBUG === 'true') {
+        console.log(`[CacheManager] Successfully updated cache key: ${key}`);
+      }
+
+      return true;
+    } catch (error) {
+      console.error('[CacheManager] Error updating partial cache:', error);
+      return false;
+    }
+  }
 }
 

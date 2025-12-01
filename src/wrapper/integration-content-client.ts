@@ -45,6 +45,10 @@ import {
 import { PackageWithArtifacts, DetailedErrorInformation, ParsedErrorDetails } from '../types/sap.ContentClient';
 import { ResponseNormalizer } from '../utils/response-normalizer';
 import { IntegrationContentAdvancedClient } from './custom/integration-content-advanced-client';
+import { CacheManager } from '../core/cache-manager';
+import { ArtifactStatusUpdate } from '../types/cache';
+import { updateArtifactInCache, updateArtifactInPackageCache } from '../utils/cache-update-helper';
+import { extractHostname } from '../utils/hostname-extractor';
 
 /**
  * Erweiterter SAP Integration Content Client
@@ -56,16 +60,22 @@ export class IntegrationContentClient {
   private api: IntegrationContentApi<unknown>;
   private normalizer: ResponseNormalizer;
   private advancedClient: IntegrationContentAdvancedClient;
+  private cacheManager: CacheManager | null = null;
+  private hostname: string = '';
 
   /**
    * Erstellt einen neuen IntegrationContentClient
    * 
    * @param {IntegrationContentApi<unknown>} api - Die zugrunde liegende API-Instanz
+   * @param {CacheManager} [cacheManager] - Optional: CacheManager für Cache-Updates
+   * @param {string} [hostname] - Optional: Hostname für Cache-Key-Generierung
    */
-  constructor(api: IntegrationContentApi<unknown>) {
+  constructor(api: IntegrationContentApi<unknown>, cacheManager?: CacheManager | null, hostname?: string) {
     this.api = api;
     this.normalizer = new ResponseNormalizer();
     this.advancedClient = new IntegrationContentAdvancedClient(this);
+    this.cacheManager = cacheManager || null;
+    this.hostname = hostname || '';
   }
 
   /**
@@ -2095,5 +2105,139 @@ export class IntegrationContentClient {
       entity, 
       version
     );
+  }
+
+  /**
+   * Aktualisiert den Status eines Artefakts im Cache
+   * Aktualisiert nur den Status, ohne das gesamte Package neu abzurufen
+   * 
+   * @param {string} artifactId - Die ID des Artefakts
+   * @param {ArtifactStatusUpdate} statusData - Die Status-Daten zum Aktualisieren
+   * @param {string} [packageId] - Optional: Die Package-ID (wird aus Cache ermittelt falls nicht angegeben)
+   * @param {string} [baseUrl] - Optional: Die Base-URL für Cache-Key-Generierung
+   * @returns {Promise<void>} Promise, der aufgelöst wird, wenn das Update abgeschlossen ist
+   * 
+   * @example
+   * await client.updateArtifactStatus('MyArtifact', {
+   *   Status: 'STARTED',
+   *   DeployedBy: 'user@example.com',
+   *   DeployedOn: '2024-01-01T00:00:00Z'
+   * }, 'MyPackage');
+   */
+  async updateArtifactStatus(
+    artifactId: string,
+    statusData: ArtifactStatusUpdate,
+    packageId?: string,
+    baseUrl?: string
+  ): Promise<void> {
+    // Input-Validierung: Prüfe artifactId
+    if (!artifactId || typeof artifactId !== 'string' || artifactId.trim().length === 0) {
+      if (process.env.DEBUG === 'true') {
+        console.warn('[IntegrationContentClient] Invalid artifactId provided');
+      }
+      return;
+    }
+
+    // Input-Validierung: Prüfe statusData
+    if (!statusData || typeof statusData !== 'object' || Object.keys(statusData).length === 0) {
+      if (process.env.DEBUG === 'true') {
+        console.warn('[IntegrationContentClient] Invalid or empty statusData provided');
+      }
+      return;
+    }
+
+    // Wenn kein CacheManager vorhanden ist, gibt es nichts zu tun
+    if (!this.cacheManager || !this.cacheManager.isReady()) {
+      if (process.env.DEBUG === 'true') {
+        console.log('[IntegrationContentClient] CacheManager nicht verfügbar, überspringe Status-Update');
+      }
+      return;
+    }
+
+    try {
+      // Hostname ermitteln
+      let hostname = this.hostname;
+      if (!hostname && baseUrl) {
+        hostname = extractHostname(baseUrl);
+      }
+      
+      if (!hostname) {
+        if (process.env.DEBUG === 'true') {
+          console.log('[IntegrationContentClient] Hostname nicht verfügbar, überspringe Status-Update');
+        }
+        return;
+      }
+
+      // Cache-Keys finden
+      const patterns: string[] = [];
+      
+      // Pattern für Runtime-Artefakt
+      // Das '*' am Ende matched auch Cache-Keys mit Query-Parameter-Hash:
+      // - sap:hostname:GET:/IntegrationRuntimeArtifacts('artifactId')
+      // - sap:hostname:GET:/IntegrationRuntimeArtifacts('artifactId'):hash
+      patterns.push(`sap:${hostname}:GET:/IntegrationRuntimeArtifacts('${artifactId}')*`);
+      
+      // Pattern für Package (falls packageId angegeben)
+      // Das '*' am Ende matched auch Cache-Keys mit Query-Parameter-Hash
+      if (packageId) {
+        patterns.push(`sap:${hostname}:GET:/IntegrationPackages('${packageId}')*`);
+      }
+
+      // Tracking für Logging
+      let totalKeysFound = 0;
+      let totalKeysUpdated = 0;
+
+      // Für jeden Pattern Cache-Keys finden und aktualisieren
+      for (const pattern of patterns) {
+        try {
+          const keys = await this.cacheManager.findKeysByPattern(pattern);
+          totalKeysFound += keys.length;
+          
+          for (const key of keys) {
+            // Prüfen, ob es ein Runtime-Artefakt oder Package-Cache ist
+            // Präziseres Matching: Prüfe ob der Key das spezifische Artefakt/Package enthält
+            const isRuntimeArtifact = key.includes(`IntegrationRuntimeArtifacts('${artifactId}')`);
+            const isPackage = packageId ? key.includes(`IntegrationPackages('${packageId}')`) : false;
+            
+            if (isRuntimeArtifact) {
+              // Runtime-Artefakt aktualisieren
+              const success = await this.cacheManager.updatePartial(key, (cachedData) => {
+                const updated = updateArtifactInCache(cachedData, artifactId, statusData);
+                return updated || cachedData; // Falls Update fehlschlägt, Original zurückgeben
+              });
+              if (success) {
+                totalKeysUpdated++;
+              }
+            } else if (isPackage) {
+              // Package-Cache aktualisieren
+              const success = await this.cacheManager.updatePartial(key, (cachedData) => {
+                const updated = updateArtifactInPackageCache(cachedData, artifactId, statusData);
+                return updated || cachedData; // Falls Update fehlschlägt, Original zurückgeben
+              });
+              if (success) {
+                totalKeysUpdated++;
+              }
+            }
+          }
+        } catch (error) {
+          // Fehler loggen, aber nicht weiterwerfen (asynchron)
+          if (process.env.DEBUG === 'true') {
+            console.error(`[IntegrationContentClient] Fehler beim Aktualisieren von Cache-Keys für Pattern ${pattern}:`, error);
+          }
+        }
+      }
+
+      // Logging der Ergebnisse
+      if (totalKeysFound === 0) {
+        console.warn(`[IntegrationContentClient] No cache keys found for artifact ${artifactId}${packageId ? ` in package ${packageId}` : ''}`);
+      } else {
+        console.log(`[IntegrationContentClient] Updated ${totalKeysUpdated}/${totalKeysFound} cache keys for artifact ${artifactId}${packageId ? ` in package ${packageId}` : ''}`);
+      }
+    } catch (error) {
+      // Fehler loggen, aber nicht weiterwerfen (asynchron)
+      if (process.env.DEBUG === 'true') {
+        console.error('[IntegrationContentClient] Fehler beim Aktualisieren des Artefakt-Status:', error);
+      }
+    }
   }
 } 

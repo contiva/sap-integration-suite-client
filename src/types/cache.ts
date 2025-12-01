@@ -40,3 +40,15 @@ export interface CacheStats {
   errors: number;
 }
 
+/**
+ * Status update data for an artifact
+ */
+export interface ArtifactStatusUpdate {
+  /** The deployment status of the artifact (e.g., 'STARTED', 'STOPPED', 'ERROR') */
+  Status?: string;
+  /** The user who deployed the artifact */
+  DeployedBy?: string;
+  /** The timestamp when the artifact was deployed (ISO 8601 format) */
+  DeployedOn?: string;
+}
+

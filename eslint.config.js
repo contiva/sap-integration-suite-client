@@ -1,6 +1,7 @@
-import tseslint from 'typescript-eslint';
+const tseslint = require('typescript-eslint');
+const path = require('path');
 
-export default tseslint.config(
+module.exports = tseslint.config(
   {
     ignores: ['dist/**', 'node_modules/**', '*.js', '*.mjs', '*.cjs'],
   },
@@ -11,7 +12,7 @@ export default tseslint.config(
       parser: tseslint.parser,
       parserOptions: {
         project: './tsconfig.json',
-        tsconfigRootDir: import.meta.dirname,
+        tsconfigRootDir: __dirname,
       },
     },
     rules: {

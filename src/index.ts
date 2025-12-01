@@ -50,6 +50,7 @@ import * as SecurityContentTypes from './types/sap.SecurityContent';
 import * as B2BScenariosTypes from './types/sap.B2BScenarios';
 import * as PartnerDirectoryTypes from './types/sap.PartnerDirectory';
 import * as EnhancedLogTypes from './types/enhanced-logs';
+import { ArtifactStatusUpdate } from './types/cache';
 
 /**
  * Lazy-loaded default client
@@ -221,5 +222,10 @@ export {
   /**
    * Partner Directory Client Wrapper
    */
-  PartnerDirectoryClient
+  PartnerDirectoryClient,
+
+  /**
+   * Type definition for artifact status updates
+   */
+  ArtifactStatusUpdate
 }; 
