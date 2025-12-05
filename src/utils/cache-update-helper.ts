@@ -75,16 +75,54 @@ export function updateArtifactInCache(
           data: updated,
         };
       }
+      
+      // Heuristik: Struktur nicht erkannt oder semantisch andere Ressource
+      if (process.env.DEBUG === 'true') {
+        console.debug('[CacheUpdateHelper] Cache structure not recognized or semantically different resource. ' +
+          'Expected artifact array or single artifact object, but got:', {
+          hasData: !!data,
+          dataType: typeof data,
+          isArray: Array.isArray(data),
+          keys: data ? Object.keys(data).slice(0, 10) : [],
+          artifactId
+        });
+      }
       return null;
     }
     
     // If we have an array of artifacts, find and update the matching one
     if (artifacts) {
+      // Heuristik: Prüfe, ob Array die erwartete Struktur hat (z.B. Artefakte mit Id/id)
+      const hasExpectedStructure = artifacts.some((item: any) => 
+        item && typeof item === 'object' && (item.Id || item.id)
+      );
+      
+      if (!hasExpectedStructure && artifacts.length > 0) {
+        // Array hat nicht die erwartete Struktur (semantisch andere Ressource)
+        if (process.env.DEBUG === 'true') {
+          console.debug('[CacheUpdateHelper] Array structure does not match expected artifact format. ' +
+            'Expected artifacts with Id/id property, but got:', {
+            arrayLength: artifacts.length,
+            firstItemType: artifacts[0] ? typeof artifacts[0] : 'null',
+            firstItemKeys: artifacts[0] && typeof artifacts[0] === 'object' ? Object.keys(artifacts[0]).slice(0, 10) : [],
+            artifactId
+          });
+        }
+        return null; // No-op: Struktur nicht erkannt
+      }
+      
       const artifactIndex = artifacts.findIndex(
         (artifact: any) => artifact.Id === artifactId || artifact.id === artifactId
       );
       
       if (artifactIndex === -1) {
+        // Artifact not found in array - this is expected if artifact is not in this collection
+        if (process.env.DEBUG === 'true') {
+          console.debug('[CacheUpdateHelper] Artifact not found in array:', {
+            artifactId,
+            arrayLength: artifacts.length
+          });
+        }
         return null; // Artifact not found
       }
       
@@ -142,6 +180,17 @@ export function updateArtifactInCache(
       };
     }
     
+    // Heuristik: Keine erkannte Struktur gefunden
+    if (process.env.DEBUG === 'true') {
+      console.debug('[CacheUpdateHelper] No recognized cache structure found. ' +
+        'Expected array, OData format, or single artifact object, but got:', {
+        hasData: !!data,
+        dataType: typeof data,
+        isArray: Array.isArray(data),
+        dataKeys: data && typeof data === 'object' ? Object.keys(data).slice(0, 10) : [],
+        artifactId
+      });
+    }
     return null;
   } catch (error) {
     console.error('[CacheUpdateHelper] Error updating artifact in cache:', error);
@@ -284,4 +333,605 @@ export function updateArtifactInPackageCache(
   }
 }
 
+/**
+ * Gets a nested value from an object using a dot-notation path
+ * Supports array indexing (e.g. 'data.d.results[0].Status')
+ * 
+ * @param obj - The object to get the value from
+ * @param path - The dot-notation path (e.g. 'data.Status' or 'data.d.results[0].Status')
+ * @returns The value at the path, or undefined if the path doesn't exist
+ * 
+ * @example
+ * const value = getNestedValue(data, 'data.Status');
+ * const arrayValue = getNestedValue(data, 'data.d.results[0].Name');
+ */
+export function getNestedValue(obj: any, path: string): any {
+  if (!obj || !path) {
+    return undefined;
+  }
+
+  try {
+    const parts = path.split('.');
+    let current = obj;
+
+    for (const part of parts) {
+      // Check if part contains array index (e.g. 'results[0]')
+      const arrayMatch = part.match(/^(\w+)\[(\d+)\]$/);
+      
+      if (arrayMatch) {
+        const [, arrayName, index] = arrayMatch;
+        if (current && typeof current === 'object' && arrayName in current) {
+          const array = current[arrayName];
+          if (Array.isArray(array) && parseInt(index, 10) < array.length) {
+            current = array[parseInt(index, 10)];
+          } else {
+            return undefined;
+          }
+        } else {
+          return undefined;
+        }
+      } else {
+        if (current && typeof current === 'object' && part in current) {
+          current = current[part];
+        } else {
+          return undefined;
+        }
+      }
+    }
+
+    return current;
+  } catch (error) {
+    if (process.env.DEBUG === 'true') {
+      console.debug('[CacheUpdateHelper] Error getting nested value:', { path, error });
+    }
+    return undefined;
+  }
+}
+
+/**
+ * Sets a nested value in an object using a dot-notation path
+ * Supports array indexing (e.g. 'data.d.results[0].Status')
+ * Creates intermediate objects/arrays if they don't exist
+ * 
+ * @param obj - The object to set the value in
+ * @param path - The dot-notation path (e.g. 'data.Status' or 'data.d.results[0].Status')
+ * @param value - The value to set
+ * @returns true if the value was set successfully, false otherwise
+ * 
+ * @example
+ * setNestedValue(data, 'data.Status', 'STARTED');
+ * setNestedValue(data, 'data.d.results[0].Name', 'MyArtifact');
+ */
+export function setNestedValue(obj: any, path: string, value: any): boolean {
+  if (!obj || !path) {
+    if (process.env.DEBUG === 'true') {
+      console.debug('[CacheUpdateHelper] setNestedValue: Invalid input', { hasObj: !!obj, hasPath: !!path });
+    }
+    return false;
+  }
+
+  try {
+    const parts = path.split('.');
+    if (parts.length === 0) {
+      if (process.env.DEBUG === 'true') {
+        console.debug('[CacheUpdateHelper] setNestedValue: Empty path parts', { path });
+      }
+      return false;
+    }
+
+    let current = obj;
+
+    // Navigate to the parent of the target property
+    for (let i = 0; i < parts.length - 1; i++) {
+      const part = parts[i];
+      const arrayMatch = part.match(/^(\w+)\[(\d+)\]$/);
+      
+      if (arrayMatch) {
+        const [, arrayName, index] = arrayMatch;
+        // Check if current is a valid object and has the array property
+        if (!current || typeof current !== 'object' || Array.isArray(current)) {
+          if (process.env.DEBUG === 'true') {
+            console.debug('[CacheUpdateHelper] setNestedValue: Invalid current for array access', { 
+              part, 
+              currentType: typeof current, 
+              isArray: Array.isArray(current),
+              path 
+            });
+          }
+          return false;
+        }
+        // Use 'in' operator to check if property exists (more compatible with nested objects)
+        if (!(arrayName in current)) {
+          if (process.env.DEBUG === 'true') {
+            console.debug('[CacheUpdateHelper] setNestedValue: Array property not found', { 
+              arrayName, 
+              availableKeys: Object.keys(current).slice(0, 10),
+              path 
+            });
+          }
+          return false;
+        }
+        const array = current[arrayName];
+        if (!Array.isArray(array)) {
+          if (process.env.DEBUG === 'true') {
+            console.debug('[CacheUpdateHelper] setNestedValue: Property is not an array', { 
+              arrayName, 
+              actualType: typeof array,
+              path 
+            });
+          }
+          return false;
+        }
+        const arrayIndex = parseInt(index, 10);
+        if (isNaN(arrayIndex) || arrayIndex < 0 || arrayIndex >= array.length) {
+          if (process.env.DEBUG === 'true') {
+            console.debug('[CacheUpdateHelper] setNestedValue: Array index out of bounds', { 
+              arrayName, 
+              index: arrayIndex, 
+              arrayLength: array.length,
+              path 
+            });
+          }
+          return false;
+        }
+        current = array[arrayIndex];
+      } else {
+        // Check if current is a valid object (not null, not array, not primitive)
+        if (!current || typeof current !== 'object' || Array.isArray(current)) {
+          if (process.env.DEBUG === 'true') {
+            console.debug('[CacheUpdateHelper] setNestedValue: Invalid current for property access', { 
+              part, 
+              currentType: typeof current, 
+              isArray: Array.isArray(current),
+              path 
+            });
+          }
+          return false;
+        }
+        // Use 'in' operator to check if property exists (more compatible with nested objects)
+        if (!(part in current)) {
+          if (process.env.DEBUG === 'true') {
+            console.debug('[CacheUpdateHelper] setNestedValue: Property not found', { 
+              part, 
+              availableKeys: Object.keys(current).slice(0, 10),
+              path 
+            });
+          }
+          return false;
+        }
+        current = current[part];
+      }
+    }
+
+    // Set the value at the final path
+    const finalPart = parts[parts.length - 1];
+    const arrayMatch = finalPart.match(/^(\w+)\[(\d+)\]$/);
+    
+    if (arrayMatch) {
+      const [, arrayName, index] = arrayMatch;
+      if (!current || typeof current !== 'object' || Array.isArray(current)) {
+        if (process.env.DEBUG === 'true') {
+          console.debug('[CacheUpdateHelper] setNestedValue: Invalid current for final array access', { 
+            arrayName, 
+            currentType: typeof current,
+            path 
+          });
+        }
+        return false;
+      }
+      // Use 'in' operator to check if property exists (more compatible with nested objects)
+      if (!(arrayName in current)) {
+        if (process.env.DEBUG === 'true') {
+          console.debug('[CacheUpdateHelper] setNestedValue: Final array property not found', { 
+            arrayName, 
+            availableKeys: Object.keys(current).slice(0, 10),
+            path 
+          });
+        }
+        return false;
+      }
+      const array = current[arrayName];
+      if (!Array.isArray(array)) {
+        if (process.env.DEBUG === 'true') {
+          console.debug('[CacheUpdateHelper] setNestedValue: Final property is not an array', { 
+            arrayName, 
+            actualType: typeof array,
+            path 
+          });
+        }
+        return false;
+      }
+      const arrayIndex = parseInt(index, 10);
+      if (isNaN(arrayIndex) || arrayIndex < 0 || arrayIndex >= array.length) {
+        if (process.env.DEBUG === 'true') {
+          console.debug('[CacheUpdateHelper] setNestedValue: Final array index out of bounds', { 
+            arrayName, 
+            index: arrayIndex, 
+            arrayLength: array.length,
+            path 
+          });
+        }
+        return false;
+      }
+      array[arrayIndex] = value;
+    } else {
+      // For setting a property, we need current to be a non-null object (not array, not null, not primitive)
+      if (!current || typeof current !== 'object' || Array.isArray(current) || current === null) {
+        if (process.env.DEBUG === 'true') {
+          console.debug('[CacheUpdateHelper] setNestedValue: Invalid current for final property access', { 
+            finalPart, 
+            currentType: typeof current,
+            isArray: Array.isArray(current),
+            isNull: current === null,
+            current: JSON.stringify(current).substring(0, 100),
+            path 
+          });
+        }
+        return false;
+      }
+      // Set the value directly - we don't need to check if property exists for setting
+      current[finalPart] = value;
+      
+      if (process.env.DEBUG === 'true') {
+        console.debug('[CacheUpdateHelper] setNestedValue: Successfully set value', { 
+          finalPart, 
+          path,
+          valueType: typeof value
+        });
+      }
+    }
+
+    return true;
+  } catch (error) {
+    if (process.env.DEBUG === 'true') {
+      console.debug('[CacheUpdateHelper] Error setting nested value:', { path, value, error });
+    }
+    return false;
+  }
+}
+
+/**
+ * Adds an artifact to a cache array
+ * Handles various cache formats (Array, OData-Format, etc.)
+ * 
+ * @param cachedData - The cached data to update
+ * @param artifact - The artifact to add
+ * @param options - Optional configuration
+ * @param options.arrayPath - Custom dot-notation path to the array (e.g. 'data.custom.path')
+ * @param options.preventDuplicates - If true, prevents adding duplicate artifacts (checks Id/id property)
+ * @returns Updated cached data, or null if error or duplicate found (when preventDuplicates is true)
+ * 
+ * @example
+ * const updated = addArtifactToCacheArray(cachedData, newArtifact, {
+ *   preventDuplicates: true
+ * });
+ */
+export function addArtifactToCacheArray(
+  cachedData: CachedData,
+  artifact: any,
+  options?: {
+    arrayPath?: string;
+    preventDuplicates?: boolean;
+  }
+): CachedData | null {
+  try {
+    const data = cachedData.data;
+    
+    // Handle custom array path if provided
+    if (options?.arrayPath) {
+      const array = getNestedValue(data, options.arrayPath);
+      if (!Array.isArray(array)) {
+        if (process.env.DEBUG === 'true') {
+          console.debug('[CacheUpdateHelper] Custom array path does not point to an array:', {
+            arrayPath: options.arrayPath
+          });
+        }
+        return null;
+      }
+      
+      // Check for duplicates if enabled
+      if (options.preventDuplicates) {
+        const artifactId = artifact?.Id || artifact?.id;
+        if (artifactId) {
+          const duplicate = array.find((item: any) => 
+            item && (item.Id === artifactId || item.id === artifactId)
+          );
+          if (duplicate) {
+            if (process.env.DEBUG === 'true') {
+              console.debug('[CacheUpdateHelper] Duplicate artifact found, preventing addition:', {
+                artifactId
+              });
+            }
+            return null;
+          }
+        }
+      }
+      
+      // Add artifact to array
+      const updatedArray = [...array, artifact];
+      
+      // Reconstruct data structure with updated array
+      const updatedData = { ...data };
+      setNestedValue(updatedData, options.arrayPath, updatedArray);
+      
+      return {
+        ...cachedData,
+        data: updatedData,
+      };
+    }
+    
+    // Handle different cache formats
+    let artifacts: any[] | null = null;
+    let formatType: 'direct' | 'odata-v2' | 'odata-v4' | 'integration-packages' | 'integration-runtime-artifacts' | null = null;
+    
+    // Format 1: Direct array
+    if (Array.isArray(data)) {
+      artifacts = data;
+      formatType = 'direct';
+    }
+    // Format 2: OData v2 format (d.results)
+    else if (data?.d?.results && Array.isArray(data.d.results)) {
+      artifacts = data.d.results;
+      formatType = 'odata-v2';
+    }
+    // Format 3: OData v4 format (value array)
+    else if (data?.value && Array.isArray(data.value)) {
+      artifacts = data.value;
+      formatType = 'odata-v4';
+    }
+    // Format 4: IntegrationPackages format
+    else if (data?.IntegrationPackages && Array.isArray(data.IntegrationPackages)) {
+      artifacts = data.IntegrationPackages;
+      formatType = 'integration-packages';
+    }
+    // Format 5: IntegrationRuntimeArtifacts format
+    else if (data?.IntegrationRuntimeArtifacts && Array.isArray(data.IntegrationRuntimeArtifacts)) {
+      artifacts = data.IntegrationRuntimeArtifacts;
+      formatType = 'integration-runtime-artifacts';
+    }
+    
+    if (!artifacts) {
+      // Unrecognized format
+      if (process.env.DEBUG === 'true') {
+        console.debug('[CacheUpdateHelper] Cache structure not recognized for addArtifactToCacheArray. ' +
+          'Expected array, OData format, or known structure, but got:', {
+          hasData: !!data,
+          dataType: typeof data,
+          isArray: Array.isArray(data),
+          keys: data && typeof data === 'object' ? Object.keys(data).slice(0, 10) : [],
+        });
+      }
+      return null;
+    }
+    
+    // Check for duplicates if enabled
+    if (options?.preventDuplicates) {
+      const artifactId = artifact?.Id || artifact?.id;
+      if (artifactId) {
+        const duplicate = artifacts.find((item: any) => 
+          item && (item.Id === artifactId || item.id === artifactId)
+        );
+        if (duplicate) {
+          if (process.env.DEBUG === 'true') {
+            console.debug('[CacheUpdateHelper] Duplicate artifact found, preventing addition:', {
+              artifactId
+            });
+          }
+          return null;
+        }
+      }
+    }
+    
+    // Add artifact to array
+    const updatedArtifacts = [...artifacts, artifact];
+    
+    // Reconstruct the data structure with the updated array
+    let updatedData: any;
+    
+    if (formatType === 'direct') {
+      updatedData = updatedArtifacts;
+    } else if (formatType === 'odata-v2') {
+      updatedData = {
+        ...data,
+        d: {
+          ...data.d,
+          results: updatedArtifacts,
+        },
+      };
+    } else if (formatType === 'odata-v4') {
+      updatedData = {
+        ...data,
+        value: updatedArtifacts,
+      };
+    } else if (formatType === 'integration-packages') {
+      updatedData = {
+        ...data,
+        IntegrationPackages: updatedArtifacts,
+      };
+    } else if (formatType === 'integration-runtime-artifacts') {
+      updatedData = {
+        ...data,
+        IntegrationRuntimeArtifacts: updatedArtifacts,
+      };
+    } else {
+      updatedData = updatedArtifacts;
+    }
+    
+    return {
+      ...cachedData,
+      data: updatedData,
+    };
+  } catch (error) {
+    console.error('[CacheUpdateHelper] Error adding artifact to cache:', error);
+    return null;
+  }
+}
+
+/**
+ * Removes an artifact from a cache array
+ * Handles various cache formats (Array, OData-Format, etc.)
+ * 
+ * @param cachedData - The cached data to update
+ * @param artifactId - The ID of the artifact to remove
+ * @param options - Optional configuration
+ * @param options.arrayPath - Custom dot-notation path to the array (e.g. 'data.custom.path')
+ * @returns Updated cached data, or null if artifact not found or error occurred
+ * 
+ * @example
+ * const updated = removeArtifactFromCacheArray(cachedData, 'MyArtifactId');
+ */
+export function removeArtifactFromCacheArray(
+  cachedData: CachedData,
+  artifactId: string,
+  options?: {
+    arrayPath?: string;
+  }
+): CachedData | null {
+  try {
+    const data = cachedData.data;
+    
+    // Handle custom array path if provided
+    if (options?.arrayPath) {
+      const array = getNestedValue(data, options.arrayPath);
+      if (!Array.isArray(array)) {
+        if (process.env.DEBUG === 'true') {
+          console.debug('[CacheUpdateHelper] Custom array path does not point to an array:', {
+            arrayPath: options.arrayPath
+          });
+        }
+        return null;
+      }
+      
+      // Find and remove artifact
+      const artifactIndex = array.findIndex(
+        (item: any) => item && (item.Id === artifactId || item.id === artifactId)
+      );
+      
+      if (artifactIndex === -1) {
+        if (process.env.DEBUG === 'true') {
+          console.debug('[CacheUpdateHelper] Artifact not found in custom array path:', {
+            artifactId,
+            arrayPath: options.arrayPath
+          });
+        }
+        return null;
+      }
+      
+      // Remove artifact from array (immutable)
+      const updatedArray = array.filter((_, index) => index !== artifactIndex);
+      
+      // Reconstruct data structure with updated array
+      const updatedData = { ...data };
+      setNestedValue(updatedData, options.arrayPath, updatedArray);
+      
+      return {
+        ...cachedData,
+        data: updatedData,
+      };
+    }
+    
+    // Handle different cache formats
+    let artifacts: any[] | null = null;
+    let formatType: 'direct' | 'odata-v2' | 'odata-v4' | 'integration-packages' | 'integration-runtime-artifacts' | null = null;
+    
+    // Format 1: Direct array
+    if (Array.isArray(data)) {
+      artifacts = data;
+      formatType = 'direct';
+    }
+    // Format 2: OData v2 format (d.results)
+    else if (data?.d?.results && Array.isArray(data.d.results)) {
+      artifacts = data.d.results;
+      formatType = 'odata-v2';
+    }
+    // Format 3: OData v4 format (value array)
+    else if (data?.value && Array.isArray(data.value)) {
+      artifacts = data.value;
+      formatType = 'odata-v4';
+    }
+    // Format 4: IntegrationPackages format
+    else if (data?.IntegrationPackages && Array.isArray(data.IntegrationPackages)) {
+      artifacts = data.IntegrationPackages;
+      formatType = 'integration-packages';
+    }
+    // Format 5: IntegrationRuntimeArtifacts format
+    else if (data?.IntegrationRuntimeArtifacts && Array.isArray(data.IntegrationRuntimeArtifacts)) {
+      artifacts = data.IntegrationRuntimeArtifacts;
+      formatType = 'integration-runtime-artifacts';
+    }
+    
+    if (!artifacts) {
+      // Unrecognized format
+      if (process.env.DEBUG === 'true') {
+        console.debug('[CacheUpdateHelper] Cache structure not recognized for removeArtifactFromCacheArray. ' +
+          'Expected array, OData format, or known structure, but got:', {
+          hasData: !!data,
+          dataType: typeof data,
+          isArray: Array.isArray(data),
+          keys: data && typeof data === 'object' ? Object.keys(data).slice(0, 10) : [],
+          artifactId
+        });
+      }
+      return null;
+    }
+    
+    // Find artifact in array
+    const artifactIndex = artifacts.findIndex(
+      (item: any) => item && (item.Id === artifactId || item.id === artifactId)
+    );
+    
+    if (artifactIndex === -1) {
+      if (process.env.DEBUG === 'true') {
+        console.debug('[CacheUpdateHelper] Artifact not found in array:', {
+          artifactId,
+          arrayLength: artifacts.length
+        });
+      }
+      return null;
+    }
+    
+    // Remove artifact from array (immutable)
+    const updatedArtifacts = artifacts.filter((_, index) => index !== artifactIndex);
+    
+    // Reconstruct the data structure with the updated array
+    let updatedData: any;
+    
+    if (formatType === 'direct') {
+      updatedData = updatedArtifacts;
+    } else if (formatType === 'odata-v2') {
+      updatedData = {
+        ...data,
+        d: {
+          ...data.d,
+          results: updatedArtifacts,
+        },
+      };
+    } else if (formatType === 'odata-v4') {
+      updatedData = {
+        ...data,
+        value: updatedArtifacts,
+      };
+    } else if (formatType === 'integration-packages') {
+      updatedData = {
+        ...data,
+        IntegrationPackages: updatedArtifacts,
+      };
+    } else if (formatType === 'integration-runtime-artifacts') {
+      updatedData = {
+        ...data,
+        IntegrationRuntimeArtifacts: updatedArtifacts,
+      };
+    } else {
+      updatedData = updatedArtifacts;
+    }
+    
+    return {
+      ...cachedData,
+      data: updatedData,
+    };
+  } catch (error) {
+    console.error('[CacheUpdateHelper] Error removing artifact from cache:', error);
+    return null;
+  }
+}
 

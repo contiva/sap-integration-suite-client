@@ -14,9 +14,11 @@ describe('SAP Integration Suite - Important Tests', () => {
   
   let client;
   
-  beforeAll(() => {
+  beforeAll(async () => {
     // Erstelle einen neuen SapClient vor den Tests
     client = new SapClient();
+    // Wait a bit for cache manager to initialize (or fail gracefully)
+    await new Promise(resolve => setTimeout(resolve, 100));
   });
   
   test('should successfully retrieve packages with artifacts', async () => {

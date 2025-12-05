@@ -1,5 +1,6 @@
 .env.otto*
 .env
+.env.e2e
 node_modules
 logs
 dist

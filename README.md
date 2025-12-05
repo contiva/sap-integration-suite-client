@@ -25,6 +25,9 @@ Available on npm: [sap-integration-suite-client](https://www.npmjs.com/package/s
   - [Extension Framework](#extending-your-project)
 - [Error Handling](#-error-handling)
 - [API Documentation](#-api-documentation)
+- [Testing](#-testing)
+  - [Unit and Integration Tests](#unit-and-integration-tests)
+  - [End-to-End Tests](#end-to-end-tests)
 - [Troubleshooting](#-troubleshooting)
 - [License](#-license)
 
@@ -634,6 +637,72 @@ Die Dokumentation wird mit [TypeDoc](https://typedoc.org/) generiert und enthäl
 - 🔗 Verlinkte Referenzen zwischen Typen
 
 **Weitere Details**: Siehe [DOCS.md](./DOCS.md) für eine ausführliche Anleitung zur Dokumentation.
+
+## 🧪 Testing
+
+Das Projekt enthält verschiedene Test-Typen, die für unterschiedliche Zwecke verwendet werden.
+
+### Unit and Integration Tests
+
+Normale Tests (Unit- und Integration-Tests) befinden sich in `tests/units/` und `tests/integration/` und werden bei `npm run test` ausgeführt:
+
+```bash
+npm run test
+```
+
+Diese Tests:
+- Sind schnell und unabhängig
+- Können Mock-Daten verwenden
+- Werden automatisch bei jedem Test-Lauf ausgeführt
+- Haben keine Abhängigkeiten zu echten SAP-Systemen
+
+### End-to-End Tests
+
+End-to-End-Tests arbeiten mit echten SAP-Systemen und echten Daten. Sie sind explizit getrennt von den normalen Tests und werden nur auf explizite Anforderung ausgeführt.
+
+#### Einrichtung
+
+1. Kopieren Sie die Beispiel-Umgebungsvariablen:
+```bash
+cp .env.e2e.example .env.e2e
+```
+
+2. Bearbeiten Sie `.env.e2e` und tragen Sie Ihre echten SAP-Credentials ein:
+```env
+SAP_BASE_URL=https://your-tenant.integrationsuitetrial-api.eu10.hana.ondemand.com/api/v1
+SAP_OAUTH_CLIENT_ID=your-client-id
+SAP_OAUTH_CLIENT_SECRET=your-client-secret
+SAP_OAUTH_TOKEN_URL=https://your-tenant.authentication.eu10.hana.ondemand.com/oauth/token
+REDIS_CONNECTION_STRING=redis://localhost:6379
+REDIS_ENABLED=true
+```
+
+#### Ausführung
+
+```bash
+# Alle E2E-Tests ausführen
+npm run test:e2e
+
+# Watch-Mode für Entwicklung
+npm run test:e2e:watch
+
+# Verbose-Mode für detailliertes Logging
+npm run test:e2e:verbose
+```
+
+#### Unterschiede zu normalen Tests
+
+| Feature | Normale Tests | E2E-Tests |
+|---------|--------------|-----------|
+| Ausführung | `npm run test` | `npm run test:e2e` |
+| Daten | Mock-Daten möglich | Echte SAP-Daten |
+| Geschwindigkeit | Schnell | Langsamer (echte API-Calls) |
+| Abhängigkeiten | Keine externen Systeme | Benötigt SAP-System |
+| Timeout | 30 Sekunden | 60 Sekunden |
+
+**Wichtig**: E2E-Tests werden **nicht** bei `npm run test` ausgeführt und sind standardmäßig in CI/CD-Pipelines deaktiviert.
+
+Weitere Informationen finden Sie in der [E2E-Test-Dokumentation](./tests/e2e/README.md).
 
 ## ❓ Troubleshooting
 

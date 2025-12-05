@@ -343,22 +343,28 @@ class SapClient {
         }
       }
       // Option 2: Create new cache manager if Redis is enabled
-      else if (redisEnabled && redisConnectionString) {
-      // Use OAuth client secret for encryption if available
-      this._cacheManager = new CacheManager(
-        redisConnectionString, 
-        true, 
-        this.oauthClientSecret // Use client secret for cache encryption
-      );
+      else if (redisEnabled && redisConnectionString && redisConnectionString.trim().length > 0) {
+        // Use OAuth client secret for encryption if available
+        this._cacheManager = new CacheManager(
+          redisConnectionString,
+          true,
+          this.oauthClientSecret // Use client secret for cache encryption
+        );
         this.isExternalCacheManager = false;
-      // Connect to Redis asynchronously (non-blocking)
-      this._cacheManager.connect().catch((err) => {
-        console.error('[SapClient] Failed to connect to Redis:', err);
-        this._cacheManager = null;
-      });
+
+        // Connect to Redis asynchronously (non-blocking)
+        this._cacheManager.connect().catch((err) => {
+          console.error('[SapClient] Failed to connect to Redis:', err);
+          // Disable cache manager if connection fails
+          if (this._cacheManager) {
+            this._cacheManager.disable();
+          }
+          this._cacheManager = null;
+        });
+
         if (this.debugMode) {
           console.debug('[SapClient] Created new CacheManager instance');
-    }
+        }
       }
     }
     if (this.debugMode) {
@@ -941,13 +947,14 @@ class SapClient {
       }
 
       // Check if caching should be applied
+      const cacheable = isCacheableUrl(url);
       const shouldCache = method === 'GET' 
         && this._cacheManager 
         && this._cacheManager.isReady() 
-        && isCacheableUrl(url);
+        && cacheable;
 
       if (this.debugMode) {
-        console.log(`[SapClient] Cache check for ${url}: shouldCache=${shouldCache}, method=${method}, cacheManager=${!!this._cacheManager}, isReady=${this._cacheManager?.isReady()}, isCacheable=${isCacheableUrl(url)}`);
+        console.log(`[SapClient] Cache check for ${url}: shouldCache=${shouldCache}, method=${method}, cacheManager=${!!this._cacheManager}, isReady=${this._cacheManager?.isReady()}, isCacheable=${cacheable}`);
       }
       
       // Extract endpoint for logging
@@ -1290,6 +1297,82 @@ class SapClient {
     
   }
   
+  /**
+   * Invalidates cache entries matching a pattern
+   * 
+   * This is a convenience wrapper around CacheManager.deleteByPattern that
+   * automatically generates the hostname prefix for the cache key pattern.
+   * 
+   * @param pattern - The pattern to match (without hostname prefix, e.g. 'GET:/IntegrationRuntimeArtifacts*')
+   * @returns The number of cache keys deleted
+   * 
+   * @example
+   * // Invalidate all cache entries for a specific artifact
+   * const deleted = await client.invalidateCache(`GET:/IntegrationRuntimeArtifacts('artifactId')*`);
+   * 
+   * // Invalidate all runtime artifacts
+   * const deleted = await client.invalidateCache('GET:/IntegrationRuntimeArtifacts*');
+   */
+  public async invalidateCache(pattern: string): Promise<number> {
+    if (!this._cacheManager || !this._cacheManager.isReady()) {
+      return 0;
+    }
+
+    // Generate full pattern with hostname prefix
+    const fullPattern = `sap:${this.hostname}:${pattern}`;
+    
+    return await this._cacheManager.deleteByPattern(fullPattern);
+  }
+
+  /**
+   * Invalidates all cache entries for a specific artifact
+   * 
+   * This is a convenience method that invalidates both the runtime artifact cache
+   * and optionally the package cache containing the artifact.
+   * 
+   * **Important**: This method also invalidates the corresponding collection caches
+   * (e.g., `GET:/IntegrationRuntimeArtifacts*` and `GET:/IntegrationPackages*`) to ensure
+   * consistency between single-item and collection caches.
+   * 
+   * @param artifactId - The ID of the artifact to invalidate
+   * @param packageId - Optional package ID to also invalidate the package cache
+   * @returns The total number of cache keys deleted
+   * 
+   * @example
+   * // Invalidate cache for an artifact (includes collection cache)
+   * const deleted = await client.invalidateArtifactCache('MyArtifact');
+   * 
+   * // Invalidate cache for an artifact and its package (includes all collection caches)
+   * const deleted = await client.invalidateArtifactCache('MyArtifact', 'MyPackage');
+   */
+  public async invalidateArtifactCache(artifactId: string, packageId?: string): Promise<number> {
+    if (!this._cacheManager || !this._cacheManager.isReady()) {
+      return 0;
+    }
+
+    let totalDeleted = 0;
+
+    // Invalidate runtime artifact cache
+    const runtimePattern = `GET:/IntegrationRuntimeArtifacts('${artifactId}')*`;
+    totalDeleted += await this.invalidateCache(runtimePattern);
+
+    // Also invalidate collection cache (all runtime artifacts)
+    const collectionPattern = 'GET:/IntegrationRuntimeArtifacts*';
+    totalDeleted += await this.invalidateCache(collectionPattern);
+
+    // Optionally invalidate package cache
+    if (packageId) {
+      const packagePattern = `GET:/IntegrationPackages('${packageId}')*`;
+      totalDeleted += await this.invalidateCache(packagePattern);
+
+      // Also invalidate collection cache (all packages)
+      const packagesCollectionPattern = 'GET:/IntegrationPackages*';
+      totalDeleted += await this.invalidateCache(packagesCollectionPattern);
+    }
+
+    return totalDeleted;
+  }
+
   /**
    * Closes all connections and cleans up resources
    * 

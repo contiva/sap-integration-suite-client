@@ -49,6 +49,8 @@ import { CacheManager } from '../core/cache-manager';
 import { ArtifactStatusUpdate } from '../types/cache';
 import { updateArtifactInCache, updateArtifactInPackageCache } from '../utils/cache-update-helper';
 import { extractHostname } from '../utils/hostname-extractor';
+import { getCollectionPatterns } from '../utils/cache-collections-config';
+import { cacheLogger } from '../utils/cache-logger';
 
 /**
  * Erweiterter SAP Integration Content Client
@@ -2111,6 +2113,16 @@ export class IntegrationContentClient {
    * Aktualisiert den Status eines Artefakts im Cache
    * Aktualisiert nur den Status, ohne das gesamte Package neu abzurufen
    * 
+   * **Wichtig**: Diese Methode aktualisiert das Artefakt in:
+   * - Einzelnes Artefakt-Cache: `GET:/IntegrationRuntimeArtifacts('artifactId')`
+   * - Collection-Caches: `GET:/IntegrationRuntimeArtifacts` (alle Artefakte)
+   * - Package-Cache: `GET:/IntegrationPackages('packageId')` (falls packageId angegeben)
+   * - Collection-Caches: `GET:/IntegrationPackages` (alle Packages)
+   * - Weitere Collection-Endpunkte: `GET:/IntegrationDesigntimeArtifacts`, `GET:/MessageMappingDesigntimeArtifacts`, etc.
+   * 
+   * Dies stellt sicher, dass beim Aufruf von Methoden wie `getDeployedArtifacts()` oder `getAllIntegrationFlows()`
+   * der aktualisierte Status in den gecachten Ergebnissen reflektiert wird.
+   * 
    * @param {string} artifactId - Die ID des Artefakts
    * @param {ArtifactStatusUpdate} statusData - Die Status-Daten zum Aktualisieren
    * @param {string} [packageId] - Optional: Die Package-ID (wird aus Cache ermittelt falls nicht angegeben)
@@ -2118,11 +2130,19 @@ export class IntegrationContentClient {
    * @returns {Promise<void>} Promise, der aufgelöst wird, wenn das Update abgeschlossen ist
    * 
    * @example
+   * // Status nach Deployment aktualisieren
    * await client.updateArtifactStatus('MyArtifact', {
    *   Status: 'STARTED',
    *   DeployedBy: 'user@example.com',
    *   DeployedOn: '2024-01-01T00:00:00Z'
    * }, 'MyPackage');
+   * 
+   * // Dies aktualisiert:
+   * // - Einzelnes Artefakt-Cache: GET:/IntegrationRuntimeArtifacts('MyArtifact')
+   * // - Collection-Cache: GET:/IntegrationRuntimeArtifacts (alle Artefakte)
+   * // - Package-Cache: GET:/IntegrationPackages('MyPackage')
+   * // - Collection-Cache: GET:/IntegrationPackages (alle Packages)
+   * // - Alle anderen Collection-Caches, die dieses Artefakt enthalten
    */
   async updateArtifactStatus(
     artifactId: string,
@@ -2132,25 +2152,31 @@ export class IntegrationContentClient {
   ): Promise<void> {
     // Input-Validierung: Prüfe artifactId
     if (!artifactId || typeof artifactId !== 'string' || artifactId.trim().length === 0) {
-      if (process.env.DEBUG === 'true') {
-        console.warn('[IntegrationContentClient] Invalid artifactId provided');
-      }
+      cacheLogger.warn(
+        'Invalid artifactId provided',
+        'IntegrationContentClient',
+        { artifactId: artifactId || 'undefined' }
+      );
       return;
     }
 
     // Input-Validierung: Prüfe statusData
     if (!statusData || typeof statusData !== 'object' || Object.keys(statusData).length === 0) {
-      if (process.env.DEBUG === 'true') {
-        console.warn('[IntegrationContentClient] Invalid or empty statusData provided');
-      }
+      cacheLogger.warn(
+        'Invalid or empty statusData provided',
+        'IntegrationContentClient',
+        { artifactId }
+      );
       return;
     }
 
     // Wenn kein CacheManager vorhanden ist, gibt es nichts zu tun
     if (!this.cacheManager || !this.cacheManager.isReady()) {
-      if (process.env.DEBUG === 'true') {
-        console.log('[IntegrationContentClient] CacheManager nicht verfügbar, überspringe Status-Update');
-      }
+      cacheLogger.debug(
+        'CacheManager nicht verfügbar, überspringe Status-Update',
+        'IntegrationContentClient',
+        { artifactId }
+      );
       return;
     }
 
@@ -2162,28 +2188,43 @@ export class IntegrationContentClient {
       }
       
       if (!hostname) {
-        if (process.env.DEBUG === 'true') {
-          console.log('[IntegrationContentClient] Hostname nicht verfügbar, überspringe Status-Update');
-        }
+        cacheLogger.debug(
+          'Hostname nicht verfügbar, überspringe Status-Update',
+          'IntegrationContentClient',
+          { artifactId }
+        );
         return;
       }
 
       // Cache-Keys finden
       const patterns: string[] = [];
       
-      // Pattern für Runtime-Artefakt
+      // Pattern für einzelnes Runtime-Artefakt
       // Das '*' am Ende matched auch Cache-Keys mit Query-Parameter-Hash:
       // - sap:hostname:GET:/IntegrationRuntimeArtifacts('artifactId')
       // - sap:hostname:GET:/IntegrationRuntimeArtifacts('artifactId'):hash
       patterns.push(`sap:${hostname}:GET:/IntegrationRuntimeArtifacts('${artifactId}')*`);
       
-      // Pattern für Package (falls packageId angegeben)
+      // Pattern für Collection: Alle deployten Artefakte
+      // Wichtig: Das '*' muss am Ende sein, um auch Keys mit Query-Parameter-Hash zu matchen
+      patterns.push(`sap:${hostname}:GET:/IntegrationRuntimeArtifacts*`);
+      
+      // Pattern für einzelnes Package (falls packageId angegeben)
       // Das '*' am Ende matched auch Cache-Keys mit Query-Parameter-Hash
       if (packageId) {
         patterns.push(`sap:${hostname}:GET:/IntegrationPackages('${packageId}')*`);
       }
+      
+      // Pattern für Collection: Alle Packages
+      patterns.push(`sap:${hostname}:GET:/IntegrationPackages*`);
+      
+      // Weitere Collection-Endpunkte aus zentraler Konfiguration laden
+      // Die Liste wird in cache-collections-config.ts gepflegt (nicht hart kodiert)
+      const additionalCollectionPatterns = getCollectionPatterns(hostname);
+      patterns.push(...additionalCollectionPatterns);
 
       // Tracking für Logging
+      const startTime = Date.now();
       let totalKeysFound = 0;
       let totalKeysUpdated = 0;
 
@@ -2199,8 +2240,15 @@ export class IntegrationContentClient {
             const isRuntimeArtifact = key.includes(`IntegrationRuntimeArtifacts('${artifactId}')`);
             const isPackage = packageId ? key.includes(`IntegrationPackages('${packageId}')`) : false;
             
-            if (isRuntimeArtifact) {
-              // Runtime-Artefakt aktualisieren
+            // Prüfen, ob es ein Collection-Key ist (enthält keine spezifische ID im Key-Namen)
+            const isRuntimeCollection = key.includes('GET:/IntegrationRuntimeArtifacts') && 
+                                       !key.includes(`IntegrationRuntimeArtifacts('${artifactId}')`);
+            const isPackageCollection = key.includes('GET:/IntegrationPackages') && 
+                                       (!packageId || !key.includes(`IntegrationPackages('${packageId}')`));
+            
+            if (isRuntimeArtifact || isRuntimeCollection) {
+              // Runtime-Artefakt oder Collection mit Runtime-Artefakten aktualisieren
+              // updateArtifactInCache unterstützt bereits Arrays und findet das Artefakt automatisch
               const success = await this.cacheManager.updatePartial(key, (cachedData) => {
                 const updated = updateArtifactInCache(cachedData, artifactId, statusData);
                 return updated || cachedData; // Falls Update fehlschlägt, Original zurückgeben
@@ -2208,10 +2256,20 @@ export class IntegrationContentClient {
               if (success) {
                 totalKeysUpdated++;
               }
-            } else if (isPackage) {
-              // Package-Cache aktualisieren
+            } else if (isPackage || isPackageCollection) {
+              // Package-Cache aktualisieren (einzelnes Package oder Collection)
               const success = await this.cacheManager.updatePartial(key, (cachedData) => {
                 const updated = updateArtifactInPackageCache(cachedData, artifactId, statusData);
+                return updated || cachedData; // Falls Update fehlschlägt, Original zurückgeben
+              });
+              if (success) {
+                totalKeysUpdated++;
+              }
+            } else {
+              // Andere Collection-Endpunkte (z.B. IntegrationDesigntimeArtifacts, MessageMappingDesigntimeArtifacts, etc.)
+              // Versuche updateArtifactInCache - unterstützt bereits verschiedene Formate
+              const success = await this.cacheManager.updatePartial(key, (cachedData) => {
+                const updated = updateArtifactInCache(cachedData, artifactId, statusData);
                 return updated || cachedData; // Falls Update fehlschlägt, Original zurückgeben
               });
               if (success) {
@@ -2221,23 +2279,466 @@ export class IntegrationContentClient {
           }
         } catch (error) {
           // Fehler loggen, aber nicht weiterwerfen (asynchron)
-          if (process.env.DEBUG === 'true') {
-            console.error(`[IntegrationContentClient] Fehler beim Aktualisieren von Cache-Keys für Pattern ${pattern}:`, error);
-          }
+          cacheLogger.error(
+            `Fehler beim Aktualisieren von Cache-Keys für Pattern`,
+            'IntegrationContentClient',
+            { pattern, artifactId, packageId },
+            error as Error
+          );
         }
       }
 
-      // Logging der Ergebnisse
+      // Strukturiertes Logging der Ergebnisse
+      const duration = Date.now() - startTime;
       if (totalKeysFound === 0) {
-        console.warn(`[IntegrationContentClient] No cache keys found for artifact ${artifactId}${packageId ? ` in package ${packageId}` : ''}`);
+        cacheLogger.warn(
+          'No cache keys found for artifact',
+          'IntegrationContentClient',
+          {
+            artifactId,
+            packageId: packageId || undefined,
+            patterns: patterns.length,
+            duration,
+          }
+        );
       } else {
-        console.log(`[IntegrationContentClient] Updated ${totalKeysUpdated}/${totalKeysFound} cache keys for artifact ${artifactId}${packageId ? ` in package ${packageId}` : ''}`);
+        cacheLogger.info(
+          'Cache keys updated for artifact',
+          'IntegrationContentClient',
+          {
+            artifactId,
+            packageId: packageId || undefined,
+            keysFound: totalKeysFound,
+            keysUpdated: totalKeysUpdated,
+            patterns: patterns.length,
+            duration,
+            successRate: totalKeysUpdated / totalKeysFound,
+          }
+        );
       }
     } catch (error) {
       // Fehler loggen, aber nicht weiterwerfen (asynchron)
-      if (process.env.DEBUG === 'true') {
-        console.error('[IntegrationContentClient] Fehler beim Aktualisieren des Artefakt-Status:', error);
+      cacheLogger.error(
+        'Fehler beim Aktualisieren des Artefakt-Status',
+        'IntegrationContentClient',
+        { artifactId, packageId: packageId || undefined },
+        error as Error
+      );
+    }
+  }
+
+  /**
+   * Adds an artifact to relevant collection caches
+   * Finds all collection cache keys matching the patterns and adds the artifact to them
+   * 
+   * @param artifact - The artifact to add to the cache
+   * @param options - Optional configuration
+   * @param options.cachePatterns - Custom cache key patterns to search (defaults to collection patterns)
+   * @param options.preventDuplicates - If true, prevents adding duplicate artifacts
+   * @returns The number of cache keys that were successfully updated
+   * 
+   * @example
+   * const updatedCount = await client.addArtifactToCache(newArtifact, {
+   *   preventDuplicates: true
+   * });
+   */
+  async addArtifactToCache(
+    artifact: any,
+    options?: {
+      cachePatterns?: string[];
+      preventDuplicates?: boolean;
+    }
+  ): Promise<number> {
+    if (!this.cacheManager || !this.cacheManager.isReady()) {
+      return 0;
+    }
+
+    try {
+      let hostname = this.hostname;
+      if (!hostname) {
+        const baseUrl = this.api['baseUrl'];
+        if (baseUrl) {
+          hostname = extractHostname(baseUrl);
+        }
       }
+      if (!hostname) {
+        cacheLogger.warn(
+          'Cannot add artifact to cache: hostname not available',
+          'IntegrationContentClient',
+          { artifactId: artifact?.Id || artifact?.id }
+        );
+        return 0;
+      }
+
+      // Get cache patterns
+      const patterns: string[] = options?.cachePatterns || getCollectionPatterns(hostname);
+
+      // Tracking für Logging
+      const startTime = Date.now();
+      let totalKeysFound = 0;
+      let totalKeysUpdated = 0;
+
+      // Process all patterns in parallel
+      const updatePromises = patterns.map(async (pattern) => {
+        try {
+          const keys = await this.cacheManager!.findKeysByPattern(pattern);
+          totalKeysFound += keys.length;
+
+          // Process all keys for this pattern in parallel
+          const keyUpdatePromises = keys.map(async (key) => {
+            try {
+              const success = await this.cacheManager!.addToCache(key, artifact, {
+                preventDuplicates: options?.preventDuplicates,
+              });
+              if (success) {
+                totalKeysUpdated++;
+              }
+            } catch (error) {
+              cacheLogger.error(
+                'Error adding artifact to cache key',
+                'IntegrationContentClient',
+                { key, artifactId: artifact?.Id || artifact?.id },
+                error as Error
+              );
+            }
+          });
+
+          await Promise.allSettled(keyUpdatePromises);
+        } catch (error) {
+          cacheLogger.error(
+            'Error processing pattern for addArtifactToCache',
+            'IntegrationContentClient',
+            { pattern, artifactId: artifact?.Id || artifact?.id },
+            error as Error
+          );
+        }
+      });
+
+      await Promise.allSettled(updatePromises);
+
+      // Strukturiertes Logging der Ergebnisse
+      const duration = Date.now() - startTime;
+      if (totalKeysFound === 0) {
+        cacheLogger.warn(
+          'No cache keys found for artifact addition',
+          'IntegrationContentClient',
+          {
+            artifactId: artifact?.Id || artifact?.id,
+            patterns: patterns.length,
+            duration,
+          }
+        );
+      } else {
+        cacheLogger.info(
+          'Cache keys updated for artifact addition',
+          'IntegrationContentClient',
+          {
+            artifactId: artifact?.Id || artifact?.id,
+            keysFound: totalKeysFound,
+            keysUpdated: totalKeysUpdated,
+            patterns: patterns.length,
+            duration,
+            successRate: totalKeysUpdated / totalKeysFound,
+          }
+        );
+      }
+
+      return totalKeysUpdated;
+    } catch (error) {
+      cacheLogger.error(
+        'Error adding artifact to cache',
+        'IntegrationContentClient',
+        { artifactId: artifact?.Id || artifact?.id },
+        error as Error
+      );
+      return 0;
+    }
+  }
+
+  /**
+   * Removes an artifact from relevant collection caches
+   * Finds all collection cache keys matching the patterns and removes the artifact from them
+   * 
+   * @param artifactId - The ID of the artifact to remove from the cache
+   * @param options - Optional configuration
+   * @param options.cachePatterns - Custom cache key patterns to search (defaults to collection patterns)
+   * @returns The number of cache keys that were successfully updated
+   * 
+   * @example
+   * const updatedCount = await client.removeArtifactFromCache('MyArtifactId');
+   */
+  async removeArtifactFromCache(
+    artifactId: string,
+    options?: {
+      cachePatterns?: string[];
+    }
+  ): Promise<number> {
+    if (!this.cacheManager || !this.cacheManager.isReady()) {
+      return 0;
+    }
+
+    try {
+      let hostname = this.hostname;
+      if (!hostname) {
+        const baseUrl = this.api['baseUrl'];
+        if (baseUrl) {
+          hostname = extractHostname(baseUrl);
+        }
+      }
+      if (!hostname) {
+        cacheLogger.warn(
+          'Cannot remove artifact from cache: hostname not available',
+          'IntegrationContentClient',
+          { artifactId }
+        );
+        return 0;
+      }
+
+      // Get cache patterns
+      const patterns: string[] = options?.cachePatterns || getCollectionPatterns(hostname);
+
+      // Tracking für Logging
+      const startTime = Date.now();
+      let totalKeysFound = 0;
+      let totalKeysUpdated = 0;
+
+      // Process all patterns in parallel
+      const updatePromises = patterns.map(async (pattern) => {
+        try {
+          const keys = await this.cacheManager!.findKeysByPattern(pattern);
+          totalKeysFound += keys.length;
+
+          // Process all keys for this pattern in parallel
+          const keyUpdatePromises = keys.map(async (key) => {
+            try {
+              const success = await this.cacheManager!.removeFromCache(key, artifactId);
+              if (success) {
+                totalKeysUpdated++;
+              }
+            } catch (error) {
+              cacheLogger.error(
+                'Error removing artifact from cache key',
+                'IntegrationContentClient',
+                { key, artifactId },
+                error as Error
+              );
+            }
+          });
+
+          await Promise.allSettled(keyUpdatePromises);
+        } catch (error) {
+          cacheLogger.error(
+            'Error processing pattern for removeArtifactFromCache',
+            'IntegrationContentClient',
+            { pattern, artifactId },
+            error as Error
+          );
+        }
+      });
+
+      await Promise.allSettled(updatePromises);
+
+      // Strukturiertes Logging der Ergebnisse
+      const duration = Date.now() - startTime;
+      if (totalKeysFound === 0) {
+        cacheLogger.warn(
+          'No cache keys found for artifact removal',
+          'IntegrationContentClient',
+          {
+            artifactId,
+            patterns: patterns.length,
+            duration,
+          }
+        );
+      } else {
+        cacheLogger.info(
+          'Cache keys updated for artifact removal',
+          'IntegrationContentClient',
+          {
+            artifactId,
+            keysFound: totalKeysFound,
+            keysUpdated: totalKeysUpdated,
+            patterns: patterns.length,
+            duration,
+            successRate: totalKeysUpdated / totalKeysFound,
+          }
+        );
+      }
+
+      return totalKeysUpdated;
+    } catch (error) {
+      cacheLogger.error(
+        'Error removing artifact from cache',
+        'IntegrationContentClient',
+        { artifactId },
+        error as Error
+      );
+      return 0;
+    }
+  }
+
+  /**
+   * Warms the cache by pre-loading frequently used endpoints
+   * 
+   * @param options - Optional configuration for cache warming
+   * @param options.endpoints - Custom endpoints to warm (array of endpoint paths like '/IntegrationPackages')
+   * @param options.includePackages - Whether to include IntegrationPackages endpoint (default: true)
+   * @param options.includeArtifacts - Whether to include IntegrationRuntimeArtifacts endpoint (default: true)
+   * @param options.includeDesigntimeArtifacts - Whether to include IntegrationDesigntimeArtifacts endpoint (default: false)
+   * @returns The number of endpoints successfully warmed
+   * 
+   * @example
+   * // Warm all standard endpoints
+   * const count = await client.warmCache();
+   * 
+   * @example
+   * // Warm only packages
+   * const count = await client.warmCache({ includeArtifacts: false });
+   * 
+   * @example
+   * // Warm custom endpoints
+   * const count = await client.warmCache({ endpoints: ['/IntegrationPackages', '/CustomEndpoint'] });
+   */
+  async warmCache(options?: {
+    endpoints?: string[];
+    includePackages?: boolean;
+    includeArtifacts?: boolean;
+    includeDesigntimeArtifacts?: boolean;
+  }): Promise<number> {
+    if (!this.cacheManager || !this.cacheManager.isReady()) {
+      return 0;
+    }
+
+    try {
+      // Get hostname
+      let hostname = this.hostname;
+      if (!hostname) {
+        const baseUrl = this.api['baseUrl'];
+        if (baseUrl) {
+          hostname = extractHostname(baseUrl);
+        }
+      }
+      if (!hostname) {
+        cacheLogger.warn(
+          'Cannot warm cache: hostname not available',
+          'IntegrationContentClient',
+          {}
+        );
+        return 0;
+      }
+
+      // Build list of endpoints to warm
+      const endpointsToWarm: Array<{
+        key: string;
+        fetchFn: () => Promise<any>;
+        options?: { ttl: number; revalidateAfter: number };
+      }> = [];
+
+      // Add custom endpoints if provided
+      if (options?.endpoints) {
+        for (const endpoint of options.endpoints) {
+          const cacheKey = `sap:${hostname}:GET:${endpoint}`;
+          
+          // Determine fetch function based on endpoint
+          let fetchFn: () => Promise<any>;
+          if (endpoint.includes('/IntegrationPackages')) {
+            fetchFn = () => this.getIntegrationPackages();
+          } else if (endpoint.includes('/IntegrationRuntimeArtifacts')) {
+            fetchFn = () => this.getDeployedArtifacts();
+          } else if (endpoint.includes('/IntegrationDesigntimeArtifacts')) {
+            fetchFn = () => this.getAllIntegrationFlows();
+          } else {
+            // Unknown endpoint - skip or use a generic fetch
+            continue;
+          }
+
+          endpointsToWarm.push({
+            key: cacheKey,
+            fetchFn,
+            options: {
+              ttl: 3600, // 1 hour
+              revalidateAfter: 1800, // 30 minutes
+            },
+          });
+        }
+      }
+
+      // Add standard endpoints based on flags
+      const includePackages = options?.includePackages !== false; // Default: true
+      const includeArtifacts = options?.includeArtifacts !== false; // Default: true
+      const includeDesigntimeArtifacts = options?.includeDesigntimeArtifacts === true; // Default: false
+
+      if (includePackages) {
+        const cacheKey = `sap:${hostname}:GET:/IntegrationPackages`;
+        endpointsToWarm.push({
+          key: cacheKey,
+          fetchFn: () => this.getIntegrationPackages(),
+          options: {
+            ttl: 3600,
+            revalidateAfter: 1800,
+          },
+        });
+      }
+
+      if (includeArtifacts) {
+        const cacheKey = `sap:${hostname}:GET:/IntegrationRuntimeArtifacts`;
+        endpointsToWarm.push({
+          key: cacheKey,
+          fetchFn: () => this.getDeployedArtifacts(),
+          options: {
+            ttl: 3600,
+            revalidateAfter: 1800,
+          },
+        });
+      }
+
+      if (includeDesigntimeArtifacts) {
+        const cacheKey = `sap:${hostname}:GET:/IntegrationDesigntimeArtifacts`;
+        endpointsToWarm.push({
+          key: cacheKey,
+          fetchFn: () => this.getAllIntegrationFlows(),
+          options: {
+            ttl: 3600,
+            revalidateAfter: 1800,
+          },
+        });
+      }
+
+      if (endpointsToWarm.length === 0) {
+        cacheLogger.warn(
+          'No endpoints to warm',
+          'IntegrationContentClient',
+          {}
+        );
+        return 0;
+      }
+
+      // Call cacheManager.warmCache
+      const result = await this.cacheManager.warmCache(endpointsToWarm, {
+        timeout: 30000, // 30 seconds per endpoint
+        parallel: true,
+      });
+
+      cacheLogger.info(
+        'Cache warming completed',
+        'IntegrationContentClient',
+        {
+          total: endpointsToWarm.length,
+          success: result.success,
+          failed: result.failed,
+          duration: result.duration,
+        }
+      );
+
+      return result.success;
+    } catch (error) {
+      cacheLogger.error(
+        'Error warming cache',
+        'IntegrationContentClient',
+        {},
+        error as Error
+      );
+      return 0;
     }
   }
 } 
