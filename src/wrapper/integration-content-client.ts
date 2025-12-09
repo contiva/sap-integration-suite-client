@@ -2213,15 +2213,28 @@ export class IntegrationContentClient {
       // Das '*' am Ende matched auch Cache-Keys mit Query-Parameter-Hash
       if (packageId) {
         patterns.push(`sap:${hostname}:GET:/IntegrationPackages('${packageId}')*`);
+        // Pattern für Collection: Alle Packages (nur wenn packageId vorhanden)
+        // Wenn ein Package betroffen ist, sollte auch die Package-Collection aktualisiert werden
+        patterns.push(`sap:${hostname}:GET:/IntegrationPackages*`);
       }
       
-      // Pattern für Collection: Alle Packages
-      patterns.push(`sap:${hostname}:GET:/IntegrationPackages*`);
+      // Zusätzliche Patterns für vollständige URLs (für bestehende Cache-Keys mit vollständiger URL)
+      // Diese Patterns sind für die Übergangszeit notwendig, bis alle Keys mit normalisierten URLs erstellt wurden
+      patterns.push(`sap:${hostname}:GET:https://${hostname}/api/v1/IntegrationRuntimeArtifacts*`);
+      patterns.push(`sap:${hostname}:GET:http://${hostname}/api/v1/IntegrationRuntimeArtifacts*`);
+      patterns.push(`sap:${hostname}:GET:https://${hostname}/api/v1/IntegrationRuntimeArtifacts('${artifactId}')*`);
+      patterns.push(`sap:${hostname}:GET:http://${hostname}/api/v1/IntegrationRuntimeArtifacts('${artifactId}')*`);
+      if (packageId) {
+        patterns.push(`sap:${hostname}:GET:https://${hostname}/api/v1/IntegrationPackages('${packageId}')*`);
+        patterns.push(`sap:${hostname}:GET:http://${hostname}/api/v1/IntegrationPackages('${packageId}')*`);
+        // Pattern für Collection: Alle Packages (nur wenn packageId vorhanden)
+        patterns.push(`sap:${hostname}:GET:https://${hostname}/api/v1/IntegrationPackages*`);
+        patterns.push(`sap:${hostname}:GET:http://${hostname}/api/v1/IntegrationPackages*`);
+      }
       
-      // Weitere Collection-Endpunkte aus zentraler Konfiguration laden
-      // Die Liste wird in cache-collections-config.ts gepflegt (nicht hart kodiert)
-      const additionalCollectionPatterns = getCollectionPatterns(hostname);
-      patterns.push(...additionalCollectionPatterns);
+      // HINWEIS: Weitere Collection-Endpunkte (IntegrationDesigntimeArtifacts, MessageMappingDesigntimeArtifacts, etc.)
+      // werden NICHT aktualisiert, da updateArtifactStatus nur für Runtime-Artefakte verwendet wird.
+      // Diese Collections enthalten keine Runtime-Artefakte und müssen daher nicht aktualisiert werden.
 
       // Tracking für Logging
       const startTime = Date.now();
@@ -2232,18 +2245,89 @@ export class IntegrationContentClient {
       for (const pattern of patterns) {
         try {
           const keys = await this.cacheManager.findKeysByPattern(pattern);
-          totalKeysFound += keys.length;
+          console.log('[IntegrationContentClient] Pattern-Suche:', {
+            artifactId,
+            pattern,
+            keysFound: keys.length,
+            hostname,
+            sampleKeys: keys.slice(0, 3),
+          });
           
-          for (const key of keys) {
+          // WICHTIG: Filtere Keys, die nicht zum richtigen Hostname gehören
+          // findKeysByPattern kann mit Wildcards auch andere Hostnames matchen
+          const filteredKeys = keys.filter(key => {
+            // Extrahiere Hostname aus dem Key (Format: sap:hostname:...)
+            const keyParts = key.split(':');
+            if (keyParts.length >= 2 && keyParts[0] === 'sap') {
+              const keyHostname = keyParts[1];
+              
+              // Prüfe, ob der Hostname im Key mit dem erwarteten Hostname übereinstimmt
+              const hostnameMatches = keyHostname === hostname;
+              if (!hostnameMatches) {
+                console.log('[IntegrationContentClient] Key gefiltert (falscher Hostname):', {
+                  artifactId,
+                  pattern,
+                  key,
+                  keyHostname,
+                  expectedHostname: hostname,
+                });
+                return false;
+              }
+              
+              // Filtere Hash-Keys (Metadaten-Keys) heraus
+              // Hash-Keys enden mit einem 8-stelligen Hex-Hash (z.B. :39fc21de, :4ebb995a)
+              const lastPart = keyParts[keyParts.length - 1];
+              const isHashKey = /^[a-f0-9]{8}$/i.test(lastPart) || 
+                               (lastPart.length < 10 && /^[a-f0-9]+$/i.test(lastPart));
+              
+              if (isHashKey) {
+                console.log('[IntegrationContentClient] Key gefiltert (Hash-Key/Metadaten):', {
+                  artifactId,
+                  pattern,
+                  key,
+                  lastPart,
+                });
+                return false;
+              }
+              
+              return true;
+            }
+            console.log('[IntegrationContentClient] Key gefiltert (ungültiges Format):', {
+              artifactId,
+              pattern,
+              key,
+              keyParts: keyParts.slice(0, 3),
+            });
+            return false;
+          });
+          
+          if (keys.length > filteredKeys.length) {
+            console.log('[IntegrationContentClient] Keys gefiltert:', {
+              artifactId,
+              pattern,
+              totalKeys: keys.length,
+              filteredKeys: filteredKeys.length,
+              filteredOut: keys.length - filteredKeys.length,
+            });
+          }
+          
+          totalKeysFound += filteredKeys.length;
+          
+          for (const key of filteredKeys) {
             // Prüfen, ob es ein Runtime-Artefakt oder Package-Cache ist
             // Präziseres Matching: Prüfe ob der Key das spezifische Artefakt/Package enthält
             const isRuntimeArtifact = key.includes(`IntegrationRuntimeArtifacts('${artifactId}')`);
             const isPackage = packageId ? key.includes(`IntegrationPackages('${packageId}')`) : false;
             
             // Prüfen, ob es ein Collection-Key ist (enthält keine spezifische ID im Key-Namen)
-            const isRuntimeCollection = key.includes('GET:/IntegrationRuntimeArtifacts') && 
+            // Unterstütze sowohl normalisierte URLs (/IntegrationRuntimeArtifacts) als auch vollständige URLs (https://hostname/api/v1/IntegrationRuntimeArtifacts)
+            const isRuntimeCollection = (key.includes('GET:/IntegrationRuntimeArtifacts') || 
+                                        key.includes('/IntegrationRuntimeArtifacts') ||
+                                        key.includes('IntegrationRuntimeArtifacts*')) && 
                                        !key.includes(`IntegrationRuntimeArtifacts('${artifactId}')`);
-            const isPackageCollection = key.includes('GET:/IntegrationPackages') && 
+            const isPackageCollection = (key.includes('GET:/IntegrationPackages') || 
+                                         key.includes('/IntegrationPackages') ||
+                                         key.includes('IntegrationPackages*')) && 
                                        (!packageId || !key.includes(`IntegrationPackages('${packageId}')`));
             
             if (isRuntimeArtifact || isRuntimeCollection) {
@@ -2251,7 +2335,23 @@ export class IntegrationContentClient {
               // updateArtifactInCache unterstützt bereits Arrays und findet das Artefakt automatisch
               const success = await this.cacheManager.updatePartial(key, (cachedData) => {
                 const updated = updateArtifactInCache(cachedData, artifactId, statusData);
+                const wasUpdated = updated !== null && updated !== cachedData;
+                console.log('[IntegrationContentClient] updatePartial callback result:', {
+                  artifactId,
+                  key,
+                  wasUpdated,
+                  hasUpdated: !!updated,
+                  updatedIsNull: updated === null,
+                  updatedEqualsCached: updated === cachedData,
+                });
                 return updated || cachedData; // Falls Update fehlschlägt, Original zurückgeben
+              });
+              console.log('[IntegrationContentClient] updatePartial success:', {
+                artifactId,
+                key,
+                success,
+                isRuntimeArtifact,
+                isRuntimeCollection,
               });
               if (success) {
                 totalKeysUpdated++;

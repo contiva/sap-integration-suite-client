@@ -30,8 +30,18 @@ export function generateCacheKey(
     throw new Error('hostname, method, and url are required for cache key generation');
   }
   
-  // Normalize URL by removing /api/v1 prefix if present
-  const normalizedUrl = url.replace(/^\/api\/v1/, '');
+  // Normalize URL: Remove protocol and hostname if present, then remove /api/v1 prefix
+  let normalizedUrl = url;
+  if (normalizedUrl.startsWith('http://') || normalizedUrl.startsWith('https://')) {
+    try {
+      const urlObj = new URL(normalizedUrl);
+      normalizedUrl = urlObj.pathname + urlObj.search;
+    } catch {
+      // Falls URL-Parsing fehlschlägt, verwende URL wie sie ist
+    }
+  }
+  // Entferne /api/v1 Prefix
+  normalizedUrl = normalizedUrl.replace(/^\/api\/v1/, '');
   
   // Generate a hash for query parameters if present
   let paramsHash = '';

@@ -15,11 +15,28 @@ describe('SAP Connection Tests', () => {
   let client;
   
   beforeAll(() => {
+    // Skip tests if baseUrl is not configured
+    if (!process.env.SAP_BASE_URL) {
+      console.warn('Skipping tests: SAP_BASE_URL not configured');
+      return;
+    }
+
     // Create a new SapClient instance before running tests
-    client = new SapClient();
+    client = new SapClient({
+      baseUrl: process.env.SAP_BASE_URL,
+      oauthClientId: process.env.SAP_OAUTH_CLIENT_ID,
+      oauthClientSecret: process.env.SAP_OAUTH_CLIENT_SECRET,
+      oauthTokenUrl: process.env.SAP_OAUTH_TOKEN_URL,
+    });
   });
   
   test('should successfully initialize the client', () => {
+    // Skip if client is not initialized (missing config)
+    if (!client) {
+      console.warn('Skipping test: Client not initialized');
+      return;
+    }
+
     expect(client).toBeDefined();
     expect(client.integrationContent).toBeDefined();
     expect(client.messageProcessingLogs).toBeDefined();
@@ -29,6 +46,11 @@ describe('SAP Connection Tests', () => {
   });
   
   test('should successfully connect and retrieve integration packages', async () => {
+    // Skip if client is not initialized (missing config)
+    if (!client) {
+      console.warn('Skipping test: Client not initialized');
+      return;
+    }
     // Call the API to get integration packages
     const packages = await client.integrationContent.getIntegrationPackages();
     
@@ -50,6 +72,11 @@ describe('SAP Connection Tests', () => {
   });
   
   test('should be able to get service endpoints', async () => {
+    // Skip if client is not initialized (missing config)
+    if (!client) {
+      console.warn('Skipping test: Client not initialized');
+      return;
+    }
     // Fetch service endpoints
     const endpoints = await client.integrationContent.getServiceEndpoints();
     
@@ -70,6 +97,12 @@ describe('SAP Connection Tests', () => {
   });
   
   test('should handle authentication errors properly when credentials are wrong', async () => {
+    // Skip if baseUrl is not configured
+    if (!process.env.SAP_BASE_URL) {
+      console.warn('Skipping test: SAP_BASE_URL not configured');
+      return;
+    }
+
     // Create a client with invalid credentials
     const invalidClient = new SapClient({
       baseUrl: process.env.SAP_BASE_URL,
@@ -81,5 +114,7 @@ describe('SAP Connection Tests', () => {
     // The API call should fail with auth error
     await expect(invalidClient.integrationContent.getIntegrationPackages())
       .rejects.toThrow();
+
+    await invalidClient.disconnect();
   });
 });

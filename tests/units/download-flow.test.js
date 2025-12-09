@@ -17,14 +17,30 @@ describe('SAP Integration Flow Download Tests', () => {
   let client;
   
   beforeAll(() => {
+    // Skip tests if baseUrl is not configured
+    if (!process.env.SAP_BASE_URL) {
+      console.warn('Skipping tests: SAP_BASE_URL not configured');
+      return;
+    }
+
     // Create a new SapClient instance before running tests
-    client = new SapClient();
+    client = new SapClient({
+      baseUrl: process.env.SAP_BASE_URL,
+      oauthClientId: process.env.SAP_OAUTH_CLIENT_ID,
+      oauthClientSecret: process.env.SAP_OAUTH_CLIENT_SECRET,
+      oauthTokenUrl: process.env.SAP_OAUTH_TOKEN_URL,
+    });
     
     // Ensure we're in development mode
     process.env.NODE_ENV = 'development';
   });
   
   test('should successfully download the first available integration flow artifact as a ZIP file', async () => {
+    // Skip if client is not initialized (missing config)
+    if (!client) {
+      console.warn('Skipping test: Client not initialized');
+      return;
+    }
     // First, get all integration packages
     const packages = await client.integrationContent.getIntegrationPackages();
     expect(packages).toBeDefined();

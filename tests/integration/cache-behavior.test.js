@@ -544,6 +544,12 @@ describe('SAP Client Redis Caching Integration Tests', () => {
 
   describe('8. Cache Disabled When Redis Not Configured', () => {
     it('should work normally without Redis', async () => {
+      // Skip if baseUrl is not configured
+      if (!TEST_CONFIG.baseUrl) {
+        console.warn('Skipping test: baseUrl not configured');
+        return;
+      }
+
       const clientWithoutRedis = new SapClient({
         baseUrl: TEST_CONFIG.baseUrl,
         oauthClientId: TEST_CONFIG.oauthClientId,

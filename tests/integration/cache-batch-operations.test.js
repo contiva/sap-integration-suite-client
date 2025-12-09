@@ -126,6 +126,11 @@ describe('Batch Cache Operations Integration Tests', () => {
 
   describe('CacheManager.batchUpdate', () => {
     test('should update multiple cache entries in batch', async () => {
+      if (!cacheManager) {
+        console.warn('Skipping test: Cache manager not available');
+        return;
+      }
+
       // Use unique test ID to avoid conflicts with other tests
       const testId = generateTestKey('batch');
       const localTestKeys = [];

@@ -58,6 +58,15 @@ export function updateArtifactInCache(
     else if (data && typeof data === 'object' && !Array.isArray(data)) {
       // Check if this is a single artifact object
       if (data.Id === artifactId || data.id === artifactId) {
+        // If Status is null, remove the artifact (set data to null or empty)
+        if (statusData.Status === null) {
+          // For single artifact objects, we can't really "remove" it,
+          // but we can set it to null or an empty object
+          // However, this might break the cache structure, so we return null
+          // to indicate the cache entry should be invalidated
+          return null;
+        }
+        
         // Update the single artifact
         const updated = { ...data };
         if (statusData.Status !== undefined) {
@@ -115,15 +124,161 @@ export function updateArtifactInCache(
         (artifact: any) => artifact.Id === artifactId || artifact.id === artifactId
       );
       
+      // Logging immer aktivieren für Debugging
+      console.log('[CacheUpdateHelper] Searching for artifact in array:', {
+        artifactId,
+        arrayLength: artifacts.length,
+        artifactIndex,
+        statusData,
+        sampleIds: artifacts.slice(0, 3).map((a: any) => ({ Id: a?.Id, id: a?.id })),
+      });
+      
       if (artifactIndex === -1) {
-        // Artifact not found in array - this is expected if artifact is not in this collection
+        // Artifact not found in array
+        // If Status is null, the artifact should be removed from the collection (already removed)
+        if (statusData.Status === null) {
+          // Artifact already removed from collection - this is expected for undeploy
+          if (process.env.DEBUG === 'true') {
+            console.debug('[CacheUpdateHelper] Artifact not found in array (expected for undeploy):', {
+              artifactId,
+              arrayLength: artifacts.length
+            });
+          }
+          // Return null to indicate no update needed (artifact already removed)
+          return null;
+        }
+        
+        // For deploy/status updates: If artifact is not in collection, add it
+        // This can happen if the artifact was just deployed and not yet in the cached collection
+        // Check if Status is defined and not null (including empty string check)
+        const shouldAddArtifact = statusData.Status !== undefined && statusData.Status !== null && statusData.Status !== '';
+        
+        // Logging immer aktivieren für Debugging
+        console.log('[CacheUpdateHelper] Artifact not found in array, checking if should add:', {
+          artifactId,
+          arrayLength: artifacts.length,
+          statusData,
+          shouldAddArtifact,
+          statusValue: statusData.Status,
+          statusType: typeof statusData.Status,
+        });
+        
+        if (shouldAddArtifact) {
+          // Create a new artifact object with the status data
+          const newArtifact: any = {
+            Id: artifactId,
+            id: artifactId,
+            ...statusData,
+          };
+          
+          // Add the artifact to the array
+          const updatedArtifacts = [...artifacts, newArtifact];
+          
+          console.log('[CacheUpdateHelper] Adding artifact to collection:', {
+            artifactId,
+            originalArrayLength: artifacts.length,
+            newArrayLength: updatedArtifacts.length,
+            newArtifact,
+          });
+          
+          // Reconstruct the data structure with the new artifact added
+          let updatedData: any;
+          
+          if (Array.isArray(data)) {
+            updatedData = updatedArtifacts;
+          } else if (data?.d?.results) {
+            updatedData = {
+              ...data,
+              d: {
+                ...data.d,
+                results: updatedArtifacts,
+              },
+            };
+          } else if (data?.value) {
+            updatedData = {
+              ...data,
+              value: updatedArtifacts,
+            };
+          } else if (data?.IntegrationPackages) {
+            updatedData = {
+              ...data,
+              IntegrationPackages: updatedArtifacts,
+            };
+          } else if (data?.IntegrationRuntimeArtifacts) {
+            updatedData = {
+              ...data,
+              IntegrationRuntimeArtifacts: updatedArtifacts,
+            };
+          } else {
+            updatedData = updatedArtifacts;
+          }
+          
+          const result = {
+            ...cachedData,
+            data: updatedData,
+          };
+          
+          console.log('[CacheUpdateHelper] Returning updated cache data:', {
+            artifactId,
+            hasData: !!result.data,
+            dataType: Array.isArray(result.data) ? 'array' : typeof result.data,
+            dataLength: Array.isArray(result.data) ? result.data.length : (result.data?.d?.results?.length || result.data?.value?.length || 'unknown'),
+          });
+          
+          return result;
+        }
+        
+        // For other cases, artifact should be in collection but isn't
         if (process.env.DEBUG === 'true') {
           console.debug('[CacheUpdateHelper] Artifact not found in array:', {
             artifactId,
-            arrayLength: artifacts.length
+            arrayLength: artifacts.length,
+            statusData
           });
         }
-        return null; // Artifact not found
+        return null; // Artifact not found and no status to add
+      }
+      
+      // If Status is null, remove the artifact from the collection (undeploy)
+      if (statusData.Status === null) {
+        const updatedArtifacts = artifacts.filter((_, index) => index !== artifactIndex);
+        
+        // Reconstruct the data structure with the artifact removed
+        let updatedData: any;
+        
+        if (Array.isArray(data)) {
+          updatedData = updatedArtifacts;
+        } else if (data?.d?.results) {
+          updatedData = {
+            ...data,
+            d: {
+              ...data.d,
+              results: updatedArtifacts,
+            },
+          };
+        } else if (data?.value) {
+          updatedData = {
+            ...data,
+            value: updatedArtifacts,
+          };
+        } else if (data?.IntegrationPackages) {
+          updatedData = {
+            ...data,
+            IntegrationPackages: updatedArtifacts,
+          };
+        } else if (data?.IntegrationRuntimeArtifacts) {
+          updatedData = {
+            ...data,
+            IntegrationRuntimeArtifacts: updatedArtifacts,
+          };
+        } else {
+          updatedData = updatedArtifacts;
+        }
+        
+        return {
+          ...cachedData,
+          data: updatedData,
+        };
       }
       
       // Update the artifact
