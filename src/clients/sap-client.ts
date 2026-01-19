@@ -1219,7 +1219,11 @@ class SapClient {
           },
         });
         
-        this.csrfToken = response.headers['x-csrf-token'];
+        const token_csrf = response.headers['x-csrf-token'];
+        if (!token_csrf) {
+          throw new Error('CSRF token not found in response headers');
+        }
+        this.csrfToken = token_csrf;
         this.csrfTokenPromise = null; // Clear the promise after success
       } catch (error) {
         this.csrfTokenPromise = null; // Clear the promise on error

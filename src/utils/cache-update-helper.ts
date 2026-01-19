@@ -124,14 +124,15 @@ export function updateArtifactInCache(
         (artifact: any) => artifact.Id === artifactId || artifact.id === artifactId
       );
       
-      // Logging immer aktivieren für Debugging
-      console.log('[CacheUpdateHelper] Searching for artifact in array:', {
-        artifactId,
-        arrayLength: artifacts.length,
-        artifactIndex,
-        statusData,
-        sampleIds: artifacts.slice(0, 3).map((a: any) => ({ Id: a?.Id, id: a?.id })),
-      });
+      if (process.env.DEBUG === 'true') {
+        console.debug('[CacheUpdateHelper] Searching for artifact in array:', {
+          artifactId,
+          arrayLength: artifacts.length,
+          artifactIndex,
+          statusData,
+          sampleIds: artifacts.slice(0, 3).map((a: any) => ({ Id: a?.Id, id: a?.id })),
+        });
+      }
       
       if (artifactIndex === -1) {
         // Artifact not found in array
@@ -153,15 +154,16 @@ export function updateArtifactInCache(
         // Check if Status is defined and not null (including empty string check)
         const shouldAddArtifact = statusData.Status !== undefined && statusData.Status !== null && statusData.Status !== '';
         
-        // Logging immer aktivieren für Debugging
-        console.log('[CacheUpdateHelper] Artifact not found in array, checking if should add:', {
-          artifactId,
-          arrayLength: artifacts.length,
-          statusData,
-          shouldAddArtifact,
-          statusValue: statusData.Status,
-          statusType: typeof statusData.Status,
-        });
+        if (process.env.DEBUG === 'true') {
+          console.debug('[CacheUpdateHelper] Artifact not found in array, checking if should add:', {
+            artifactId,
+            arrayLength: artifacts.length,
+            statusData,
+            shouldAddArtifact,
+            statusValue: statusData.Status,
+            statusType: typeof statusData.Status,
+          });
+        }
         
         if (shouldAddArtifact) {
           // Create a new artifact object with the status data
@@ -174,12 +176,14 @@ export function updateArtifactInCache(
           // Add the artifact to the array
           const updatedArtifacts = [...artifacts, newArtifact];
           
-          console.log('[CacheUpdateHelper] Adding artifact to collection:', {
-            artifactId,
-            originalArrayLength: artifacts.length,
-            newArrayLength: updatedArtifacts.length,
-            newArtifact,
-          });
+          if (process.env.DEBUG === 'true') {
+            console.debug('[CacheUpdateHelper] Adding artifact to collection:', {
+              artifactId,
+              originalArrayLength: artifacts.length,
+              newArrayLength: updatedArtifacts.length,
+              newArtifact,
+            });
+          }
           
           // Reconstruct the data structure with the new artifact added
           let updatedData: any;
@@ -218,12 +222,14 @@ export function updateArtifactInCache(
             data: updatedData,
           };
           
-          console.log('[CacheUpdateHelper] Returning updated cache data:', {
-            artifactId,
-            hasData: !!result.data,
-            dataType: Array.isArray(result.data) ? 'array' : typeof result.data,
-            dataLength: Array.isArray(result.data) ? result.data.length : (result.data?.d?.results?.length || result.data?.value?.length || 'unknown'),
-          });
+          if (process.env.DEBUG === 'true') {
+            console.debug('[CacheUpdateHelper] Returning updated cache data:', {
+              artifactId,
+              hasData: !!result.data,
+              dataType: Array.isArray(result.data) ? 'array' : typeof result.data,
+              dataLength: Array.isArray(result.data) ? result.data.length : (result.data?.d?.results?.length || result.data?.value?.length || 'unknown'),
+            });
+          }
           
           return result;
         }
