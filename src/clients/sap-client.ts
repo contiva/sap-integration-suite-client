@@ -500,6 +500,14 @@ class SapClient {
     const integrationContentApiClient = new IntegrationContentApi({
       baseUrl: this.baseUrl,
       customFetch: this.customFetch.bind(this),
+      securityWorker: async () => {
+        const token = await this.getOAuthToken();
+        return {
+          headers: {
+            'Authorization': `Bearer ${token.access_token}`
+          }
+        };
+      }
     });
     this.integrationContent = new IntegrationContentClient(
       integrationContentApiClient,
@@ -894,6 +902,62 @@ class SapClient {
   }
 
   /**
+   * Checks if a URL represents a collection endpoint (without specific ID)
+   * Collection endpoints return arrays of items and are candidates for differential updates
+   * 
+   * @private
+   * @param url - The URL to check
+   * @returns true if URL is a collection endpoint, false otherwise
+   * 
+   * @example
+   * isCollectionEndpoint('https://api.com/IntegrationRuntimeArtifacts') // true
+   * isCollectionEndpoint('https://api.com/IntegrationRuntimeArtifacts(\'id\')') // false
+   * isCollectionEndpoint('https://api.com/IntegrationPackages') // true
+   */
+  private isCollectionEndpoint(url: string): boolean {
+    try {
+      // Collection patterns from cache-collections-config.ts
+      const collectionPatterns = [
+        '/IntegrationRuntimeArtifacts',
+        '/IntegrationPackages',
+        '/IntegrationDesigntimeArtifacts',
+        '/MessageMappingDesigntimeArtifacts',
+        '/ValueMappingDesigntimeArtifacts',
+        '/ScriptCollectionDesigntimeArtifacts',
+      ];
+
+      // Check if URL contains any collection pattern
+      for (const pattern of collectionPatterns) {
+        if (url.includes(pattern)) {
+          // Ensure it's not a specific item request (no ID in parentheses)
+          // Pattern: /IntegrationRuntimeArtifacts('SomeId') should return false
+          // Pattern: /IntegrationRuntimeArtifacts or /IntegrationRuntimeArtifacts?$filter=... should return true
+          
+          // Extract the part after the pattern
+          const afterPattern = url.substring(url.indexOf(pattern) + pattern.length);
+          
+          // If there's nothing after, or it starts with ? or &, it's a collection
+          if (!afterPattern || afterPattern.startsWith('?') || afterPattern.startsWith('&')) {
+            return true;
+          }
+          
+          // If it starts with ( followed by a quote, it's a specific item
+          if (afterPattern.match(/^\(['"].*['"]\)/)) {
+            return false;
+          }
+        }
+      }
+
+      return false;
+    } catch (error) {
+      if (this.debugMode) {
+        console.debug('[SapClient] Error checking if URL is collection endpoint:', error);
+      }
+      return false;
+    }
+  }
+
+  /**
    * Custom fetch implementation that uses axios to make HTTP requests
    * - Handles CSRF token for write operations
    * - Adds OAuth token to requests
@@ -948,7 +1012,7 @@ class SapClient {
 
       // Check if caching should be applied
       const cacheable = isCacheableUrl(url);
-      const shouldCache = method === 'GET' 
+      let shouldCache = method === 'GET' 
         && this._cacheManager 
         && this._cacheManager.isReady() 
         && cacheable;
@@ -966,117 +1030,153 @@ class SapClient {
         const queryParams = parseQueryParams(url);
         cacheKey = generateCacheKey(this.hostname, method, url, queryParams);
 
-        // Try to get from cache
-        const cachedData = await this._cacheManager!.get(cacheKey);
-        
-        if (cachedData) {
-          // Check if cache needs revalidation (either stale or expired)
-          if (this._cacheManager!.isExpired(cachedData) || this._cacheManager!.shouldRevalidate(cachedData, this.forceRefreshCache)) {
-            // Cache needs revalidation, use stale-while-revalidate pattern
-            // Return old data immediately and update in background
-            const isExpired = this._cacheManager!.isExpired(cachedData);
-            
-            const cacheStatus = isExpired ? 'HIT-EXPIRED' : 'HIT-STALE';
-            
-            // Log cache status
-            const logMessage = `[SapClient] ${cacheStatus === 'HIT-EXPIRED' ? '⏰' : '🔄'} ${endpoint} - ${cacheStatus === 'HIT-EXPIRED' ? 'Cache expired' : 'Cache stale'} - returning old data and revalidating in background`;
+        // If forceRefreshCache is true, delete cache and skip cache lookup
+        if (this.forceRefreshCache) {
+          try {
+            await this._cacheManager!.delete(cacheKey);
+            const forceRefreshLog = `[SapClient] 🔄 ${endpoint} - Force refresh: Cache deleted, fetching fresh data from SAP`;
             if (this.cacheLogger) {
-              this.cacheLogger(logMessage);
+              this.cacheLogger(forceRefreshLog);
             } else {
-              console.log(logMessage);
+              console.log(forceRefreshLog);
             }
-            
-            if (this.debugMode) {
-              console.log(`[SapClient] Cache ${isExpired ? 'expired' : 'stale'} for: ${url} - returning old data and revalidating in background`);
-            }
-
-            // Return stale/expired data immediately
-            const staleResponse = new Response(JSON.stringify(cachedData.data), {
-              status: 200,
-              statusText: 'OK (from cache - stale)',
-              headers: new Headers({ 'X-Cache': cacheStatus }),
-            });
-            
-            // Add cache metadata to response object for logging
-            // @ts-ignore - Adding custom property for cache tracking
-            staleResponse._cacheStatus = cacheStatus;
-
-            // Start background revalidation
-            const revalidationTime = getRevalidationTime(url);
-            const cacheOptions: CacheOptions = {
-              ttl: CACHE_TTL.STANDARD,
-              revalidateAfter: revalidationTime,
-            };
-
-            // Start background revalidation with logging
-            const bgStartLog = `[SapClient] 🔄 ${endpoint} - Background revalidation started`;
+          } catch (error) {
+            // Ignore delete errors, continue with fresh request
+            const deleteErrorLog = `[SapClient] ⚠️ ${endpoint} - Failed to delete cache (continuing anyway): ${(error as Error).message}`;
             if (this.cacheLogger) {
-              this.cacheLogger(bgStartLog);
+              this.cacheLogger(deleteErrorLog);
             } else {
-              console.log(bgStartLog);
+              console.log(deleteErrorLog);
             }
-
-            this._cacheManager!.revalidateInBackground(
-              cacheKey,
-              async () => {
-                try {
-                  const freshData = await this.performRequest(url, method, headers, body);
-                  const successLog = `[SapClient] ✅ ${endpoint} - Background revalidation completed`;
-                  if (this.cacheLogger) {
-                    this.cacheLogger(successLog);
-                  } else {
-                    console.log(successLog);
-                  }
-                  return freshData;
-                } catch (error) {
-                  const errorLog = `[SapClient] ❌ ${endpoint} - Background revalidation failed: ${(error as Error).message}`;
-                  if (this.cacheLogger) {
-                    this.cacheLogger(errorLog);
-                  } else {
-                    console.log(errorLog);
-                  }
-                  throw error;
-                }
-              },
-              cacheOptions
-            );
-
-            return staleResponse;
-          } else {
-            // Cache is fresh, return it
-            const hitLog = `[SapClient] ✅ ${endpoint} - Cache HIT (fresh)`;
-            if (this.cacheLogger) {
-              this.cacheLogger(hitLog);
-            } else {
-              console.log(hitLog);
-            }
-            
-            if (this.debugMode) {
-              console.log(`[SapClient] Cache hit (fresh): ${url}`);
-            }
-            const freshResponse = new Response(JSON.stringify(cachedData.data), {
-              status: 200,
-              statusText: 'OK (from cache)',
-              headers: new Headers({ 'X-Cache': 'HIT' }),
-            });
-            
-            // Add cache metadata to response object for logging
-            // @ts-ignore - Adding custom property for cache tracking
-            freshResponse._cacheStatus = 'HIT';
-            
-            return freshResponse;
           }
+          // Force refresh: skip the entire cache lookup block and go directly to performRequest
+          // Set shouldCache to false temporarily to bypass cache logic below
+          shouldCache = false;
         } else {
-          // Cache miss
-          const missLog = `[SapClient] ❌ ${endpoint} - Cache MISS (fetching from SAP)`;
-          if (this.cacheLogger) {
-            this.cacheLogger(missLog);
-          } else {
-            console.log(missLog);
-          }
+          // Try to get from cache (only if not force refreshing)
+          const cachedData = await this._cacheManager!.get(cacheKey);
           
-          if (this.debugMode) {
-            console.log(`[SapClient] Cache miss: ${url}`);
+          if (cachedData) {
+            // Check if cache needs revalidation (either stale or expired)
+            const isExpired = this._cacheManager!.isExpired(cachedData);
+            const shouldRevalidate = this._cacheManager!.shouldRevalidate(cachedData, this.forceRefreshCache);
+            if (isExpired || shouldRevalidate) {
+              // Cache needs revalidation, use stale-while-revalidate pattern
+              // Return old data immediately and update in background
+              const isExpired = this._cacheManager!.isExpired(cachedData);
+              
+              const cacheStatus = isExpired ? 'HIT-EXPIRED' : 'HIT-STALE';
+              
+              // Log cache status
+              const logMessage = `[SapClient] ${cacheStatus === 'HIT-EXPIRED' ? '⏰' : '🔄'} ${endpoint} - ${cacheStatus === 'HIT-EXPIRED' ? 'Cache expired' : 'Cache stale'} - returning old data and revalidating in background`;
+              if (this.cacheLogger) {
+                this.cacheLogger(logMessage);
+              } else {
+                console.log(logMessage);
+              }
+              
+              if (this.debugMode) {
+                console.log(`[SapClient] Cache ${isExpired ? 'expired' : 'stale'} for: ${url} - returning old data and revalidating in background`);
+              }
+
+              // Return stale/expired data immediately
+              const staleResponse = new Response(JSON.stringify(cachedData.data), {
+                status: 200,
+                statusText: 'OK (from cache - stale)',
+                headers: new Headers({ 'X-Cache': cacheStatus }),
+              });
+              
+              // Add cache metadata to response object for logging
+              // @ts-ignore - Adding custom property for cache tracking
+              staleResponse._cacheStatus = cacheStatus;
+
+              // Start background revalidation
+              const revalidationTime = getRevalidationTime(url);
+              const cacheOptions: CacheOptions = {
+                ttl: CACHE_TTL.STANDARD,
+                revalidateAfter: revalidationTime,
+              };
+
+              // Start background revalidation with logging
+              const bgStartLog = `[SapClient] 🔄 ${endpoint} - Background revalidation started`;
+              if (this.cacheLogger) {
+                this.cacheLogger(bgStartLog);
+              } else {
+                console.log(bgStartLog);
+              }
+
+              // Check if this is a collection endpoint for differential updates
+              const isCollection = this.isCollectionEndpoint(url);
+              const enableDifferential = isCollection; // Enable differential for collections
+
+              if (this.debugMode && enableDifferential) {
+                console.log(`[SapClient] Differential revalidation enabled for collection endpoint: ${endpoint}`);
+              }
+
+              this._cacheManager!.revalidateInBackground(
+                cacheKey,
+                async () => {
+                  try {
+                    const freshData = await this.performRequest(url, method, headers, body);
+                    const successLog = `[SapClient] ✅ ${endpoint} - Background revalidation completed${enableDifferential ? ' (differential)' : ''}`;
+                    if (this.cacheLogger) {
+                      this.cacheLogger(successLog);
+                    } else {
+                      console.log(successLog);
+                    }
+                    return freshData;
+                  } catch (error) {
+                    const errorLog = `[SapClient] ❌ ${endpoint} - Background revalidation failed: ${(error as Error).message}`;
+                    if (this.cacheLogger) {
+                      this.cacheLogger(errorLog);
+                    } else {
+                      console.log(errorLog);
+                    }
+                    throw error;
+                  }
+                },
+                cacheOptions,
+                enableDifferential,
+                isCollection
+              );
+
+              return staleResponse;
+            } else {
+              // Cache is fresh, return it
+              const hitLog = `[SapClient] ✅ ${endpoint} - Cache HIT (fresh)`;
+              if (this.cacheLogger) {
+                this.cacheLogger(hitLog);
+              } else {
+                console.log(hitLog);
+              }
+              
+              if (this.debugMode) {
+                console.log(`[SapClient] Cache hit (fresh): ${url}`);
+              }
+              const freshResponse = new Response(JSON.stringify(cachedData.data), {
+                status: 200,
+                statusText: 'OK (from cache)',
+                headers: new Headers({ 'X-Cache': 'HIT' }),
+              });
+              
+              // Add cache metadata to response object for logging
+              // @ts-ignore - Adding custom property for cache tracking
+              freshResponse._cacheStatus = 'HIT';
+              
+              return freshResponse;
+            }
+          } else {
+            // Cache miss
+            const missLog = `[SapClient] ❌ ${endpoint} - Cache MISS (fetching from SAP)`;
+            if (this.cacheLogger) {
+              this.cacheLogger(missLog);
+            } else {
+              console.log(missLog);
+            }
+            
+            if (this.debugMode) {
+              console.log(`[SapClient] Cache miss: ${url}`);
+            }
           }
         }
       }

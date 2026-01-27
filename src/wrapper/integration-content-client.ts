@@ -46,11 +46,13 @@ import { PackageWithArtifacts, DetailedErrorInformation, ParsedErrorDetails } fr
 import { ResponseNormalizer } from '../utils/response-normalizer';
 import { IntegrationContentAdvancedClient } from './custom/integration-content-advanced-client';
 import { CacheManager } from '../core/cache-manager';
-import { ArtifactStatusUpdate } from '../types/cache';
+import { ArtifactStatusUpdate, CacheInfo } from '../types/cache';
 import { updateArtifactInCache, updateArtifactInPackageCache } from '../utils/cache-update-helper';
 import { extractHostname } from '../utils/hostname-extractor';
 import { getCollectionPatterns } from '../utils/cache-collections-config';
 import { cacheLogger } from '../utils/cache-logger';
+import { generateCacheKey } from '../utils/cache-key-generator';
+import { CACHE_TTL, REVALIDATE_AFTER } from '../core/cache-config';
 
 /**
  * Erweiterter SAP Integration Content Client
@@ -82,18 +84,18 @@ export class IntegrationContentClient {
 
   /**
    * Gibt alle Integrationspakete zurück
-   * 
+   *
    * @param {Object} options Optionale Parameter für die Anfrage
    * @param {number} [options.top] Maximale Anzahl der zurückzugebenden Pakete
    * @param {number} [options.skip] Anzahl der zu überspringenden Pakete
    * @param {string} [options.author] Filtern nach Autor (Custom Tag)
    * @param {string} [options.lob] Filtern nach Line of Business (Custom Tag)
    * @returns {Promise<ComSapHciApiIntegrationPackage[]>} Promise mit einer Liste von Integrationspaketen
-   * 
+   *
    * @example
    * // Alle Integrationspakete abrufen
    * const packages = await client.getIntegrationPackages();
-   * 
+   *
    * @example
    * // Pakete mit Paginierung abrufen
    * const packages = await client.getIntegrationPackages({ top: 10, skip: 20 });
@@ -105,8 +107,74 @@ export class IntegrationContentClient {
       Author: options.author,
       LoB: options.lob
     });
-    
+
     return this.normalizer.normalizeArrayResponse(response.data, 'getIntegrationPackages', 'IntegrationPackages');
+  }
+
+  /**
+   * Gibt alle Integrationspakete zurück (mit Caching)
+   *
+   * Diese Methode implementiert das Stale-While-Revalidate Pattern:
+   * - Frische Daten aus Cache werden sofort zurückgegeben
+   * - Veraltete Daten werden sofort zurückgegeben und im Hintergrund aktualisiert
+   * - Bei Cache-Miss werden frische Daten von SAP geholt und gecacht
+   *
+   * @param {Object} options Optionale Parameter für die Anfrage
+   * @param {number} [options.top] Maximale Anzahl der zurückzugebenden Pakete
+   * @param {number} [options.skip] Anzahl der zu überspringenden Pakete
+   * @param {string} [options.author] Filtern nach Autor (Custom Tag)
+   * @param {string} [options.lob] Filtern nach Line of Business (Custom Tag)
+   * @param {boolean} [forceRefresh=false] Erzwingt das Laden frischer Daten von SAP
+   * @returns {Promise<{data: ComSapHciApiIntegrationPackage[], cacheInfo: CacheInfo}>} Pakete mit Cache-Informationen
+   *
+   * @example
+   * const { data, cacheInfo } = await client.getIntegrationPackagesWithCache();
+   * console.log(cacheInfo.hit);    // true/false
+   * console.log(cacheInfo.status); // 'HIT', 'HIT-STALE', 'MISS', or 'DISABLED'
+   */
+  async getIntegrationPackagesWithCache(
+    options: { top?: number; skip?: number; author?: string; lob?: string } = {},
+    forceRefresh: boolean = false
+  ): Promise<{ data: ComSapHciApiIntegrationPackage[]; cacheInfo: CacheInfo }> {
+    const endpoint = '/IntegrationPackages';
+    const queryParams = { top: options.top, skip: options.skip, author: options.author, lob: options.lob };
+
+    // If no cacheManager or hostname, fall back to direct API call
+    if (!this.cacheManager || !this.hostname) {
+      const data = await this.getIntegrationPackages(options);
+      return {
+        data,
+        cacheInfo: {
+          hit: false,
+          age: null,
+          status: 'DISABLED',
+          source: 'sap-api-direct',
+        },
+      };
+    }
+
+    const cacheKey = generateCacheKey(this.hostname, 'GET', endpoint, queryParams);
+    const cacheOptions = { ttl: CACHE_TTL.STANDARD, revalidateAfter: REVALIDATE_AFTER.STANDARD };
+
+    const fetchFn = async () => {
+      return this.getIntegrationPackages(options);
+    };
+
+    const result = await this.cacheManager.getOrFetch<ComSapHciApiIntegrationPackage[]>(
+      cacheKey,
+      fetchFn,
+      cacheOptions,
+      forceRefresh
+    );
+
+    return {
+      data: result.data,
+      cacheInfo: {
+        ...result.cacheInfo,
+        key: cacheKey,
+        source: 'npm-package-cache',
+      },
+    };
   }
 
   /**
@@ -443,23 +511,97 @@ export class IntegrationContentClient {
 
   /**
    * Deployed einen Integrationsflow
-   * 
+   *
+   * SAP erwartet Single Quotes in der URL, die NICHT URL-encoded sein dürfen.
+   * Deshalb wird hier ein direkter HTTP-Request gemacht, der die URL manuell baut.
+   *
    * @param {string} flowId ID des zu deployenden Integrationsflows
    * @param {string} [version='active'] Version des Integrationsflows
    * @returns {Promise<void>} Promise, der aufgelöst wird, wenn das Deployment gestartet wurde
-   * 
+   *
    * @example
    * await client.deployIntegrationFlow('MyFlowId');
    */
   async deployIntegrationFlow(flowId: string, version = 'active'): Promise<void> {
-    await this.api.deployIntegrationDesigntimeArtifact.deployIntegrationDesigntimeArtifactCreate({
-      Id: flowId,
-      Version: `'${version}'`
+    // SAP erwartet Single Quotes in der URL, die NICHT URL-encoded sein dürfen.
+    // Die standard API-Methode würde die Quotes als %27 encodieren, deshalb verwenden wir axios direkt.
+    // Wir nutzen aber customFetch aus dem SapClient für OAuth und CSRF Token Handling.
+    
+    const axios = (await import('axios')).default;
+    const baseUrl = this.api['baseUrl'];
+    
+    // Validierung dass baseUrl vollständig ist
+    if (!baseUrl || (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://'))) {
+      throw new Error(`Invalid baseUrl for deploy operation: ${baseUrl}`);
+    }
+    
+    // URL mit Single Quotes konstruieren (nicht URL-encoded)
+    const url = `${baseUrl}/DeployIntegrationDesigntimeArtifact?Id='${flowId}'&Version='${version}'`;
+    
+    // Security-Daten für OAuth holen
+    const securityWorker = this.api['securityWorker'];
+    const securityData = this.api['securityData'];
+
+    let authHeaders: Record<string, string> = {};
+    if (securityWorker) {
+      try {
+        const params = await securityWorker(securityData);
+        if (params && typeof params === 'object' && 'headers' in params) {
+          const headers = params.headers;
+          if (headers && typeof headers === 'object' && !Array.isArray(headers)) {
+            for (const [key, value] of Object.entries(headers)) {
+              if (typeof value === 'string') {
+                authHeaders[key] = value;
+              }
+            }
+          }
+        }
+      } catch (securityError) {
+        console.error('[IntegrationContentClient] Error getting security params:', securityError);
+      }
+    }
+
+    if (!authHeaders['Authorization']) {
+      throw new Error('No authorization headers available for deploy request');
+    }
+
+    // CSRF-Token URL konstruieren
+    // SAP erwartet CSRF-Token von GET /api/v1/ (root der API, nicht root des Servers)
+    const csrfUrl = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+    
+    // CSRF-Token holen
+    const csrfResponse = await axios.get(csrfUrl, {
+      headers: {
+        'X-CSRF-Token': 'Fetch',
+        ...authHeaders
+      }
     });
+
+    const csrfToken = csrfResponse.headers['x-csrf-token'];
+    if (!csrfToken) {
+      throw new Error('CSRF token not found in response headers');
+    }
+
+    // Deploy-Request ausführen
+    const response = await axios.post(url, null, {
+      headers: {
+        'X-CSRF-Token': csrfToken,
+        'Content-Type': 'application/json',
+        ...authHeaders
+      }
+    });
+
+    // 202 Accepted ist die erwartete Antwort für erfolgreiches Deployment
+    if (response.status !== 202 && response.status !== 200) {
+      throw new Error(`Unexpected response status: ${response.status}`);
+    }
   }
 
   /**
    * Undeployed einen Integrationsflow
+   * 
+   * SAP erwartet Single Quotes im URL-Pfad, die NICHT URL-encoded sein dürfen.
+   * Die standard API-Methode würde die Quotes als %27 encodieren, deshalb verwenden wir axios direkt.
    * 
    * @param {string} flowId ID des zu undeployenden Integrationsflows
    * @returns {Promise<void>} Promise, der aufgelöst wird, wenn der Flow undeployed wurde
@@ -468,7 +610,73 @@ export class IntegrationContentClient {
    * await client.undeployIntegrationFlow('MyFlowId');
    */
   async undeployIntegrationFlow(flowId: string): Promise<void> {
-    await this.api.integrationRuntimeArtifactsId.integrationRuntimeArtifactsDelete(flowId);
+    const axios = (await import('axios')).default;
+    const baseUrl = this.api['baseUrl'];
+    
+    // Validierung dass baseUrl vollständig ist
+    if (!baseUrl || (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://'))) {
+      throw new Error(`Invalid baseUrl for undeploy operation: ${baseUrl}`);
+    }
+    
+    // URL mit Single Quotes im Pfad konstruieren (nicht URL-encoded)
+    const url = `${baseUrl}/IntegrationRuntimeArtifacts('${flowId}')`;
+    
+    // Security-Daten für OAuth holen
+    const securityWorker = this.api['securityWorker'];
+    const securityData = this.api['securityData'];
+
+    let authHeaders: Record<string, string> = {};
+    if (securityWorker) {
+      try {
+        const params = await securityWorker(securityData);
+        if (params && typeof params === 'object' && 'headers' in params) {
+          const headers = params.headers;
+          if (headers && typeof headers === 'object' && !Array.isArray(headers)) {
+            for (const [key, value] of Object.entries(headers)) {
+              if (typeof value === 'string') {
+                authHeaders[key] = value;
+              }
+            }
+          }
+        }
+      } catch (securityError) {
+        console.error('[IntegrationContentClient] Error getting security params:', securityError);
+      }
+    }
+
+    if (!authHeaders['Authorization']) {
+      throw new Error('No authorization headers available for undeploy request');
+    }
+
+    // CSRF-Token URL konstruieren
+    const csrfUrl = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
+    
+    // CSRF-Token holen
+    const csrfResponse = await axios.get(csrfUrl, {
+      headers: {
+        'X-CSRF-Token': 'Fetch',
+        ...authHeaders
+      }
+    });
+
+    const csrfToken = csrfResponse.headers['x-csrf-token'];
+    if (!csrfToken) {
+      throw new Error('CSRF token not found in response headers');
+    }
+
+    // Undeploy-Request ausführen
+    const response = await axios.delete(url, {
+      headers: {
+        'X-CSRF-Token': csrfToken,
+        'Content-Type': 'application/json',
+        ...authHeaders
+      }
+    });
+
+    // 202 Accepted ist die erwartete Antwort für erfolgreiches Undeploy
+    if (response.status !== 202 && response.status !== 200) {
+      throw new Error(`Unexpected response status: ${response.status}`);
+    }
   }
 
   /**
@@ -500,6 +708,72 @@ export class IntegrationContentClient {
   }
 
   /**
+   * Gibt deployed Artefakte zurück (mit Caching)
+   *
+   * Diese Methode implementiert das Stale-While-Revalidate Pattern:
+   * - Frische Daten aus Cache werden sofort zurückgegeben
+   * - Veraltete Daten werden sofort zurückgegeben und im Hintergrund aktualisiert
+   * - Bei Cache-Miss werden frische Daten von SAP geholt und gecacht
+   *
+   * @param {Object} options Optionale Parameter für die Anfrage
+   * @param {number} [options.top] Maximale Anzahl der zurückzugebenden Artefakte
+   * @param {number} [options.skip] Anzahl der zu überspringenden Artefakte
+   * @param {string} [options.filter] OData-Filterausdruck
+   * @param {boolean} [forceRefresh=false] Erzwingt das Laden frischer Daten von SAP
+   * @returns {Promise<{data: ComSapHciApiIntegrationRuntimeArtifact[], cacheInfo: CacheInfo}>} Artefakte mit Cache-Informationen
+   *
+   * @example
+   * const { data, cacheInfo } = await client.getDeployedArtifactsWithCache();
+   * console.log(cacheInfo.hit);    // true/false
+   * console.log(cacheInfo.status); // 'HIT', 'HIT-STALE', 'MISS', or 'DISABLED'
+   */
+  async getDeployedArtifactsWithCache(
+    options: { top?: number; skip?: number; filter?: string } = {},
+    forceRefresh: boolean = false
+  ): Promise<{ data: ComSapHciApiIntegrationRuntimeArtifact[]; cacheInfo: CacheInfo }> {
+    const endpoint = '/IntegrationRuntimeArtifacts';
+    const queryParams = { top: options.top, skip: options.skip, filter: options.filter };
+
+    // If no cacheManager or hostname, fall back to direct API call
+    if (!this.cacheManager || !this.hostname) {
+      const data = await this.getDeployedArtifacts(options);
+      return {
+        data,
+        cacheInfo: {
+          hit: false,
+          age: null,
+          status: 'DISABLED',
+          source: 'sap-api-direct',
+        },
+      };
+    }
+
+    const cacheKey = generateCacheKey(this.hostname, 'GET', endpoint, queryParams);
+    // Runtime artifacts use shorter revalidation time (5 minutes)
+    const cacheOptions = { ttl: CACHE_TTL.STANDARD, revalidateAfter: REVALIDATE_AFTER.RUNTIME };
+
+    const fetchFn = async () => {
+      return this.getDeployedArtifacts(options);
+    };
+
+    const result = await this.cacheManager.getOrFetch<ComSapHciApiIntegrationRuntimeArtifact[]>(
+      cacheKey,
+      fetchFn,
+      cacheOptions,
+      forceRefresh
+    );
+
+    return {
+      data: result.data,
+      cacheInfo: {
+        ...result.cacheInfo,
+        key: cacheKey,
+        source: 'npm-package-cache',
+      },
+    };
+  }
+
+  /**
    * Gibt Konfigurationsparameter für einen Integrationsflow zurück
    * 
    * @param {string} flowId ID des Integrationsflows
@@ -517,6 +791,67 @@ export class IntegrationContentClient {
       { $filter: filter }
     );
     return this.normalizer.normalizeArrayResponse(response.data, 'getIntegrationFlowConfigurations');
+  }
+
+  /**
+   * Gibt Konfigurationsparameter für einen Integrationsflow zurück (mit Caching)
+   *
+   * Diese Methode implementiert das Stale-While-Revalidate Pattern.
+   *
+   * @param {string} flowId ID des Integrationsflows
+   * @param {string} [version='active'] Version des Integrationsflows
+   * @param {string} [filter] Optionaler OData-Filterausdruck
+   * @param {boolean} [forceRefresh=false] Erzwingt das Laden frischer Daten von SAP
+   * @returns {Promise<{data: ComSapHciApiConfiguration[], cacheInfo: CacheInfo}>} Konfigurationen mit Cache-Informationen
+   *
+   * @example
+   * const { data, cacheInfo } = await client.getIntegrationFlowConfigurationsWithCache('MyFlowId');
+   */
+  async getIntegrationFlowConfigurationsWithCache(
+    flowId: string,
+    version = 'active',
+    filter?: string,
+    forceRefresh: boolean = false
+  ): Promise<{ data: ComSapHciApiConfiguration[]; cacheInfo: CacheInfo }> {
+    const endpoint = `/IntegrationDesigntimeArtifacts(Id='${flowId}',Version='${version}')/Configurations`;
+    const queryParams = filter ? { filter } : undefined;
+
+    // If no cacheManager or hostname, fall back to direct API call
+    if (!this.cacheManager || !this.hostname) {
+      const data = await this.getIntegrationFlowConfigurations(flowId, version, filter);
+      return {
+        data,
+        cacheInfo: {
+          hit: false,
+          age: null,
+          status: 'DISABLED',
+          source: 'sap-api-direct',
+        },
+      };
+    }
+
+    const cacheKey = generateCacheKey(this.hostname, 'GET', endpoint, queryParams);
+    const cacheOptions = { ttl: CACHE_TTL.STANDARD, revalidateAfter: REVALIDATE_AFTER.STANDARD };
+
+    const fetchFn = async () => {
+      return this.getIntegrationFlowConfigurations(flowId, version, filter);
+    };
+
+    const result = await this.cacheManager.getOrFetch<ComSapHciApiConfiguration[]>(
+      cacheKey,
+      fetchFn,
+      cacheOptions,
+      forceRefresh
+    );
+
+    return {
+      data: result.data,
+      cacheInfo: {
+        ...result.cacheInfo,
+        key: cacheKey,
+        source: 'npm-package-cache',
+      },
+    };
   }
 
   /**
@@ -624,21 +959,79 @@ export class IntegrationContentClient {
     try {
       // Verwende die generierte API, um das Artefakt mit Fehlerinformationen zu holen
       const response = await this.api.integrationRuntimeArtifactsId.integrationRuntimeArtifactsList(artifactId);
-      
+
       // Hole das RuntimeArtifact aus der Antwort
       const runtimeArtifact = this.normalizer.normalizeEntityResponse(response.data, 'getDeployedArtifactById') as ComSapHciApiIntegrationRuntimeArtifact;
-      
+
       // Wenn es keine Fehlerinformationen gibt, gib null zurück
       if (!runtimeArtifact?.ErrorInformation) {
         return null;
       }
-      
+
       // Da die ErrorInformation bereits im Artefakt enthalten ist, können wir sie direkt zurückgeben
       return runtimeArtifact.ErrorInformation;
     } catch (error) {
       console.error('Error fetching error information:', error);
       return null;
     }
+  }
+
+  /**
+   * Gibt Fehlerinformationen für ein Artefakt zurück (mit Caching)
+   *
+   * Diese Methode implementiert das Stale-While-Revalidate Pattern.
+   * Nutzt kürzere Revalidierungszeit da Fehlerinformationen sich häufig ändern können.
+   *
+   * @param {string} artifactId ID des Artefakts
+   * @param {boolean} [forceRefresh=false] Erzwingt das Laden frischer Daten von SAP
+   * @returns {Promise<{data: ComSapHciApiRuntimeArtifactErrorInformation | null, cacheInfo: CacheInfo}>}
+   *
+   * @example
+   * const { data, cacheInfo } = await client.getArtifactErrorInformationWithCache('MyArtifactId');
+   */
+  async getArtifactErrorInformationWithCache(
+    artifactId: string,
+    forceRefresh: boolean = false
+  ): Promise<{ data: ComSapHciApiRuntimeArtifactErrorInformation | null; cacheInfo: CacheInfo }> {
+    const endpoint = `/IntegrationRuntimeArtifacts('${artifactId}')`;
+
+    // If no cacheManager or hostname, fall back to direct API call
+    if (!this.cacheManager || !this.hostname) {
+      const data = await this.getArtifactErrorInformation(artifactId);
+      return {
+        data,
+        cacheInfo: {
+          hit: false,
+          age: null,
+          status: 'DISABLED',
+          source: 'sap-api-direct',
+        },
+      };
+    }
+
+    const cacheKey = generateCacheKey(this.hostname, 'GET', endpoint);
+    // Error information uses shorter revalidation time (5 minutes)
+    const cacheOptions = { ttl: CACHE_TTL.STANDARD, revalidateAfter: REVALIDATE_AFTER.RUNTIME };
+
+    const fetchFn = async () => {
+      return this.getArtifactErrorInformation(artifactId);
+    };
+
+    const result = await this.cacheManager.getOrFetch<ComSapHciApiRuntimeArtifactErrorInformation | null>(
+      cacheKey,
+      fetchFn,
+      cacheOptions,
+      forceRefresh
+    );
+
+    return {
+      data: result.data,
+      cacheInfo: {
+        ...result.cacheInfo,
+        key: cacheKey,
+        source: 'npm-package-cache',
+      },
+    };
   }
   
   /**
@@ -769,13 +1162,84 @@ export class IntegrationContentClient {
    * 
    * @deprecated Diese Methode wird in zukünftigen Versionen ausgelagert. Bitte verwenden Sie die entsprechenden Methoden im IntegrationContentAdvancedClient.
    */
-  async getPackagesWithArtifacts(options: { 
-    top?: number; 
-    skip?: number; 
+  async getPackagesWithArtifacts(options: {
+    top?: number;
+    skip?: number;
     includeEmpty?: boolean;
     parallel?: boolean;
   } = {}): Promise<PackageWithArtifacts[]> {
     return this.advancedClient.getPackagesWithArtifacts(options);
+  }
+
+  /**
+   * Ruft alle Integrationspakete mit ihren zugehörigen Artefakten ab (mit Caching)
+   *
+   * Diese Methode implementiert das Stale-While-Revalidate Pattern:
+   * - Frische Daten aus Cache werden sofort zurückgegeben
+   * - Veraltete Daten werden sofort zurückgegeben und im Hintergrund aktualisiert
+   * - Bei Cache-Miss werden frische Daten von SAP geholt und gecacht
+   *
+   * @param {Object} options Optionale Parameter für die Anfrage
+   * @param {number} [options.top] Maximale Anzahl der zurückzugebenden Pakete
+   * @param {number} [options.skip] Anzahl der zu überspringenden Pakete
+   * @param {boolean} [options.includeEmpty=false] Ob leere Pakete ohne Artefakte inkludiert werden sollen
+   * @param {boolean} [options.parallel=false] Ob die Artefakte parallel abgerufen werden sollen
+   * @param {boolean} [forceRefresh=false] Erzwingt das Laden frischer Daten von SAP
+   * @returns {Promise<{data: PackageWithArtifacts[], cacheInfo: CacheInfo}>} Pakete mit Cache-Informationen
+   *
+   * @example
+   * const { data, cacheInfo } = await client.getPackagesWithArtifactsWithCache();
+   * console.log(cacheInfo.hit);    // true/false
+   * console.log(cacheInfo.status); // 'HIT', 'HIT-STALE', 'MISS', or 'DISABLED'
+   */
+  async getPackagesWithArtifactsWithCache(
+    options: {
+      top?: number;
+      skip?: number;
+      includeEmpty?: boolean;
+      parallel?: boolean;
+    } = {},
+    forceRefresh: boolean = false
+  ): Promise<{ data: PackageWithArtifacts[]; cacheInfo: CacheInfo }> {
+    const endpoint = '/IntegrationPackages?$expand=artifacts';
+    const queryParams = { top: options.top, skip: options.skip, includeEmpty: options.includeEmpty, parallel: options.parallel };
+
+    // If no cacheManager or hostname, fall back to direct API call
+    if (!this.cacheManager || !this.hostname) {
+      const data = await this.getPackagesWithArtifacts(options);
+      return {
+        data,
+        cacheInfo: {
+          hit: false,
+          age: null,
+          status: 'DISABLED',
+          source: 'sap-api-direct',
+        },
+      };
+    }
+
+    const cacheKey = generateCacheKey(this.hostname, 'GET', endpoint, queryParams);
+    const cacheOptions = { ttl: CACHE_TTL.STANDARD, revalidateAfter: REVALIDATE_AFTER.STANDARD };
+
+    const fetchFn = async () => {
+      return this.getPackagesWithArtifacts(options);
+    };
+
+    const result = await this.cacheManager.getOrFetch<PackageWithArtifacts[]>(
+      cacheKey,
+      fetchFn,
+      cacheOptions,
+      forceRefresh
+    );
+
+    return {
+      data: result.data,
+      cacheInfo: {
+        ...result.cacheInfo,
+        key: cacheKey,
+        source: 'npm-package-cache',
+      },
+    };
   }
 
   /**

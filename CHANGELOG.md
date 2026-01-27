@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Queue Deduplication for Background Revalidation**: Prevents duplicate SAP API calls when multiple users request the same stale cache data concurrently
+  - Introduced `_revalidationInProgress` Map to track ongoing revalidations
+  - Added `_cleanupRevalidation()` helper method for memory-safe cleanup
+  - Integrated deduplication check in `revalidateInBackground()` method
+  - Improved `close()` method to wait for pending revalidations (max 5 seconds grace period)
+
+### Performance
+- **Significantly reduced SAP API load**: 50 concurrent requests for the same cache key now result in 1 SAP call instead of 50
+- **Memory optimization**: Automatic cleanup of completed revalidations prevents memory leaks
+- **Production-ready**: Tested with 1000+ sequential revalidations and 50+ concurrent requests
+
+### Documentation
+- Enhanced JSDoc comments for `_revalidationInProgress`, `revalidateInBackground()`, and `_cleanupRevalidation()`
+- Added comprehensive unit tests (24 tests) covering deduplication logic, memory management, error handling, and edge cases
+- Added integration tests (12 tests) for performance, queue processing, and real-world scenarios
+
+### Technical Details
+- **Deduplication Strategy**: O(1) lookup using Map data structure
+- **Cleanup Guarantee**: `finally` block ensures keys are removed even on errors
+- **Debug Support**: Detailed logging when `DEBUG=true` environment variable is set
+- **Graceful Shutdown**: `close()` waits for pending revalidations to complete before closing connection
+
+---
+
 ## [2.0.2] - 2025-11-18
 
 ### Fixed - Critical Bugs

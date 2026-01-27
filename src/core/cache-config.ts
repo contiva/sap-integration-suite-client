@@ -24,8 +24,9 @@ export const REVALIDATE_AFTER = {
 
 /**
  * Background revalidation timeout in milliseconds
+ * Increased from 5s to 30s to allow queue processing more time to complete
  */
-export const REVALIDATION_TIMEOUT_MS = 5000; // 5 seconds
+export const REVALIDATION_TIMEOUT_MS = 30000; // 30 seconds
 
 /**
  * URL patterns that should NOT be cached

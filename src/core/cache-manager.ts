@@ -23,6 +23,38 @@ export class CacheManager {
   private encryptionKey: Buffer | null = null;
   private encryptionEnabled: boolean = false;
   private connectedAt: number | null = null;
+  
+  // Failover and retry configuration
+  private maxReconnectAttempts: number = 5;
+  private reconnectDelay: number = 1000; // Start with 1 second
+  private maxReconnectDelay: number = 30000; // Max 30 seconds
+  private currentReconnectAttempt: number = 0;
+  private isReconnecting: boolean = false;
+  
+  // Rate-limiting queue for background revalidations to prevent 429 errors
+  private _revalidationQueue: Array<() => Promise<void>> = [];
+  private _revalidationExecuting: Set<Promise<void>> = new Set();
+  private _revalidationConcurrency: number = 1; // Sequential execution to avoid SAP rate limits
+  private _revalidationDelay: number = 1000; // 1 second delay between requests to avoid SAP rate limits
+  private _revalidationProcessing: boolean = false; // Flag to prevent parallel queue processing
+  private _maxQueueLength: number = 100; // Maximum queue length before dropping tasks
+  private _queueDropStrategy: 'oldest' | 'newest' | 'warn' = 'oldest'; // How to handle queue overflow
+  
+  /**
+   * Tracks ongoing revalidation operations to prevent duplicate SAP API calls
+   * 
+   * Maps cache keys to their revalidation promises. When multiple requests
+   * arrive for the same stale cache key, subsequent requests will be skipped
+   * while the first revalidation is in progress.
+   * 
+   * Memory Management:
+   * - Keys are automatically removed after revalidation completes (success or failure)
+   * - All entries are cleared when the cache manager is closed
+   * 
+   * @private
+   * @since 1.x.x (Queue Deduplication Feature)
+   */
+  private _revalidationInProgress: Map<string, Promise<void>> = new Map();
 
   /**
    * Creates a new CacheManager instance
@@ -30,10 +62,20 @@ export class CacheManager {
    * @param connectionString - Redis connection string
    * @param enabled - Whether caching is enabled
    * @param encryptionSecret - Optional secret for encrypting cache values (recommended: use OAuth client secret)
+   * @param maxQueueLength - Maximum revalidation queue length (default: 100)
+   * @param queueDropStrategy - Strategy for handling queue overflow: 'oldest' (drop oldest tasks), 'newest' (drop newest/incoming tasks), 'warn' (only warn, no limit)
    */
-  constructor(connectionString: string, enabled: boolean = true, encryptionSecret?: string) {
+  constructor(
+    connectionString: string, 
+    enabled: boolean = true, 
+    encryptionSecret?: string,
+    maxQueueLength: number = 100,
+    queueDropStrategy: 'oldest' | 'newest' | 'warn' = 'oldest'
+  ) {
     this.connectionString = connectionString;
     this.isEnabled = enabled;
+    this._maxQueueLength = maxQueueLength;
+    this._queueDropStrategy = queueDropStrategy;
     
     // Initialize encryption if secret is provided
     if (encryptionSecret) {
@@ -237,26 +279,62 @@ export class CacheManager {
           port: portNumber,
           tls: ssl,
           connectTimeout: 5000, // 5 second timeout for connection attempts
-          reconnectStrategy: false, // Disable automatic reconnection to prevent hanging
+          reconnectStrategy: (retries) => {
+            // Exponential backoff with max delay
+            if (retries >= this.maxReconnectAttempts) {
+              console.error(`[CacheManager] Max reconnection attempts (${this.maxReconnectAttempts}) reached. Giving up.`);
+              return false; // Stop reconnecting
+            }
+            
+            const delay = Math.min(
+              this.reconnectDelay * Math.pow(2, retries),
+              this.maxReconnectDelay
+            );
+            
+            console.log(`[CacheManager] Reconnection attempt ${retries + 1}/${this.maxReconnectAttempts} in ${delay}ms...`);
+            return delay;
+          },
         },
         password,
       });
 
-      // Error handling
+      // Error handling with failover support
       this.client.on('error', (err: Error) => {
         console.error('[CacheManager] Redis client error:', err);
         this.isConnected = false;
+        
+        // Don't trigger reconnection if we're already reconnecting
+        if (!this.isReconnecting) {
+          this.isReconnecting = true;
+        }
       });
 
       this.client.on('connect', () => {
         console.log('[CacheManager] Redis client connected');
         this.isConnected = true;
         this.connectedAt = Date.now();
+        this.currentReconnectAttempt = 0; // Reset reconnection counter on success
+        this.isReconnecting = false;
+      });
+
+      this.client.on('reconnecting', () => {
+        console.log('[CacheManager] Redis client reconnecting...');
+        this.isConnected = false;
+        this.isReconnecting = true;
+        this.currentReconnectAttempt++;
       });
 
       this.client.on('disconnect', () => {
         console.log('[CacheManager] Redis client disconnected');
         this.isConnected = false;
+      });
+      
+      this.client.on('ready', () => {
+        console.log('[CacheManager] Redis client ready');
+        this.isConnected = true;
+        this.connectedAt = Date.now();
+        this.currentReconnectAttempt = 0;
+        this.isReconnecting = false;
       });
 
       // Connect to Redis with timeout
@@ -477,51 +555,338 @@ export class CacheManager {
   }
 
   /**
-   * Revalidates cache in the background with timeout
+   * Processes the revalidation queue with rate limiting
+   * @private
+   */
+  private async _processRevalidationQueue(): Promise<void> {
+    // Prevent parallel processing
+    if (this._revalidationProcessing) {
+      return;
+    }
+
+    // If we're at concurrency limit, wait
+    if (this._revalidationExecuting.size >= this._revalidationConcurrency) {
+      return;
+    }
+
+    // If queue is empty, nothing to do
+    if (this._revalidationQueue.length === 0) {
+      this._revalidationProcessing = false;
+      return;
+    }
+
+    // Mark as processing
+    this._revalidationProcessing = true;
+
+    // Get next task from queue
+    const task = this._revalidationQueue.shift();
+    if (!task) {
+      this._revalidationProcessing = false;
+      return;
+    }
+
+    const queueLength = this._revalidationQueue.length;
+    const executingCount = this._revalidationExecuting.size;
+    console.log(`[CacheManager] 🔄 Processing revalidation queue - Queue: ${queueLength}, Executing: ${executingCount}`);
+
+    // ALWAYS add delay before processing to avoid rate limits (except for the very first task)
+    // This ensures sequential processing with proper spacing
+    if (this._revalidationExecuting.size > 0) {
+      console.log(`[CacheManager] ⏳ Waiting ${this._revalidationDelay}ms before next revalidation...`);
+      await new Promise(resolve => setTimeout(resolve, this._revalidationDelay));
+    }
+
+    // Execute task
+    const promise = task()
+      .then(() => {
+        this._revalidationExecuting.delete(promise);
+        this._revalidationProcessing = false;
+        // Process next item in queue after a short delay
+        setTimeout(() => {
+          this._processRevalidationQueue().catch(() => {});
+        }, 0);
+      })
+      .catch(() => {
+        this._revalidationExecuting.delete(promise);
+        this._revalidationProcessing = false;
+        // Process next item in queue after a short delay
+        setTimeout(() => {
+          this._processRevalidationQueue().catch(() => {});
+        }, 0);
+      });
+
+    this._revalidationExecuting.add(promise);
+  }
+
+  /**
+   * Cleans up revalidation tracking after completion
+   * 
+   * This method is called in the `finally` block of each revalidation task
+   * to ensure the cache key is removed from `_revalidationInProgress`,
+   * regardless of whether the revalidation succeeded or failed.
+   * 
+   * Memory Safety:
+   * - Guaranteed cleanup through `finally` block
+   * - Safe to call multiple times (idempotent)
+   * - Handles non-existent keys gracefully
+   * 
+   * Debug Logging:
+   * When DEBUG=true, logs the cleanup operation and the current number
+   * of revalidations still in progress.
+   * 
+   * @param key - The cache key that completed revalidation
+   * @private
+   * @since 1.x.x (Queue Deduplication Feature)
+   */
+  private _cleanupRevalidation(key: string): void {
+    if (this._revalidationInProgress.has(key)) {
+      this._revalidationInProgress.delete(key);
+      
+      if (process.env.DEBUG === 'true') {
+        console.log(`[CacheManager] 🧹 Cleaned up revalidation for key: ${key.substring(0, 80)}... (${this._revalidationInProgress.size} still in progress)`);
+      }
+    }
+  }
+
+  /**
+   * Revalidates cache in the background with timeout and rate limiting
+   * Supports differential updates for collection endpoints
+   * 
+   * Queue Deduplication:
+   * Prevents multiple concurrent revalidations of the same cache key.
+   * If a revalidation for a given key is already in progress, subsequent
+   * requests will be skipped to avoid duplicate SAP API calls.
+   * 
+   * Example scenario:
+   * - 50 users request the same stale artifact data simultaneously
+   * - Without deduplication: 50 SAP API calls
+   * - With deduplication: 1 SAP API call
    * 
    * @param key - The cache key to revalidate
    * @param fetchFn - Function that fetches fresh data
    * @param options - Cache options for the new data
+   * @param enableDifferential - Enable differential updates (only for collections)
+   * @param isCollectionEndpoint - Whether this is a collection endpoint
    */
   async revalidateInBackground(
     key: string,
     fetchFn: () => Promise<any>,
-    options: CacheOptions
+    options: CacheOptions,
+    enableDifferential: boolean = false,
+    isCollectionEndpoint: boolean = false
   ): Promise<void> {
     if (!this.isEnabled || !this.isConnected) {
       return;
     }
 
-    // Don't await - run in background
-    let timeoutId: NodeJS.Timeout | null = null;
-    
-    Promise.race([
-      fetchFn(),
-      new Promise((_, reject) => {
-        timeoutId = setTimeout(() => reject(new Error('Revalidation timeout')), REVALIDATION_TIMEOUT_MS);
-      }),
-    ])
-      .then(async (freshData) => {
+    // Check if a revalidation for this key is already in progress
+    if (this._revalidationInProgress.has(key)) {
+      if (process.env.DEBUG === 'true') {
+        console.log(`[CacheManager] ⏭️  Skipping duplicate revalidation for key: ${key.substring(0, 80)}...`);
+      }
+      return; // Skip adding to queue
+    }
+
+    // Log when adding to queue
+    if (this._revalidationQueue.length === 0) {
+      console.log(`[CacheManager] 📥 Starting revalidation queue - First task: ${key.substring(0, 80)}...`);
+    }
+
+    // Add to queue instead of executing immediately
+    const task = async (): Promise<void> => {
+      let timeoutId: NodeJS.Timeout | null = null;
+      
+      try {
+        // Registriere Promise in Map BEVOR fetch startet
+        const revalidationPromise = (async () => {
+          const freshData = await Promise.race([
+            fetchFn(),
+            new Promise((_, reject) => {
+              timeoutId = setTimeout(() => reject(new Error('Revalidation timeout')), REVALIDATION_TIMEOUT_MS);
+            }),
+          ]);
+
+          // Clear timeout to prevent memory leak
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+          }
+
+          // If differential updates are enabled and this is a collection endpoint, perform differential merge
+          if (enableDifferential && isCollectionEndpoint) {
+            try {
+              // Import the helper functions dynamically to avoid circular dependencies
+              const { compareArtifacts, mergeArtifactsDifferentially } = await import('../utils/cache-update-helper');
+              
+              // Get old cache data
+              const oldCachedData = await this.get(key);
+              
+              if (oldCachedData) {
+                // Extract artifacts arrays from both old and new data
+                const oldArtifacts = this.extractArtifactsArray(oldCachedData.data);
+                const newArtifacts = this.extractArtifactsArray(freshData);
+                
+                if (oldArtifacts && newArtifacts) {
+                  // Compare artifacts
+                  const comparison = compareArtifacts(oldArtifacts, newArtifacts);
+                  
+                  if (process.env.DEBUG === 'true') {
+                    console.log(`[CacheManager] Differential revalidation for ${key}: ` +
+                      `Added: ${comparison.added.length}, ` +
+                      `Updated: ${comparison.updated.length}, ` +
+                      `Removed: ${comparison.removed.length}, ` +
+                      `Unchanged: ${comparison.unchanged.length}`);
+                  }
+                  
+                  // Merge differentially
+                  const mergedData = mergeArtifactsDifferentially(
+                    oldCachedData,
+                    newArtifacts,
+                    comparison,
+                    {
+                      ttl: options.ttl,
+                      revalidateAfter: options.revalidateAfter,
+                    }
+                  );
+                  
+                  // Save merged data directly to Redis
+                  await this.saveCachedData(key, mergedData);
+                  
+                  if (process.env.DEBUG === 'true') {
+                    console.log(`[CacheManager] Differential revalidation successful for key: ${key}`);
+                  }
+                  return;
+                }
+              }
+            } catch (diffError) {
+              // Log error but fall back to full replacement
+              console.warn(`[CacheManager] Differential update failed, falling back to full replacement:`, diffError);
+            }
+          }
+          
+          // Default behavior: Full replacement
+          await this.set(key, freshData, options);
+          if (process.env.DEBUG === 'true') {
+            console.log(`[CacheManager] Background revalidation successful for key: ${key}`);
+          }
+        })();
+
+        // Registriere in Map
+        this._revalidationInProgress.set(key, revalidationPromise);
+        
+        // Warte auf Abschluss
+        await revalidationPromise;
+        
+      } catch (error: any) {
         // Clear timeout to prevent memory leak
         if (timeoutId) {
           clearTimeout(timeoutId);
         }
-        // Update cache with fresh data
-        await this.set(key, freshData, options);
-        if (process.env.DEBUG === 'true') {
-          console.log(`[CacheManager] Background revalidation successful for key: ${key}`);
-        }
-      })
-      .catch((error) => {
-        // Clear timeout to prevent memory leak
-        if (timeoutId) {
-          clearTimeout(timeoutId);
+        // Log 429 errors specifically
+        if (error?.message?.includes('429') || error?.status === 429 || error?.response?.status === 429) {
+          console.warn(`[CacheManager] ⚠️ Background revalidation rate limited (429) for key: ${key} - Queue length: ${this._revalidationQueue.length}, Executing: ${this._revalidationExecuting.size}`);
         }
         // Silently fail - keep old cache
         if (process.env.DEBUG === 'true') {
           console.log(`[CacheManager] Background revalidation failed for key: ${key}`, error.message);
         }
-      });
+      } finally {
+        // CLEANUP: Entferne Key aus Map nach Abschluss
+        this._cleanupRevalidation(key);
+      }
+    };
+
+    // Check queue limit and apply drop strategy
+    if (this._queueDropStrategy !== 'warn' && this._revalidationQueue.length >= this._maxQueueLength) {
+      if (this._queueDropStrategy === 'oldest') {
+        // Drop oldest task (shift from front)
+        this._revalidationQueue.shift();
+        console.warn(`[CacheManager] ⚠️ Queue limit reached (${this._maxQueueLength}), dropped OLDEST task. Adding new task: ${key.substring(0, 80)}...`);
+      } else if (this._queueDropStrategy === 'newest') {
+        // Drop newest task (don't add current task)
+        console.warn(`[CacheManager] ⚠️ Queue limit reached (${this._maxQueueLength}), dropping NEWEST task: ${key.substring(0, 80)}...`);
+        return; // Don't add to queue
+      }
+    }
+    
+    // Add to queue
+    this._revalidationQueue.push(task);
+    
+    // Log queue status
+    if (this._revalidationQueue.length > 10) {
+      console.warn(`[CacheManager] ⚠️ Revalidation queue is growing: ${this._revalidationQueue.length}/${this._maxQueueLength} items queued, Executing: ${this._revalidationExecuting.size}, Processing: ${this._revalidationProcessing}`);
+    }
+    
+    // Start processing queue if not already processing
+    if (!this._revalidationProcessing) {
+      this._processRevalidationQueue().catch(() => {});
+    }
+  }
+
+  /**
+   * Extracts artifacts array from various cache data formats
+   * Supports: Direct array, OData v2/v4, IntegrationPackages, IntegrationRuntimeArtifacts
+   * 
+   * @param data - The cache data to extract from
+   * @returns Array of artifacts or null if format not recognized
+   */
+  private extractArtifactsArray(data: any): any[] | null {
+    if (!data) return null;
+    
+    // Format 1: Direct array
+    if (Array.isArray(data)) {
+      return data;
+    }
+    // Format 2: OData v2 format (d.results)
+    if (data?.d?.results && Array.isArray(data.d.results)) {
+      return data.d.results;
+    }
+    // Format 3: OData v4 format (value array)
+    if (data?.value && Array.isArray(data.value)) {
+      return data.value;
+    }
+    // Format 4: IntegrationPackages format
+    if (data?.IntegrationPackages && Array.isArray(data.IntegrationPackages)) {
+      return data.IntegrationPackages;
+    }
+    // Format 5: IntegrationRuntimeArtifacts format
+    if (data?.IntegrationRuntimeArtifacts && Array.isArray(data.IntegrationRuntimeArtifacts)) {
+      return data.IntegrationRuntimeArtifacts;
+    }
+    
+    return null;
+  }
+
+  /**
+   * Saves CachedData directly to Redis (internal helper for differential updates)
+   * 
+   * @param key - The cache key
+   * @param cachedData - The complete CachedData object to save
+   */
+  private async saveCachedData(key: string, cachedData: CachedData): Promise<void> {
+    if (!this.isEnabled || !this.isConnected || !this.client) {
+      return;
+    }
+
+    try {
+      // Calculate remaining TTL in seconds
+      const now = Date.now();
+      const remainingTtl = Math.max(0, Math.ceil((cachedData.expiresAt - now) / 1000));
+      
+      // Serialize and optionally encrypt
+      const serialized = JSON.stringify(cachedData);
+      const value = this.encrypt(serialized);
+      
+      // Save to Redis with TTL
+      if (remainingTtl > 0) {
+        await this.client.set(key, value, { EX: remainingTtl });
+      } else {
+        // If TTL is 0 or negative, delete the key
+        await this.client.del(key);
+      }
+    } catch (error) {
+      console.error('[CacheManager] Error saving cached data:', error);
+      throw error;
+    }
   }
 
   /**
@@ -529,6 +894,22 @@ export class CacheManager {
    */
   async close(): Promise<void> {
     if (this.client) {
+      // Wait for pending revalidations to complete
+      if (this._revalidationInProgress.size > 0) {
+        console.log(`[CacheManager] ⏳ Waiting for ${this._revalidationInProgress.size} revalidations to complete...`);
+        
+        try {
+          await Promise.race([
+            Promise.allSettled(Array.from(this._revalidationInProgress.values())),
+            new Promise((resolve) => setTimeout(resolve, 5000)),
+          ]);
+        } catch (error) {
+          console.warn('[CacheManager] Some revalidations did not complete before closing:', error);
+        }
+        
+        this._revalidationInProgress.clear();
+      }
+      
       // Remove all event listeners to prevent memory leaks
       this.client.removeAllListeners('error');
       this.client.removeAllListeners('connect');
@@ -2854,6 +3235,210 @@ export class CacheManager {
         issues: [],
       };
     }
+  }
+
+  /**
+   * Gets data from cache or fetches it using the provided function
+   * Implements Stale-While-Revalidate pattern:
+   * - If data is in cache and fresh: return immediately
+   * - If data is in cache but stale: return immediately, revalidate in background
+   * - If data is expired or not in cache: fetch fresh data
+   *
+   * @param key - The cache key
+   * @param fetchFn - Function to fetch fresh data
+   * @param options - Cache options (TTL and revalidation time)
+   * @param forceRefresh - Force fetching fresh data regardless of cache state
+   * @returns Object containing data and cache info
+   *
+   * @example
+   * const result = await cacheManager.getOrFetch(
+   *   'sap:hostname:GET:/IntegrationPackages',
+   *   async () => await api.getPackages(),
+   *   { ttl: 2592000, revalidateAfter: 300 },
+   *   false
+   * );
+   * console.log(result.data);     // The actual data
+   * console.log(result.cacheInfo); // { hit: true, age: 120, status: 'HIT' }
+   */
+  async getOrFetch<T>(
+    key: string,
+    fetchFn: () => Promise<T>,
+    options: CacheOptions,
+    forceRefresh: boolean = false
+  ): Promise<{ data: T; cacheInfo: { hit: boolean; age: number | null; status: 'HIT' | 'HIT-STALE' | 'MISS' | 'DISABLED' } }> {
+    // If cache is disabled, always fetch fresh
+    if (!this.isEnabled || !this.isConnected) {
+      const freshData = await fetchFn();
+      return {
+        data: freshData,
+        cacheInfo: {
+          hit: false,
+          age: null,
+          status: 'DISABLED',
+        },
+      };
+    }
+
+    // If forceRefresh, skip cache and fetch fresh data
+    if (forceRefresh) {
+      if (process.env.DEBUG === 'true') {
+        cacheLogger.debug(
+          'Force refresh - fetching fresh data',
+          'CacheManager',
+          { key }
+        );
+      }
+
+      const freshData = await fetchFn();
+      await this.set(key, freshData, options);
+
+      return {
+        data: freshData,
+        cacheInfo: {
+          hit: false,
+          age: 0,
+          status: 'MISS',
+        },
+      };
+    }
+
+    // Try to get from cache
+    const cachedData = await this.get(key);
+
+    if (cachedData) {
+      const now = Date.now();
+      const age = Math.floor((now - cachedData.cachedAt) / 1000);
+
+      // Check if data is expired
+      if (this.isExpired(cachedData)) {
+        // Data is expired, fetch fresh
+        if (process.env.DEBUG === 'true') {
+          cacheLogger.debug(
+            'Cache entry expired - fetching fresh data',
+            'CacheManager',
+            { key, age }
+          );
+        }
+
+        const freshData = await fetchFn();
+        await this.set(key, freshData, options);
+
+        return {
+          data: freshData,
+          cacheInfo: {
+            hit: false,
+            age: 0,
+            status: 'MISS',
+          },
+        };
+      }
+
+      // Check if data should be revalidated (stale)
+      if (this.shouldRevalidate(cachedData)) {
+        // Data is stale but not expired - return immediately and revalidate in background
+        if (process.env.DEBUG === 'true') {
+          cacheLogger.debug(
+            'Cache entry stale - returning cached data and revalidating in background',
+            'CacheManager',
+            { key, age }
+          );
+        }
+
+        // Trigger background revalidation
+        this.revalidateInBackground(key, fetchFn, options, false, false);
+
+        return {
+          data: cachedData.data as T,
+          cacheInfo: {
+            hit: true,
+            age,
+            status: 'HIT-STALE',
+          },
+        };
+      }
+
+      // Data is fresh - return from cache
+      if (process.env.DEBUG === 'true') {
+        cacheLogger.debug(
+          'Cache hit - returning cached data',
+          'CacheManager',
+          { key, age }
+        );
+      }
+
+      return {
+        data: cachedData.data as T,
+        cacheInfo: {
+          hit: true,
+          age,
+          status: 'HIT',
+        },
+      };
+    }
+
+    // Cache miss - fetch fresh data
+    if (process.env.DEBUG === 'true') {
+      cacheLogger.debug(
+        'Cache miss - fetching fresh data',
+        'CacheManager',
+        { key }
+      );
+    }
+
+    const freshData = await fetchFn();
+    await this.set(key, freshData, options);
+
+    return {
+      data: freshData,
+      cacheInfo: {
+        hit: false,
+        age: 0,
+        status: 'MISS',
+      },
+    };
+  }
+
+  /**
+   * Returns health status of the cache manager and Redis connection
+   * Useful for monitoring and failover detection
+   * 
+   * @returns Health status object
+   */
+  getHealthStatus() {
+    const now = Date.now();
+    const uptime = this.connectedAt ? now - this.connectedAt : 0;
+    
+    return {
+      enabled: this.isEnabled,
+      connected: this.isConnected,
+      reconnecting: this.isReconnecting,
+      reconnectAttempts: this.currentReconnectAttempt,
+      maxReconnectAttempts: this.maxReconnectAttempts,
+      uptime,
+      connectedAt: this.connectedAt ? new Date(this.connectedAt).toISOString() : null,
+      encryptionEnabled: this.encryptionEnabled,
+      queueStatus: {
+        length: this._revalidationQueue.length,
+        executing: this._revalidationExecuting.size,
+        processing: this._revalidationProcessing,
+        maxQueueLength: this._maxQueueLength,
+      },
+      status: this._getConnectionStatus(),
+    };
+  }
+
+  /**
+   * Gets a human-readable connection status
+   * 
+   * @private
+   * @returns Connection status string
+   */
+  private _getConnectionStatus(): 'healthy' | 'reconnecting' | 'degraded' | 'offline' {
+    if (!this.isEnabled) return 'offline';
+    if (this.isConnected && !this.isReconnecting) return 'healthy';
+    if (this.isReconnecting && this.currentReconnectAttempt < this.maxReconnectAttempts) return 'reconnecting';
+    if (this.currentReconnectAttempt >= this.maxReconnectAttempts) return 'offline';
+    return 'degraded';
   }
 }
 

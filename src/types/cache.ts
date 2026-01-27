@@ -75,7 +75,7 @@ export interface CacheAdminStats {
 
 /**
  * Information about a specific cache key
- * 
+ *
  * **WARNING**: This API uses MEMORY USAGE which is expensive and should not be used in hot-path code.
  */
 export interface CacheKeyInfo {
@@ -93,5 +93,23 @@ export interface CacheKeyInfo {
   readonly expiresAt: number;
   /** Unix-Timestamp in Millisekunden seit Epoch (Date.now()) */
   readonly revalidateAfter: number;
+}
+
+/**
+ * Cache information returned with API responses
+ *
+ * Used to inform the caller whether data came from cache or was freshly fetched.
+ */
+export interface CacheInfo {
+  /** Whether the data came from cache */
+  hit: boolean;
+  /** Age of the cache entry in seconds (null if not from cache) */
+  age: number | null;
+  /** Cache status: HIT (fresh), HIT-STALE (stale but returned), MISS (freshly fetched), DISABLED (cache disabled) */
+  status: 'HIT' | 'HIT-STALE' | 'MISS' | 'DISABLED';
+  /** The cache key used (optional, for debugging) */
+  key?: string;
+  /** Source of the data */
+  source?: string;
 }
 

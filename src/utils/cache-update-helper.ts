@@ -929,6 +929,316 @@ export function addArtifactToCacheArray(
 }
 
 /**
+ * Comparison result for two arrays of artifacts
+ */
+export interface ComparisonResult {
+  /** Newly added artifacts (exist in new data but not in old) */
+  added: any[];
+  /** Updated artifacts (exist in both but have changed) */
+  updated: any[];
+  /** Removed artifacts (exist in old data but not in new) */
+  removed: any[];
+  /** Unchanged artifacts (exist in both and are identical) */
+  unchanged: any[];
+  /** Whether any changes were detected */
+  hasChanges: boolean;
+}
+
+/**
+ * Options for differential merge operations
+ */
+export interface DifferentialMergeOptions {
+  /** Time-to-live in seconds (how long to keep in cache) */
+  ttl: number;
+  /** Time in seconds after which to revalidate the cache */
+  revalidateAfter: number;
+}
+
+/**
+ * Compares two arrays of artifacts and identifies changes
+ * Used for differential cache updates during background revalidation
+ * 
+ * @param oldArtifacts - The old artifacts from cache
+ * @param newArtifacts - The new artifacts from SAP API
+ * @returns Comparison result with added, updated, removed, and unchanged artifacts
+ * 
+ * @example
+ * const comparison = compareArtifacts(cachedData.data, freshData);
+ * console.log(`Added: ${comparison.added.length}, Updated: ${comparison.updated.length}`);
+ */
+export function compareArtifacts(
+  oldArtifacts: any[],
+  newArtifacts: any[]
+): ComparisonResult {
+  const result: ComparisonResult = {
+    added: [],
+    updated: [],
+    removed: [],
+    unchanged: [],
+    hasChanges: false,
+  };
+
+  try {
+    // Handle empty arrays
+    if (!Array.isArray(oldArtifacts) || !Array.isArray(newArtifacts)) {
+      if (process.env.DEBUG === 'true') {
+        console.debug('[CacheUpdateHelper] Invalid input for compareArtifacts - not arrays:', {
+          oldIsArray: Array.isArray(oldArtifacts),
+          newIsArray: Array.isArray(newArtifacts),
+        });
+      }
+      return result;
+    }
+
+    // Create maps for efficient lookup
+    // Use both Id and id for compatibility
+    const oldMap = new Map<string, any>();
+    const newMap = new Map<string, any>();
+
+    // Build old artifacts map
+    for (const artifact of oldArtifacts) {
+      if (!artifact) continue;
+      const id = artifact.Id || artifact.id;
+      if (id) {
+        oldMap.set(id, artifact);
+      }
+    }
+
+    // Build new artifacts map
+    for (const artifact of newArtifacts) {
+      if (!artifact) continue;
+      const id = artifact.Id || artifact.id;
+      if (id) {
+        newMap.set(id, artifact);
+      }
+    }
+
+    // Find added and updated artifacts
+    for (const [id, newArtifact] of newMap.entries()) {
+      const oldArtifact = oldMap.get(id);
+      
+      if (!oldArtifact) {
+        // New artifact (deployed since last cache)
+        result.added.push(newArtifact);
+      } else {
+        // Check if artifact has changed
+        // Compare relevant status fields
+        const hasStatusChanged = 
+          oldArtifact.Status !== newArtifact.Status ||
+          oldArtifact.DeployedBy !== newArtifact.DeployedBy ||
+          oldArtifact.DeployedOn !== newArtifact.DeployedOn;
+
+        if (hasStatusChanged) {
+          result.updated.push(newArtifact);
+        } else {
+          result.unchanged.push(newArtifact);
+        }
+      }
+    }
+
+    // Find removed artifacts
+    for (const [id, oldArtifact] of oldMap.entries()) {
+      if (!newMap.has(id)) {
+        // Artifact was removed (undeployed)
+        result.removed.push(oldArtifact);
+      }
+    }
+
+    // Determine if any changes occurred
+    result.hasChanges = 
+      result.added.length > 0 ||
+      result.updated.length > 0 ||
+      result.removed.length > 0;
+
+    if (process.env.DEBUG === 'true') {
+      console.debug('[CacheUpdateHelper] compareArtifacts result:', {
+        total: newArtifacts.length,
+        added: result.added.length,
+        updated: result.updated.length,
+        removed: result.removed.length,
+        unchanged: result.unchanged.length,
+        hasChanges: result.hasChanges,
+      });
+    }
+
+    return result;
+  } catch (error) {
+    console.error('[CacheUpdateHelper] Error comparing artifacts:', error);
+    return result;
+  }
+}
+
+/**
+ * Merges old cached data with comparison results using differential updates
+ * Performs selective updates: only changes added/updated/removed artifacts
+ * ALWAYS updates cache metadata (cachedAt, expiresAt, revalidateAfter) to mark cache as "fresh"
+ * 
+ * @param cachedData - The old cached data
+ * @param newArtifacts - The complete new artifacts from SAP API
+ * @param comparison - The comparison result between old and new
+ * @param options - Cache options for metadata updates
+ * @returns Updated CachedData with refreshed metadata
+ * 
+ * @example
+ * const comparison = compareArtifacts(oldArtifacts, newArtifacts);
+ * const merged = mergeArtifactsDifferentially(cachedData, newArtifacts, comparison, options);
+ */
+export function mergeArtifactsDifferentially(
+  cachedData: CachedData,
+  newArtifacts: any[],
+  comparison: ComparisonResult,
+  options: DifferentialMergeOptions
+): CachedData {
+  try {
+    const data = cachedData.data;
+    
+    // If no changes, just update metadata and return
+    if (!comparison.hasChanges) {
+      const now = Date.now();
+      return {
+        ...cachedData,
+        cachedAt: now,
+        expiresAt: now + (options.ttl * 1000),
+        revalidateAfter: now + (options.revalidateAfter * 1000),
+      };
+    }
+
+    // Extract artifacts array from the various cache formats
+    let artifacts: any[] | null = null;
+    let formatType: 'direct' | 'odata-v2' | 'odata-v4' | 'integration-packages' | 'integration-runtime-artifacts' | null = null;
+    
+    // Format 1: Direct array
+    if (Array.isArray(data)) {
+      artifacts = data;
+      formatType = 'direct';
+    }
+    // Format 2: OData v2 format (d.results)
+    else if (data?.d?.results && Array.isArray(data.d.results)) {
+      artifacts = data.d.results;
+      formatType = 'odata-v2';
+    }
+    // Format 3: OData v4 format (value array)
+    else if (data?.value && Array.isArray(data.value)) {
+      artifacts = data.value;
+      formatType = 'odata-v4';
+    }
+    // Format 4: IntegrationPackages format
+    else if (data?.IntegrationPackages && Array.isArray(data.IntegrationPackages)) {
+      artifacts = data.IntegrationPackages;
+      formatType = 'integration-packages';
+    }
+    // Format 5: IntegrationRuntimeArtifacts format
+    else if (data?.IntegrationRuntimeArtifacts && Array.isArray(data.IntegrationRuntimeArtifacts)) {
+      artifacts = data.IntegrationRuntimeArtifacts;
+      formatType = 'integration-runtime-artifacts';
+    }
+
+    if (!artifacts) {
+      // Fallback: If format is not recognized, replace entirely with new data
+      if (process.env.DEBUG === 'true') {
+        console.debug('[CacheUpdateHelper] Cache format not recognized for differential merge, using full replacement');
+      }
+      const now = Date.now();
+      return {
+        data: newArtifacts,
+        cachedAt: now,
+        expiresAt: now + (options.ttl * 1000),
+        revalidateAfter: now + (options.revalidateAfter * 1000),
+      };
+    }
+
+    // Build a map of artifacts by ID for efficient updates
+    const artifactMap = new Map<string, any>();
+    for (const artifact of artifacts) {
+      if (!artifact) continue;
+      const id = artifact.Id || artifact.id;
+      if (id) {
+        artifactMap.set(id, artifact);
+      }
+    }
+
+    // Apply changes:
+    // 1. Remove removed artifacts
+    for (const removed of comparison.removed) {
+      const id = removed.Id || removed.id;
+      if (id) {
+        artifactMap.delete(id);
+      }
+    }
+
+    // 2. Update changed artifacts
+    for (const updated of comparison.updated) {
+      const id = updated.Id || updated.id;
+      if (id) {
+        artifactMap.set(id, updated);
+      }
+    }
+
+    // 3. Add new artifacts
+    for (const added of comparison.added) {
+      const id = added.Id || added.id;
+      if (id) {
+        artifactMap.set(id, added);
+      }
+    }
+
+    // Convert map back to array
+    const mergedArtifacts = Array.from(artifactMap.values());
+
+    // Reconstruct the data structure with the merged array
+    let updatedData: any;
+    
+    if (formatType === 'direct') {
+      updatedData = mergedArtifacts;
+    } else if (formatType === 'odata-v2') {
+      updatedData = {
+        ...data,
+        d: {
+          ...data.d,
+          results: mergedArtifacts,
+        },
+      };
+    } else if (formatType === 'odata-v4') {
+      updatedData = {
+        ...data,
+        value: mergedArtifacts,
+      };
+    } else if (formatType === 'integration-packages') {
+      updatedData = {
+        ...data,
+        IntegrationPackages: mergedArtifacts,
+      };
+    } else if (formatType === 'integration-runtime-artifacts') {
+      updatedData = {
+        ...data,
+        IntegrationRuntimeArtifacts: mergedArtifacts,
+      };
+    } else {
+      updatedData = mergedArtifacts;
+    }
+
+    // ALWAYS update cache metadata to mark as "fresh"
+    const now = Date.now();
+    return {
+      data: updatedData,
+      cachedAt: now,
+      expiresAt: now + (options.ttl * 1000),
+      revalidateAfter: now + (options.revalidateAfter * 1000),
+    };
+  } catch (error) {
+    console.error('[CacheUpdateHelper] Error merging artifacts differentially:', error);
+    // Fallback: Return full replacement on error
+    const now = Date.now();
+    return {
+      data: newArtifacts,
+      cachedAt: now,
+      expiresAt: now + (options.ttl * 1000),
+      revalidateAfter: now + (options.revalidateAfter * 1000),
+    };
+  }
+}
+
+/**
  * Removes an artifact from a cache array
  * Handles various cache formats (Array, OData-Format, etc.)
  * 

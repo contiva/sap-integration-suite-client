@@ -6,6 +6,8 @@ logs
 dist
 sap
 package-lock.json
-
+.cursor
+coverage/
 # Documentation
 docs
+*.md
