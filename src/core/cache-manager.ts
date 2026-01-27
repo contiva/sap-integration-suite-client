@@ -35,7 +35,7 @@ export class CacheManager {
   private _revalidationQueue: Array<() => Promise<void>> = [];
   private _revalidationExecuting: Set<Promise<void>> = new Set();
   private _revalidationConcurrency: number = 1; // Sequential execution to avoid SAP rate limits
-  private _revalidationDelay: number = 1000; // 1 second delay between requests to avoid SAP rate limits
+  private _revalidationDelay: number = 3000; // 3 seconds delay between requests to avoid SAP rate limits
   private _revalidationProcessing: boolean = false; // Flag to prevent parallel queue processing
   private _maxQueueLength: number = 100; // Maximum queue length before dropping tasks
   private _queueDropStrategy: 'oldest' | 'newest' | 'warn' = 'oldest'; // How to handle queue overflow
@@ -589,12 +589,10 @@ export class CacheManager {
     const executingCount = this._revalidationExecuting.size;
     console.log(`[CacheManager] 🔄 Processing revalidation queue - Queue: ${queueLength}, Executing: ${executingCount}`);
 
-    // ALWAYS add delay before processing to avoid rate limits (except for the very first task)
-    // This ensures sequential processing with proper spacing
-    if (this._revalidationExecuting.size > 0) {
-      console.log(`[CacheManager] ⏳ Waiting ${this._revalidationDelay}ms before next revalidation...`);
-      await new Promise(resolve => setTimeout(resolve, this._revalidationDelay));
-    }
+    // ALWAYS add delay before processing to avoid rate limits
+    // This ensures sequential processing with proper spacing and prevents burst load
+    console.log(`[CacheManager] ⏳ Waiting ${this._revalidationDelay}ms before next revalidation...`);
+    await new Promise(resolve => setTimeout(resolve, this._revalidationDelay));
 
     // Execute task
     const promise = task()
