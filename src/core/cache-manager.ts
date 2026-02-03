@@ -821,6 +821,47 @@ export class CacheManager {
   }
 
   /**
+   * Clears the revalidation queue
+   * 
+   * Useful when you want to stop all pending background revalidations,
+   * for example when the user triggers a manual refresh.
+   * 
+   * @returns The number of tasks that were cleared from the queue
+   * 
+   * @example
+   * const cleared = cacheManager.clearRevalidationQueue();
+   * console.log(`Cleared ${cleared} pending revalidation tasks`);
+   */
+  clearRevalidationQueue(): number {
+    const queueLength = this._revalidationQueue.length;
+    this._revalidationQueue = [];
+    
+    if (queueLength > 0) {
+      console.log(`[CacheManager] 🗑️ Revalidation queue cleared: ${queueLength} tasks removed`);
+    }
+    
+    return queueLength;
+  }
+
+  /**
+   * Gets the current revalidation queue status
+   * 
+   * @returns Queue status object with length, executing count, and processing state
+   * 
+   * @example
+   * const status = cacheManager.getQueueStatus();
+   * console.log(`Queue: ${status.length}, Executing: ${status.executing}`);
+   */
+  getQueueStatus(): { length: number; executing: number; processing: boolean; maxLength: number } {
+    return {
+      length: this._revalidationQueue.length,
+      executing: this._revalidationExecuting.size,
+      processing: this._revalidationProcessing,
+      maxLength: this._maxQueueLength,
+    };
+  }
+
+  /**
    * Extracts artifacts array from various cache data formats
    * Supports: Direct array, OData v2/v4, IntegrationPackages, IntegrationRuntimeArtifacts
    * 

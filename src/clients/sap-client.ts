@@ -958,6 +958,62 @@ class SapClient {
   }
 
   /**
+   * Extracts the base endpoint pattern for cache invalidation
+   * 
+   * This method determines which cache pattern should be invalidated based on the endpoint.
+   * For example:
+   * - /IntegrationPackages('MyPackage')/IntegrationDesigntimeArtifacts → /IntegrationPackages
+   * - /IntegrationRuntimeArtifacts('MyArtifact') → /IntegrationRuntimeArtifacts
+   * - /MessageMappingDesigntimeArtifacts → /MessageMappingDesigntimeArtifacts
+   * 
+   * @private
+   * @param endpoint - The full endpoint path (without base URL)
+   * @returns The base endpoint pattern for invalidation
+   */
+  private extractBaseEndpointForInvalidation(endpoint: string): string {
+    // Remove query parameters
+    const pathOnly = endpoint.split('?')[0];
+    
+    // Known base endpoints that should be invalidated together
+    const designtimeEndpoints = [
+      '/IntegrationPackages',
+      '/IntegrationDesigntimeArtifacts',
+      '/MessageMappingDesigntimeArtifacts',
+      '/ValueMappingDesigntimeArtifacts',
+      '/ScriptCollectionDesigntimeArtifacts',
+    ];
+    
+    const runtimeEndpoints = [
+      '/IntegrationRuntimeArtifacts',
+    ];
+    
+    // Check if endpoint contains any designtime pattern
+    for (const base of designtimeEndpoints) {
+      if (pathOnly.includes(base)) {
+        return base;
+      }
+    }
+    
+    // Check if endpoint contains any runtime pattern
+    for (const base of runtimeEndpoints) {
+      if (pathOnly.includes(base)) {
+        return base;
+      }
+    }
+    
+    // Fallback: extract the first path segment after /api/v1/
+    // e.g., /api/v1/SomeEndpoint('id')/SubPath → /SomeEndpoint
+    const match = pathOnly.match(/\/([A-Za-z]+)(?:\(|\/|$)/);
+    if (match) {
+      return '/' + match[1];
+    }
+    
+    // If all else fails, return the path up to the first parenthesis or query
+    const basicPath = pathOnly.replace(/\([^)]*\).*$/, '');
+    return basicPath || pathOnly;
+  }
+
+  /**
    * Custom fetch implementation that uses axios to make HTTP requests
    * - Handles CSRF token for write operations
    * - Adds OAuth token to requests
@@ -1030,28 +1086,20 @@ class SapClient {
         const queryParams = parseQueryParams(url);
         cacheKey = generateCacheKey(this.hostname, method, url, queryParams);
 
-        // If forceRefreshCache is true, delete cache and skip cache lookup
+        // If forceRefreshCache is true, skip cache lookup entirely
+        // Note: Pattern-based cache invalidation should be done BEFORE creating the SapClient
+        // (e.g., via unifiedCacheService.invalidateByPattern in the backend)
+        // Here we just ensure we don't read from cache and fetch fresh data
         if (this.forceRefreshCache) {
-          try {
-            await this._cacheManager!.delete(cacheKey);
-            const forceRefreshLog = `[SapClient] 🔄 ${endpoint} - Force refresh: Cache deleted, fetching fresh data from SAP`;
-            if (this.cacheLogger) {
-              this.cacheLogger(forceRefreshLog);
-            } else {
-              console.log(forceRefreshLog);
-            }
-          } catch (error) {
-            // Ignore delete errors, continue with fresh request
-            const deleteErrorLog = `[SapClient] ⚠️ ${endpoint} - Failed to delete cache (continuing anyway): ${(error as Error).message}`;
-            if (this.cacheLogger) {
-              this.cacheLogger(deleteErrorLog);
-            } else {
-              console.log(deleteErrorLog);
-            }
+          const forceRefreshLog = `[SapClient] 🔄 ${endpoint} - Force refresh: skipping cache, fetching fresh data from SAP`;
+          if (this.cacheLogger) {
+            this.cacheLogger(forceRefreshLog);
+          } else {
+            console.log(forceRefreshLog);
           }
           // Force refresh: skip the entire cache lookup block and go directly to performRequest
-          // Set shouldCache to false temporarily to bypass cache logic below
-          shouldCache = false;
+          // Note: We still want to CACHE the fresh data, so we keep shouldCache = true
+          // but we skip reading from cache below
         } else {
           // Try to get from cache (only if not force refreshing)
           const cachedData = await this._cacheManager!.get(cacheKey);
@@ -1475,6 +1523,140 @@ class SapClient {
     }
 
     return totalDeleted;
+  }
+
+  /**
+   * Invalidates ALL designtime-related cache entries for this client's hostname
+   * 
+   * This method clears all caches related to designtime artifacts, which includes:
+   * - /IntegrationPackages (collection and individual packages)
+   * - /IntegrationDesigntimeArtifacts (all designtime artifacts)
+   * - /MessageMappingDesigntimeArtifacts (all message mappings)
+   * - /ValueMappingDesigntimeArtifacts (all value mappings)
+   * - /ScriptCollectionDesigntimeArtifacts (all script collections)
+   * 
+   * Use this method before fetching fresh designtime data to ensure
+   * deleted artifacts are properly removed from the cache.
+   * 
+   * @returns The total number of cache keys deleted
+   * 
+   * @example
+   * // Clear all designtime caches before refresh
+   * const deleted = await client.invalidateDesigntimeCache();
+   * console.log(`Cleared ${deleted} cache entries`);
+   * 
+   * // Then fetch fresh data
+   * const packages = await client.integrationContent.getIntegrationPackages();
+   */
+  public async invalidateDesigntimeCache(): Promise<number> {
+    if (!this._cacheManager || !this._cacheManager.isReady()) {
+      return 0;
+    }
+
+    const patterns = [
+      'GET:/IntegrationPackages*',
+      'GET:/IntegrationDesigntimeArtifacts*',
+      'GET:/MessageMappingDesigntimeArtifacts*',
+      'GET:/ValueMappingDesigntimeArtifacts*',
+      'GET:/ScriptCollectionDesigntimeArtifacts*',
+    ];
+
+    let totalDeleted = 0;
+    for (const pattern of patterns) {
+      const deleted = await this.invalidateCache(pattern);
+      totalDeleted += deleted;
+      
+      if (this.debugMode) {
+        console.debug(`[SapClient] Invalidated ${deleted} keys for pattern: ${pattern}`);
+      }
+    }
+
+    const logMessage = `[SapClient] 🗑️ Designtime cache invalidated: ${totalDeleted} keys deleted for hostname ${this.hostname}`;
+    if (this.cacheLogger) {
+      this.cacheLogger(logMessage);
+    } else {
+      console.log(logMessage);
+    }
+
+    return totalDeleted;
+  }
+
+  /**
+   * Invalidates ALL runtime-related cache entries for this client's hostname
+   * 
+   * This method clears all caches related to runtime/deployed artifacts:
+   * - /IntegrationRuntimeArtifacts (collection and individual deployed artifacts)
+   * 
+   * Use this method before fetching fresh runtime data to ensure
+   * undeployed artifacts are properly removed from the cache.
+   * 
+   * @returns The total number of cache keys deleted
+   * 
+   * @example
+   * // Clear all runtime caches before refresh
+   * const deleted = await client.invalidateRuntimeCache();
+   * console.log(`Cleared ${deleted} cache entries`);
+   * 
+   * // Then fetch fresh data
+   * const deployedArtifacts = await client.integrationContent.getDeployedArtifacts();
+   */
+  public async invalidateRuntimeCache(): Promise<number> {
+    if (!this._cacheManager || !this._cacheManager.isReady()) {
+      return 0;
+    }
+
+    const deleted = await this.invalidateCache('GET:/IntegrationRuntimeArtifacts*');
+    
+    const logMessage = `[SapClient] 🗑️ Runtime cache invalidated: ${deleted} keys deleted for hostname ${this.hostname}`;
+    if (this.cacheLogger) {
+      this.cacheLogger(logMessage);
+    } else {
+      console.log(logMessage);
+    }
+
+    return deleted;
+  }
+
+  /**
+   * Invalidates ALL cache entries for this client's hostname
+   * 
+   * This method clears the entire cache for the current SAP system,
+   * including both designtime and runtime data.
+   * 
+   * **Warning**: This is a destructive operation that will clear ALL cached data
+   * for this hostname. Use with caution as it will cause increased load on SAP
+   * while the cache is repopulated.
+   * 
+   * @returns The total number of cache keys deleted
+   * 
+   * @example
+   * // Clear ALL caches for this system
+   * const deleted = await client.invalidateAllCache();
+   */
+  public async invalidateAllCache(): Promise<number> {
+    if (!this._cacheManager || !this._cacheManager.isReady()) {
+      return 0;
+    }
+
+    const deleted = await this.invalidateCache('*');
+    
+    const logMessage = `[SapClient] 🗑️ ALL cache invalidated: ${deleted} keys deleted for hostname ${this.hostname}`;
+    if (this.cacheLogger) {
+      this.cacheLogger(logMessage);
+    } else {
+      console.log(logMessage);
+    }
+
+    return deleted;
+  }
+
+  /**
+   * Gets the hostname used for cache key generation
+   * 
+   * @returns The hostname extracted from the base URL
+   */
+  public getHostname(): string {
+    return this.hostname;
   }
 
   /**
