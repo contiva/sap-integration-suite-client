@@ -34,11 +34,13 @@ export class CacheManager {
   // Rate-limiting queue for background revalidations to prevent 429 errors
   private _revalidationQueue: Array<() => Promise<void>> = [];
   private _revalidationExecuting: Set<Promise<void>> = new Set();
-  private _revalidationConcurrency: number = 1; // Sequential execution to avoid SAP rate limits
-  private _revalidationDelay: number = 3000; // 3 seconds delay between requests to avoid SAP rate limits
-  private _revalidationProcessing: boolean = false; // Flag to prevent parallel queue processing
-  private _maxQueueLength: number = 100; // Maximum queue length before dropping tasks
-  private _queueDropStrategy: 'oldest' | 'newest' | 'warn' = 'oldest'; // How to handle queue overflow
+  private _revalidationConcurrency: number = 1;
+  private _revalidationDelay: number = 3000;
+  private _revalidationProcessing: boolean = false;
+  private _maxQueueLength: number = 100;
+  private _queueDropStrategy: 'oldest' | 'newest' | 'warn' = 'oldest';
+  private _revalidationSessionCount: number = 0;
+  private _revalidationSessionStart: number = 0;
   
   /**
    * Tracks ongoing revalidation operations to prevent duplicate SAP API calls
@@ -572,6 +574,10 @@ export class CacheManager {
     // If queue is empty, nothing to do
     if (this._revalidationQueue.length === 0) {
       this._revalidationProcessing = false;
+      if (this._revalidationExecuting.size === 0 && this._revalidationSessionCount > 0) {
+        const duration = ((Date.now() - this._revalidationSessionStart) / 1000).toFixed(1);
+        console.log(`[CacheManager] ✅ Revalidation queue complete - ${this._revalidationSessionCount} tasks in ${duration}s`);
+      }
       return;
     }
 
@@ -597,17 +603,17 @@ export class CacheManager {
     // Execute task
     const promise = task()
       .then(() => {
+        this._revalidationSessionCount++;
         this._revalidationExecuting.delete(promise);
         this._revalidationProcessing = false;
-        // Process next item in queue after a short delay
         setTimeout(() => {
           this._processRevalidationQueue().catch(() => {});
         }, 0);
       })
       .catch(() => {
+        this._revalidationSessionCount++;
         this._revalidationExecuting.delete(promise);
         this._revalidationProcessing = false;
-        // Process next item in queue after a short delay
         setTimeout(() => {
           this._processRevalidationQueue().catch(() => {});
         }, 0);
@@ -686,7 +692,9 @@ export class CacheManager {
     }
 
     // Log when adding to queue
-    if (this._revalidationQueue.length === 0) {
+    if (this._revalidationQueue.length === 0 && this._revalidationExecuting.size === 0) {
+      this._revalidationSessionCount = 0;
+      this._revalidationSessionStart = Date.now();
       console.log(`[CacheManager] 📥 Starting revalidation queue - First task: ${key.substring(0, 80)}...`);
     }
 

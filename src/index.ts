@@ -28,7 +28,7 @@
 import SapClient, { SapClientConfig } from './clients/sap-client';
 import { CacheManager } from './core/cache-manager';
 import { IntegrationContentClient } from './wrapper/integration-content-client';
-import { IntegrationContentAdvancedClient } from './wrapper/custom/integration-content-advanced-client';
+import { IntegrationContentAdvancedClient, ProgressEvent, ProgressEventType, OnProgressCallback } from './wrapper/custom/integration-content-advanced-client';
 import { LogFilesClient } from './wrapper/log-files-client';
 import { MessageProcessingLogsClient } from './wrapper/message-processing-logs-client';
 import { MessageStoreClient } from './wrapper/message-store-client';
@@ -193,6 +193,13 @@ export {
    * Integration Content Advanced Client with extended functionality
    */
   IntegrationContentAdvancedClient,
+
+  /**
+   * Progress event types for getPackagesWithArtifacts
+   */
+  ProgressEvent,
+  ProgressEventType,
+  OnProgressCallback,
   
   /**
    * Log Files Client Wrapper

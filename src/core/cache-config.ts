@@ -43,6 +43,7 @@ const UNCACHEABLE_PATTERNS = [
 const RUNTIME_API_PATTERNS = [
   '/MessageProcessingLogs',
   '/LogFiles',
+  '/IntegrationRuntimeArtifacts',
 ] as const;
 
 /**
