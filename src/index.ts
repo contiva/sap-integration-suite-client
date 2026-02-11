@@ -27,6 +27,7 @@
 // Core Client and Config
 import SapClient, { SapClientConfig } from './clients/sap-client';
 import { CacheManager } from './core/cache-manager';
+import { configureCacheTTL, resetCacheTTL, getCacheTTLConfig, CacheTTLConfig, CACHE_TTL, REVALIDATE_AFTER } from './core/cache-config';
 import { IntegrationContentClient } from './wrapper/integration-content-client';
 import { IntegrationContentAdvancedClient, ProgressEvent, ProgressEventType, OnProgressCallback } from './wrapper/custom/integration-content-advanced-client';
 import { LogFilesClient } from './wrapper/log-files-client';
@@ -120,6 +121,37 @@ export {
    * Can be shared across multiple SapClient instances for connection pooling
    */
   CacheManager,
+  
+  /**
+   * Configure cache TTL values at runtime (FIX P3-2)
+   * Call this during initialization to override default TTL values
+   */
+  configureCacheTTL,
+  
+  /**
+   * Reset cache TTL values to defaults
+   */
+  resetCacheTTL,
+  
+  /**
+   * Get current TTL configuration for debugging
+   */
+  getCacheTTLConfig,
+  
+  /**
+   * Type definition for cache TTL configuration
+   */
+  CacheTTLConfig,
+  
+  /**
+   * Current cache TTL values (can be modified via configureCacheTTL)
+   */
+  CACHE_TTL,
+  
+  /**
+   * Current revalidation time values (can be modified via configureCacheTTL)
+   */
+  REVALIDATE_AFTER,
   
   /**
    * Utility function to format SAP timestamps in API responses

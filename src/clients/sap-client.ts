@@ -537,7 +537,12 @@ class SapClient {
       baseUrl: this.baseUrl,
       customFetch: this.customFetch.bind(this),
     });
-    this.securityContent = new SecurityContentClient(securityContentApi);
+    // Pass cacheManager and hostname to SecurityContentClient for WithCache methods
+    this.securityContent = new SecurityContentClient(
+      securityContentApi,
+      this._cacheManager,
+      this.hostname
+    );
     
     const b2bScenariosApi = new B2BScenariosApi({
       baseUrl: this.baseUrl,

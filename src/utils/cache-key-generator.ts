@@ -7,6 +7,55 @@
 import * as crypto from 'crypto';
 
 /**
+ * Recursively sorts object keys for deterministic JSON stringification.
+ * This ensures the same object with different key ordering produces identical output.
+ * 
+ * @param obj - The object to sort
+ * @returns A new object with sorted keys (deep)
+ * 
+ * @example
+ * sortObjectKeys({ b: 2, a: 1 }) // { a: 1, b: 2 }
+ * sortObjectKeys({ b: { d: 4, c: 3 }, a: 1 }) // { a: 1, b: { c: 3, d: 4 } }
+ */
+function sortObjectKeys(obj: unknown): unknown {
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+  
+  if (Array.isArray(obj)) {
+    return obj.map(sortObjectKeys);
+  }
+  
+  if (typeof obj === 'object') {
+    const sorted: Record<string, unknown> = {};
+    const keys = Object.keys(obj as Record<string, unknown>).sort();
+    for (const key of keys) {
+      sorted[key] = sortObjectKeys((obj as Record<string, unknown>)[key]);
+    }
+    return sorted;
+  }
+  
+  return obj;
+}
+
+/**
+ * Generates a deterministic JSON string from an object.
+ * Keys are sorted alphabetically at all nesting levels.
+ * 
+ * FIX for P0-3 Bug: Different query parameter ordering now produces identical cache keys.
+ * 
+ * @param obj - The object to stringify
+ * @returns A deterministic JSON string
+ * 
+ * @example
+ * stableStringify({ b: 2, a: 1 }) // '{"a":1,"b":2}'
+ * stableStringify({ a: 1, b: 2 }) // '{"a":1,"b":2}' (same!)
+ */
+function stableStringify(obj: unknown): string {
+  return JSON.stringify(sortObjectKeys(obj));
+}
+
+/**
  * Generates a unique cache key for a request
  * 
  * @param hostname - The SAP hostname
@@ -44,9 +93,10 @@ export function generateCacheKey(
   normalizedUrl = normalizedUrl.replace(/^\/api\/v1/, '');
   
   // Generate a hash for query parameters if present
+  // FIX P0-3: Use stableStringify for deterministic cache keys regardless of parameter order
   let paramsHash = '';
   if (queryParams && typeof queryParams === 'object' && Object.keys(queryParams).length > 0) {
-    const paramsString = JSON.stringify(queryParams);
+    const paramsString = stableStringify(queryParams);
     // Use SHA-256 instead of deprecated MD5
     paramsHash = crypto.createHash('sha256').update(paramsString).digest('hex').substring(0, 8);
   }

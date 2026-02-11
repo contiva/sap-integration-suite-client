@@ -41,6 +41,10 @@ import {
 } from '../types/sap.SecurityContent';
 
 import { ResponseNormalizer } from '../utils/response-normalizer';
+import { CacheManager } from '../core/cache-manager';
+import { CacheInfo } from '../types/cache';
+import { generateCacheKey } from '../utils/cache-key-generator';
+import { CACHE_TTL, REVALIDATE_AFTER } from '../core/cache-config';
 
 /**
  * SAP Security Content Client
@@ -50,15 +54,25 @@ import { ResponseNormalizer } from '../utils/response-normalizer';
 export class SecurityContentClient {
   private api: SecurityContentApi<unknown>;
   private normalizer: ResponseNormalizer;
+  private cacheManager: CacheManager | null = null;
+  private hostname: string = '';
 
   /**
    * Creates a new SecurityContentClient
    * 
    * @param {SecurityContentApi<unknown>} api - The underlying API instance
+   * @param {CacheManager} [cacheManager] - Optional: CacheManager for cache operations
+   * @param {string} [hostname] - Optional: Hostname for cache key generation
    */
-  constructor(api: SecurityContentApi<unknown>) {
+  constructor(
+    api: SecurityContentApi<unknown>,
+    cacheManager?: CacheManager | null,
+    hostname?: string
+  ) {
     this.api = api;
     this.normalizer = new ResponseNormalizer();
+    this.cacheManager = cacheManager || null;
+    this.hostname = hostname || '';
   }
 
   // --- User Credential Methods ---
@@ -968,5 +982,361 @@ export class SecurityContentClient {
       $select: select 
     });
     return this.normalizer.normalizeArrayResponse(response.data, 'getCertificateChain');
+  }
+
+  // --- Cached Methods (Stale-While-Revalidate Pattern) ---
+
+  /**
+   * Retrieves all keystore entries (with Caching)
+   * Implements Stale-While-Revalidate Pattern
+   *
+   * @param {('system' | 'backup_admin_system' | 'KeyRenewal')} keystoreName Name of the keystore.
+   * @param {boolean} [forceRefresh=false] Forces fetching fresh data from SAP.
+   * @param {('Alias' | 'Hexalias' | 'KeyType' | 'LastModifiedBy' | 'LastModifiedTime' | 'Owner' | 'Status' | 'Type' | 'Validity')[]} [select] Properties to select.
+   * @returns {Promise<{ data: ComSapHciApiKeystoreEntry[]; cacheInfo: CacheInfo }>} Keystore entries with cache information.
+   *
+   * @example
+   * const { data, cacheInfo } = await client.getKeystoreEntriesWithCache('system');
+   * console.log(cacheInfo.status); // 'HIT', 'HIT-STALE', 'MISS', or 'DISABLED'
+   */
+  async getKeystoreEntriesWithCache(
+    keystoreName: 'system' | 'backup_admin_system' | 'KeyRenewal',
+    forceRefresh: boolean = false,
+    select?: ('Alias' | 'Hexalias' | 'KeyType' | 'LastModifiedBy' | 'LastModifiedTime' | 'Owner' | 'Status' | 'Type' | 'Validity')[]
+  ): Promise<{ data: ComSapHciApiKeystoreEntry[]; cacheInfo: CacheInfo }> {
+    const endpoint = '/KeystoreEntries';
+    const queryParams = { keystoreName, select };
+
+    // Fallback if no cacheManager
+    if (!this.cacheManager || !this.hostname) {
+      const data = await this.getKeystoreEntries(keystoreName, select);
+      return {
+        data,
+        cacheInfo: {
+          hit: false,
+          age: null,
+          status: 'DISABLED',
+          source: 'sap-api-direct',
+        },
+      };
+    }
+
+    const cacheKey = generateCacheKey(this.hostname, 'GET', endpoint, queryParams);
+    const cacheOptions = { ttl: CACHE_TTL.STANDARD, revalidateAfter: REVALIDATE_AFTER.STANDARD };
+
+    const fetchFn = async () => {
+      return this.getKeystoreEntries(keystoreName, select);
+    };
+
+    const result = await this.cacheManager.getOrFetch<ComSapHciApiKeystoreEntry[]>(
+      cacheKey,
+      fetchFn,
+      cacheOptions,
+      forceRefresh
+    );
+
+    return {
+      data: result.data,
+      cacheInfo: {
+        ...result.cacheInfo,
+        key: cacheKey,
+        source: 'npm-package-cache',
+      },
+    };
+  }
+
+  /**
+   * Retrieves all deployed user credentials (with Caching)
+   * Implements Stale-While-Revalidate Pattern
+   *
+   * @param {boolean} [forceRefresh=false] Forces fetching fresh data from SAP.
+   * @returns {Promise<{ data: ComSapHciApiUserCredential[]; cacheInfo: CacheInfo }>} User credentials with cache information.
+   *
+   * @example
+   * const { data, cacheInfo } = await client.getUserCredentialsWithCache();
+   * console.log(cacheInfo.status); // 'HIT', 'HIT-STALE', 'MISS', or 'DISABLED'
+   */
+  async getUserCredentialsWithCache(
+    forceRefresh: boolean = false
+  ): Promise<{ data: ComSapHciApiUserCredential[]; cacheInfo: CacheInfo }> {
+    const endpoint = '/UserCredentials';
+
+    // Fallback if no cacheManager
+    if (!this.cacheManager || !this.hostname) {
+      const data = await this.getUserCredentials();
+      return {
+        data,
+        cacheInfo: {
+          hit: false,
+          age: null,
+          status: 'DISABLED',
+          source: 'sap-api-direct',
+        },
+      };
+    }
+
+    const cacheKey = generateCacheKey(this.hostname, 'GET', endpoint);
+    const cacheOptions = { ttl: CACHE_TTL.STANDARD, revalidateAfter: REVALIDATE_AFTER.STANDARD };
+
+    const fetchFn = async () => {
+      return this.getUserCredentials();
+    };
+
+    const result = await this.cacheManager.getOrFetch<ComSapHciApiUserCredential[]>(
+      cacheKey,
+      fetchFn,
+      cacheOptions,
+      forceRefresh
+    );
+
+    return {
+      data: result.data,
+      cacheInfo: {
+        ...result.cacheInfo,
+        key: cacheKey,
+        source: 'npm-package-cache',
+      },
+    };
+  }
+
+  /**
+   * Retrieves all OAuth2 client credentials (with Caching)
+   * Implements Stale-While-Revalidate Pattern
+   *
+   * @param {boolean} [expandCustomParameters=false] If true, expands custom parameters.
+   * @param {boolean} [forceRefresh=false] Forces fetching fresh data from SAP.
+   * @returns {Promise<{ data: ComSapHciApiOAuth2ClientCredential[]; cacheInfo: CacheInfo }>} OAuth2 credentials with cache information.
+   *
+   * @example
+   * const { data, cacheInfo } = await client.getOAuth2ClientCredentialsWithCache();
+   * console.log(cacheInfo.status); // 'HIT', 'HIT-STALE', 'MISS', or 'DISABLED'
+   */
+  async getOAuth2ClientCredentialsWithCache(
+    expandCustomParameters = false,
+    forceRefresh: boolean = false
+  ): Promise<{ data: ComSapHciApiOAuth2ClientCredential[]; cacheInfo: CacheInfo }> {
+    const endpoint = '/OAuth2ClientCredentials';
+    const queryParams = { expandCustomParameters };
+
+    // Fallback if no cacheManager
+    if (!this.cacheManager || !this.hostname) {
+      const data = await this.getOAuth2ClientCredentials(expandCustomParameters);
+      return {
+        data,
+        cacheInfo: {
+          hit: false,
+          age: null,
+          status: 'DISABLED',
+          source: 'sap-api-direct',
+        },
+      };
+    }
+
+    const cacheKey = generateCacheKey(this.hostname, 'GET', endpoint, queryParams);
+    const cacheOptions = { ttl: CACHE_TTL.STANDARD, revalidateAfter: REVALIDATE_AFTER.STANDARD };
+
+    const fetchFn = async () => {
+      return this.getOAuth2ClientCredentials(expandCustomParameters);
+    };
+
+    const result = await this.cacheManager.getOrFetch<ComSapHciApiOAuth2ClientCredential[]>(
+      cacheKey,
+      fetchFn,
+      cacheOptions,
+      forceRefresh
+    );
+
+    return {
+      data: result.data,
+      cacheInfo: {
+        ...result.cacheInfo,
+        key: cacheKey,
+        source: 'npm-package-cache',
+      },
+    };
+  }
+
+  /**
+   * Retrieves all Access Policies (with Caching)
+   * Implements Stale-While-Revalidate Pattern
+   *
+   * @param {object} [options] Optional parameters for filtering, pagination, sorting, selection, and expansion.
+   * @param {boolean} [forceRefresh=false] Forces fetching fresh data from SAP.
+   * @returns {Promise<{ data: { policies: ComSapHciApiAccessPolicy[], count?: number }; cacheInfo: CacheInfo }>} Access policies with cache information.
+   *
+   * @example
+   * const { data, cacheInfo } = await client.getAccessPoliciesWithCache({ expandArtifactReferences: true });
+   * console.log(data.policies);
+   * console.log(cacheInfo.status); // 'HIT', 'HIT-STALE', 'MISS', or 'DISABLED'
+   */
+  async getAccessPoliciesWithCache(
+    options: {
+      top?: number;
+      skip?: number;
+      filter?: string;
+      orderby?: ('Id' | 'Id desc' | 'RoleName' | 'RoleName desc')[];
+      select?: ('Id' | 'RoleName' | 'Description')[];
+      expandArtifactReferences?: boolean;
+      inlinecount?: boolean;
+    } = {},
+    forceRefresh: boolean = false
+  ): Promise<{ data: { policies: ComSapHciApiAccessPolicy[]; count?: number }; cacheInfo: CacheInfo }> {
+    const endpoint = '/AccessPolicies';
+    const queryParams = { ...options };
+
+    // Fallback if no cacheManager
+    if (!this.cacheManager || !this.hostname) {
+      const data = await this.getAccessPolicies(options);
+      return {
+        data,
+        cacheInfo: {
+          hit: false,
+          age: null,
+          status: 'DISABLED',
+          source: 'sap-api-direct',
+        },
+      };
+    }
+
+    const cacheKey = generateCacheKey(this.hostname, 'GET', endpoint, queryParams);
+    const cacheOptions = { ttl: CACHE_TTL.STANDARD, revalidateAfter: REVALIDATE_AFTER.STANDARD };
+
+    const fetchFn = async () => {
+      return this.getAccessPolicies(options);
+    };
+
+    const result = await this.cacheManager.getOrFetch<{ policies: ComSapHciApiAccessPolicy[]; count?: number }>(
+      cacheKey,
+      fetchFn,
+      cacheOptions,
+      forceRefresh
+    );
+
+    return {
+      data: result.data,
+      cacheInfo: {
+        ...result.cacheInfo,
+        key: cacheKey,
+        source: 'npm-package-cache',
+      },
+    };
+  }
+
+  /**
+   * Retrieves a certificate chain (with Caching)
+   * Implements Stale-While-Revalidate Pattern
+   *
+   * @param {string} hexAlias Hex-encoded alias of the key pair.
+   * @param {('system' | 'backup_admin_system' | 'KeyRenewal' | 'KeyHistory')} [keystoreName='system'] Keystore name.
+   * @param {boolean} [forceRefresh=false] Forces fetching fresh data from SAP.
+   * @param {('Alias' | 'KeyType' | 'LastModifiedBy' | 'LastModifiedTime' | 'Owner' | 'Validity')[]} [select] Properties to select.
+   * @returns {Promise<{ data: ComSapHciApiChainCertificate[]; cacheInfo: CacheInfo }>} Certificate chain with cache information.
+   *
+   * @example
+   * const { data, cacheInfo } = await client.getCertificateChainWithCache('hex...');
+   * console.log(cacheInfo.status); // 'HIT', 'HIT-STALE', 'MISS', or 'DISABLED'
+   */
+  async getCertificateChainWithCache(
+    hexAlias: string,
+    keystoreName: 'system' | 'backup_admin_system' | 'KeyRenewal' | 'KeyHistory' = 'system',
+    forceRefresh: boolean = false,
+    select?: ('Alias' | 'KeyType' | 'LastModifiedBy' | 'LastModifiedTime' | 'Owner' | 'Validity')[]
+  ): Promise<{ data: ComSapHciApiChainCertificate[]; cacheInfo: CacheInfo }> {
+    const endpoint = `/KeystoreEntries('${hexAlias}')/ChainCertificates`;
+    const queryParams = { keystoreName, select };
+
+    // Fallback if no cacheManager
+    if (!this.cacheManager || !this.hostname) {
+      const data = await this.getCertificateChain(hexAlias, keystoreName, select);
+      return {
+        data,
+        cacheInfo: {
+          hit: false,
+          age: null,
+          status: 'DISABLED',
+          source: 'sap-api-direct',
+        },
+      };
+    }
+
+    const cacheKey = generateCacheKey(this.hostname, 'GET', endpoint, queryParams);
+    const cacheOptions = { ttl: CACHE_TTL.STANDARD, revalidateAfter: REVALIDATE_AFTER.STANDARD };
+
+    const fetchFn = async () => {
+      return this.getCertificateChain(hexAlias, keystoreName, select);
+    };
+
+    const result = await this.cacheManager.getOrFetch<ComSapHciApiChainCertificate[]>(
+      cacheKey,
+      fetchFn,
+      cacheOptions,
+      forceRefresh
+    );
+
+    return {
+      data: result.data,
+      cacheInfo: {
+        ...result.cacheInfo,
+        key: cacheKey,
+        source: 'npm-package-cache',
+      },
+    };
+  }
+
+  /**
+   * Retrieves entries from the history keystore (with Caching)
+   * Implements Stale-While-Revalidate Pattern
+   *
+   * @param {boolean} [forceRefresh=false] Forces fetching fresh data from SAP.
+   * @param {('Alias' | 'Hexalias' | 'KeyType' | 'LastModifiedBy' | 'LastModifiedTime' | 'Owner' | 'Validity')[]} [select] Properties to select.
+   * @returns {Promise<{ data: ComSapHciApiHistoryKeystoreEntry[]; cacheInfo: CacheInfo }>} History entries with cache information.
+   *
+   * @example
+   * const { data, cacheInfo } = await client.getKeystoreHistoryEntriesWithCache();
+   * console.log(cacheInfo.status); // 'HIT', 'HIT-STALE', 'MISS', or 'DISABLED'
+   */
+  async getKeystoreHistoryEntriesWithCache(
+    forceRefresh: boolean = false,
+    select?: ('Alias' | 'Hexalias' | 'KeyType' | 'LastModifiedBy' | 'LastModifiedTime' | 'Owner' | 'Validity')[]
+  ): Promise<{ data: ComSapHciApiHistoryKeystoreEntry[]; cacheInfo: CacheInfo }> {
+    const endpoint = '/HistoryKeystoreEntries';
+    const queryParams = { select };
+
+    // Fallback if no cacheManager
+    if (!this.cacheManager || !this.hostname) {
+      const data = await this.getKeystoreHistoryEntries(select);
+      return {
+        data,
+        cacheInfo: {
+          hit: false,
+          age: null,
+          status: 'DISABLED',
+          source: 'sap-api-direct',
+        },
+      };
+    }
+
+    const cacheKey = generateCacheKey(this.hostname, 'GET', endpoint, queryParams);
+    const cacheOptions = { ttl: CACHE_TTL.STANDARD, revalidateAfter: REVALIDATE_AFTER.STANDARD };
+
+    const fetchFn = async () => {
+      return this.getKeystoreHistoryEntries(select);
+    };
+
+    const result = await this.cacheManager.getOrFetch<ComSapHciApiHistoryKeystoreEntry[]>(
+      cacheKey,
+      fetchFn,
+      cacheOptions,
+      forceRefresh
+    );
+
+    return {
+      data: result.data,
+      cacheInfo: {
+        ...result.cacheInfo,
+        key: cacheKey,
+        source: 'npm-package-cache',
+      },
+    };
   }
 }

@@ -24,6 +24,12 @@ export class CacheManager {
   private encryptionEnabled: boolean = false;
   private connectedAt: number | null = null;
   
+  // FIX P2-3: In-Memory Fallback Cache bei Redis-Ausfall
+  // Verhindert, dass alle Requests zu SAP gehen wenn Redis down ist
+  private _memoryFallbackCache: Map<string, { data: CachedData; expiresAt: number }> = new Map();
+  private _memoryFallbackMaxSize: number = 100; // Max 100 Einträge im Memory Fallback
+  private _memoryFallbackEnabled: boolean = true;
+  
   // Failover and retry configuration
   private maxReconnectAttempts: number = 5;
   private reconnectDelay: number = 1000; // Start with 1 second
@@ -37,7 +43,8 @@ export class CacheManager {
   private _revalidationConcurrency: number = 1;
   private _revalidationDelay: number = 3000;
   private _revalidationProcessing: boolean = false;
-  private _maxQueueLength: number = 100;
+  // FIX P2-2: Erhöht von 100 auf 500 für bessere Skalierbarkeit bei hoher Last
+  private _maxQueueLength: number = 500;
   private _queueDropStrategy: 'oldest' | 'newest' | 'warn' = 'oldest';
   private _revalidationSessionCount: number = 0;
   private _revalidationSessionStart: number = 0;
@@ -64,14 +71,14 @@ export class CacheManager {
    * @param connectionString - Redis connection string
    * @param enabled - Whether caching is enabled
    * @param encryptionSecret - Optional secret for encrypting cache values (recommended: use OAuth client secret)
-   * @param maxQueueLength - Maximum revalidation queue length (default: 100)
+   * @param maxQueueLength - Maximum revalidation queue length (default: 500, increased from 100 for P2-2 fix)
    * @param queueDropStrategy - Strategy for handling queue overflow: 'oldest' (drop oldest tasks), 'newest' (drop newest/incoming tasks), 'warn' (only warn, no limit)
    */
   constructor(
     connectionString: string, 
     enabled: boolean = true, 
     encryptionSecret?: string,
-    maxQueueLength: number = 100,
+    maxQueueLength: number = 500,
     queueDropStrategy: 'oldest' | 'newest' | 'warn' = 'oldest'
   ) {
     this.connectionString = connectionString;
@@ -91,16 +98,25 @@ export class CacheManager {
    * Initializes encryption key from the provided secret
    * Uses PBKDF2 to derive a secure encryption key
    * 
+   * FIX P3-1: Salt is now tenant-specific by including a hash of the secret
+   * This ensures different tenants (with different secrets) get different encryption keys
+   * even if the static salt prefix is the same.
+   * 
    * @param secret - The secret to derive the encryption key from
    */
   private initializeEncryption(secret: string): void {
     try {
       // Use PBKDF2 to derive a 256-bit key from the secret
-      // Salt is fixed but that's okay since the secret itself should be unique per tenant
-      const salt = 'sap-cache-encryption-v1';
+      // FIX P3-1: Create a tenant-specific salt by combining static prefix with secret hash
+      // This ensures: different secret → different salt → different encryption key
+      // The secretHash is deterministic, so same secret always produces same key (needed for cache reads)
+      const staticPrefix = 'sap-cache-encryption-v2'; // Bumped version for migration safety
+      const secretHash = crypto.createHash('sha256').update(secret).digest('hex').substring(0, 16);
+      const salt = `${staticPrefix}:${secretHash}`;
+      
       this.encryptionKey = crypto.pbkdf2Sync(secret, salt, 100000, 32, 'sha256');
       this.encryptionEnabled = true;
-      console.log('[CacheManager] Cache encryption enabled (AES-256-GCM)');
+      console.log('[CacheManager] Cache encryption enabled (AES-256-GCM with tenant-specific salt)');
     } catch (error) {
       console.error('[CacheManager] Failed to initialize encryption:', error);
       this.encryptionKey = null;
@@ -371,43 +387,113 @@ export class CacheManager {
 
   /**
    * Gets cached data by key
+   * Falls back to in-memory cache if Redis is unavailable (P2-3 fix)
    * 
    * @param key - The cache key
    * @returns Cached data or null if not found
    */
   async get(key: string): Promise<CachedData | null> {
-    if (!this.isEnabled || !this.isConnected || !this.client) {
+    // FIX P2-3: Try Redis first, fallback to memory cache
+    if (!this.isEnabled) {
       return null;
     }
 
-    try {
-      const encryptedData = await this.client.get(key);
-      if (!encryptedData) {
-        return null;
+    // Try Redis if connected
+    if (this.isConnected && this.client) {
+      try {
+        const encryptedData = await this.client.get(key);
+        if (encryptedData) {
+          // Decrypt if encryption is enabled
+          const data = this.decrypt(encryptedData);
+          const cachedData = JSON.parse(data) as CachedData;
+          
+          // Also store in memory fallback for resilience
+          if (this._memoryFallbackEnabled) {
+            this._setMemoryFallback(key, cachedData);
+          }
+          
+          return cachedData;
+        }
+      } catch (error) {
+        console.error('[CacheManager] Error getting from Redis, trying memory fallback:', error);
+        // Fall through to memory fallback
       }
-
-      // Decrypt if encryption is enabled
-      const data = this.decrypt(encryptedData);
-
-      return JSON.parse(data) as CachedData;
-    } catch (error) {
-      console.error('[CacheManager] Error getting cache:', error);
-      return null;
     }
+    
+    // FIX P2-3: Fallback to memory cache when Redis unavailable
+    if (this._memoryFallbackEnabled) {
+      const memoryEntry = this._memoryFallbackCache.get(key);
+      if (memoryEntry) {
+        // Check if not expired
+        if (Date.now() < memoryEntry.expiresAt) {
+          if (process.env.DEBUG === 'true') {
+            console.log(`[CacheManager] 💾 Memory fallback HIT for key: ${key.substring(0, 60)}...`);
+          }
+          return memoryEntry.data;
+        } else {
+          // Expired - remove from memory cache
+          this._memoryFallbackCache.delete(key);
+        }
+      }
+    }
+    
+    return null;
+  }
+  
+  /**
+   * Stores data in the in-memory fallback cache
+   * Implements simple LRU eviction when max size is reached
+   * 
+   * @param key - The cache key
+   * @param data - The cached data
+   * @private
+   */
+  private _setMemoryFallback(key: string, data: CachedData): void {
+    // Simple LRU: Remove oldest entry if at max capacity
+    if (this._memoryFallbackCache.size >= this._memoryFallbackMaxSize) {
+      const oldestKey = this._memoryFallbackCache.keys().next().value;
+      if (oldestKey) {
+        this._memoryFallbackCache.delete(oldestKey);
+      }
+    }
+    
+    // Calculate expiration (use 1 hour for memory fallback, shorter than Redis TTL)
+    const expiresAt = Date.now() + (60 * 60 * 1000); // 1 hour
+    this._memoryFallbackCache.set(key, { data, expiresAt });
   }
 
   /**
    * Sets cached data with options
+   * Also stores in memory fallback for resilience (P2-3 fix)
    * 
    * @param key - The cache key
    * @param data - The data to cache
    * @param options - Cache options (TTL and revalidation time)
    */
   async set(key: string, data: any, options: CacheOptions): Promise<void> {
-    if (!this.isEnabled || !this.isConnected || !this.client) {
+    if (!this.isEnabled) {
+      return;
+    }
+    
+    // FIX P2-3: Store in memory fallback even if Redis is down
+    // This ensures we have data to serve if Redis fails later
+    const now = Date.now();
+    const cachedDataForMemory: CachedData = {
+      data,
+      cachedAt: now,
+      expiresAt: now + (options.ttl * 1000),
+      revalidateAfter: now + (options.revalidateAfter * 1000),
+    };
+    
+    if (this._memoryFallbackEnabled) {
+      this._setMemoryFallback(key, cachedDataForMemory);
+    }
+    
+    // If Redis not connected, we've at least stored in memory
+    if (!this.isConnected || !this.client) {
       if (process.env.DEBUG === 'true') {
         cacheLogger.debug(
-          'Cache set skipped: cache not enabled or not connected',
+          'Cache set: Redis unavailable, stored in memory fallback only',
           'CacheManager',
           { 
             key, 
@@ -817,9 +903,15 @@ export class CacheManager {
     // Add to queue
     this._revalidationQueue.push(task);
     
-    // Log queue status
-    if (this._revalidationQueue.length > 10) {
-      console.warn(`[CacheManager] ⚠️ Revalidation queue is growing: ${this._revalidationQueue.length}/${this._maxQueueLength} items queued, Executing: ${this._revalidationExecuting.size}, Processing: ${this._revalidationProcessing}`);
+    // FIX P2-2: Verbesserte Warn-Schwellen basierend auf Queue-Kapazität
+    // Log queue status at 25%, 50%, 75% capacity thresholds
+    const queuePercent = (this._revalidationQueue.length / this._maxQueueLength) * 100;
+    if (queuePercent >= 75) {
+      console.warn(`[CacheManager] 🚨 Revalidation queue CRITICAL: ${this._revalidationQueue.length}/${this._maxQueueLength} (${queuePercent.toFixed(0)}%) - Consider increasing maxQueueLength`);
+    } else if (queuePercent >= 50) {
+      console.warn(`[CacheManager] ⚠️ Revalidation queue HIGH: ${this._revalidationQueue.length}/${this._maxQueueLength} (${queuePercent.toFixed(0)}%)`);
+    } else if (this._revalidationQueue.length > 50) {
+      console.info(`[CacheManager] 📊 Revalidation queue: ${this._revalidationQueue.length}/${this._maxQueueLength} items`);
     }
     
     // Start processing queue if not already processing
