@@ -542,7 +542,7 @@ export class IntegrationContentClient {
     const securityWorker = this.api['securityWorker'];
     const securityData = this.api['securityData'];
 
-    let authHeaders: Record<string, string> = {};
+    const authHeaders: Record<string, string> = {};
     if (securityWorker) {
       try {
         const params = await securityWorker(securityData);
@@ -625,7 +625,7 @@ export class IntegrationContentClient {
     const securityWorker = this.api['securityWorker'];
     const securityData = this.api['securityData'];
 
-    let authHeaders: Record<string, string> = {};
+    const authHeaders: Record<string, string> = {};
     if (securityWorker) {
       try {
         const params = await securityWorker(securityData);

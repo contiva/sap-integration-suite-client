@@ -1073,7 +1073,7 @@ class SapClient {
 
       // Check if caching should be applied
       const cacheable = isCacheableUrl(url);
-      let shouldCache = method === 'GET' 
+      const shouldCache = method === 'GET' 
         && this._cacheManager 
         && this._cacheManager.isReady() 
         && cacheable;

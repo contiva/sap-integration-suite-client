@@ -453,7 +453,7 @@ export class IntegrationContentAdvancedClient extends BaseCustomClient<Integrati
     const allFlows: ComSapHciApiIntegrationDesigntimeArtifact[] = [];
     let completedCount = 0;
     
-    const tasks = options.packages.map((pkg, index) => () =>
+    const tasks = options.packages.map((pkg, _index) => () =>
       this.client.getIntegrationFlows(pkg.Id as string)
         .then(flows => {
           flows.forEach(flow => {
@@ -506,7 +506,7 @@ export class IntegrationContentAdvancedClient extends BaseCustomClient<Integrati
     const allScripts: ComSapHciApiScriptCollectionDesigntimeArtifact[] = [];
     let completedCount = 0;
     
-    const tasks = options.packages.map((pkg, index) => () =>
+    const tasks = options.packages.map((pkg, _index) => () =>
       this.client.getScriptCollections(pkg.Id as string)
         .then(scripts => {
           scripts.forEach(script => {
