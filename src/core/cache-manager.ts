@@ -37,14 +37,13 @@ export class CacheManager {
   private currentReconnectAttempt: number = 0;
   private isReconnecting: boolean = false;
   
-  // Rate-limiting queue for background revalidations to prevent 429 errors
-  private _revalidationQueue: Array<() => Promise<void>> = [];
-  private _revalidationExecuting: Set<Promise<void>> = new Set();
+  // Per-hostname rate-limiting queues for background revalidations (prevents 429 errors)
+  private _revalidationQueues: Map<string, Array<{ task: () => Promise<void>; key: string }>> = new Map();
+  private _revalidationExecuting: Map<string, Set<Promise<void>>> = new Map();
+  private _revalidationProcessing: Map<string, boolean> = new Map();
   private _revalidationConcurrency: number = 1;
-  private _revalidationDelay: number = 3000;
-  private _revalidationProcessing: boolean = false;
-  // FIX P2-2: Erhöht von 100 auf 500 für bessere Skalierbarkeit bei hoher Last
-  private _maxQueueLength: number = 500;
+  private _revalidationDelayMs: number = 1000;
+  private _maxQueueLengthPerHost: number = 500;
   private _queueDropStrategy: 'oldest' | 'newest' | 'warn' = 'oldest';
   private _revalidationSessionCount: number = 0;
   private _revalidationSessionStart: number = 0;
@@ -83,7 +82,7 @@ export class CacheManager {
   ) {
     this.connectionString = connectionString;
     this.isEnabled = enabled;
-    this._maxQueueLength = maxQueueLength;
+    this._maxQueueLengthPerHost = maxQueueLength;
     this._queueDropStrategy = queueDropStrategy;
     
     // Initialize encryption if secret is provided
@@ -642,70 +641,73 @@ export class CacheManager {
     return now >= cachedData.expiresAt;
   }
 
-  /**
-   * Processes the revalidation queue with rate limiting
-   * @private
-   */
-  private async _processRevalidationQueue(): Promise<void> {
-    // Prevent parallel processing
-    if (this._revalidationProcessing) {
+  private _getHostnameQueue(hostname: string): Array<{ task: () => Promise<void>; key: string }> {
+    if (!this._revalidationQueues.has(hostname)) {
+      this._revalidationQueues.set(hostname, []);
+    }
+    return this._revalidationQueues.get(hostname)!;
+  }
+
+  private _getHostnameExecuting(hostname: string): Set<Promise<void>> {
+    if (!this._revalidationExecuting.has(hostname)) {
+      this._revalidationExecuting.set(hostname, new Set());
+    }
+    return this._revalidationExecuting.get(hostname)!;
+  }
+
+  private async _processHostnameQueue(hostname: string): Promise<void> {
+    if (this._revalidationProcessing.get(hostname)) {
       return;
     }
 
-    // If we're at concurrency limit, wait
-    if (this._revalidationExecuting.size >= this._revalidationConcurrency) {
+    const executing = this._getHostnameExecuting(hostname);
+    if (executing.size >= this._revalidationConcurrency) {
       return;
     }
 
-    // If queue is empty, nothing to do
-    if (this._revalidationQueue.length === 0) {
-      this._revalidationProcessing = false;
-      if (this._revalidationExecuting.size === 0 && this._revalidationSessionCount > 0) {
-        const duration = ((Date.now() - this._revalidationSessionStart) / 1000).toFixed(1);
-        console.log(`[CacheManager] ✅ Revalidation queue complete - ${this._revalidationSessionCount} tasks in ${duration}s`);
-      }
+    const queue = this._getHostnameQueue(hostname);
+    if (queue.length === 0) {
+      this._revalidationProcessing.set(hostname, false);
       return;
     }
 
-    // Mark as processing
-    this._revalidationProcessing = true;
+    this._revalidationProcessing.set(hostname, true);
 
-    // Get next task from queue
-    const task = this._revalidationQueue.shift();
-    if (!task) {
-      this._revalidationProcessing = false;
+    const item = queue.shift();
+    if (!item) {
+      this._revalidationProcessing.set(hostname, false);
       return;
     }
 
-    const queueLength = this._revalidationQueue.length;
-    const executingCount = this._revalidationExecuting.size;
-    console.log(`[CacheManager] 🔄 Processing revalidation queue - Queue: ${queueLength}, Executing: ${executingCount}`);
+    if (process.env.DEBUG === 'true') {
+      console.log(`[CacheManager] 🔄 [${hostname}] Processing queue - Remaining: ${queue.length}`);
+    }
 
-    // ALWAYS add delay before processing to avoid rate limits
-    // This ensures sequential processing with proper spacing and prevents burst load
-    console.log(`[CacheManager] ⏳ Waiting ${this._revalidationDelay}ms before next revalidation...`);
-    await new Promise(resolve => setTimeout(resolve, this._revalidationDelay));
+    await new Promise(resolve => setTimeout(resolve, this._revalidationDelayMs));
 
-    // Execute task
-    const promise = task()
+    const promise = item.task()
       .then(() => {
         this._revalidationSessionCount++;
-        this._revalidationExecuting.delete(promise);
-        this._revalidationProcessing = false;
-        setTimeout(() => {
-          this._processRevalidationQueue().catch(() => {});
-        }, 0);
+        executing.delete(promise);
+        this._revalidationProcessing.set(hostname, false);
+        setTimeout(() => this._processHostnameQueue(hostname).catch(() => {}), 0);
       })
       .catch(() => {
         this._revalidationSessionCount++;
-        this._revalidationExecuting.delete(promise);
-        this._revalidationProcessing = false;
-        setTimeout(() => {
-          this._processRevalidationQueue().catch(() => {});
-        }, 0);
+        executing.delete(promise);
+        this._revalidationProcessing.set(hostname, false);
+        setTimeout(() => this._processHostnameQueue(hostname).catch(() => {}), 0);
       });
 
-    this._revalidationExecuting.add(promise);
+    executing.add(promise);
+  }
+
+  private _getTotalQueueLength(): number {
+    let total = 0;
+    for (const queue of this._revalidationQueues.values()) {
+      total += queue.length;
+    }
+    return total;
   }
 
   /**
@@ -777,11 +779,10 @@ export class CacheManager {
       return; // Skip adding to queue
     }
 
-    // Log when adding to queue
-    if (this._revalidationQueue.length === 0 && this._revalidationExecuting.size === 0) {
+    if (this._getTotalQueueLength() === 0 && this._revalidationSessionCount === 0) {
       this._revalidationSessionCount = 0;
       this._revalidationSessionStart = Date.now();
-      console.log(`[CacheManager] 📥 Starting revalidation queue - First task: ${key.substring(0, 80)}...`);
+      console.log(`[CacheManager] 📥 Starting revalidation - First task: ${key.substring(0, 80)}...`);
     }
 
     // Add to queue instead of executing immediately
@@ -869,95 +870,86 @@ export class CacheManager {
         await revalidationPromise;
         
       } catch (error: any) {
-        // Clear timeout to prevent memory leak
         if (timeoutId) {
           clearTimeout(timeoutId);
         }
-        // Log 429 errors specifically
         if (error?.message?.includes('429') || error?.status === 429 || error?.response?.status === 429) {
-          console.warn(`[CacheManager] ⚠️ Background revalidation rate limited (429) for key: ${key} - Queue length: ${this._revalidationQueue.length}, Executing: ${this._revalidationExecuting.size}`);
+          console.warn(`[CacheManager] ⚠️ Background revalidation rate limited (429) for key: ${key}`);
         }
-        // Silently fail - keep old cache
         if (process.env.DEBUG === 'true') {
           console.log(`[CacheManager] Background revalidation failed for key: ${key}`, error.message);
         }
       } finally {
-        // CLEANUP: Entferne Key aus Map nach Abschluss
         this._cleanupRevalidation(key);
       }
     };
 
-    // Check queue limit and apply drop strategy
-    if (this._queueDropStrategy !== 'warn' && this._revalidationQueue.length >= this._maxQueueLength) {
+    const keyParts = key.split(':');
+    const hostname = keyParts.length >= 2 ? keyParts[1] : 'default';
+    const queue = this._getHostnameQueue(hostname);
+
+    if (this._queueDropStrategy !== 'warn' && queue.length >= this._maxQueueLengthPerHost) {
       if (this._queueDropStrategy === 'oldest') {
-        // Drop oldest task (shift from front)
-        this._revalidationQueue.shift();
-        console.warn(`[CacheManager] ⚠️ Queue limit reached (${this._maxQueueLength}), dropped OLDEST task. Adding new task: ${key.substring(0, 80)}...`);
+        queue.shift();
+        console.warn(`[CacheManager] ⚠️ [${hostname}] Queue limit reached, dropped oldest task`);
       } else if (this._queueDropStrategy === 'newest') {
-        // Drop newest task (don't add current task)
-        console.warn(`[CacheManager] ⚠️ Queue limit reached (${this._maxQueueLength}), dropping NEWEST task: ${key.substring(0, 80)}...`);
-        return; // Don't add to queue
+        console.warn(`[CacheManager] ⚠️ [${hostname}] Queue limit reached, dropping new task`);
+        return;
       }
     }
     
-    // Add to queue
-    this._revalidationQueue.push(task);
+    queue.push({ task, key });
     
-    // FIX P2-2: Verbesserte Warn-Schwellen basierend auf Queue-Kapazität
-    // Log queue status at 25%, 50%, 75% capacity thresholds
-    const queuePercent = (this._revalidationQueue.length / this._maxQueueLength) * 100;
-    if (queuePercent >= 75) {
-      console.warn(`[CacheManager] 🚨 Revalidation queue CRITICAL: ${this._revalidationQueue.length}/${this._maxQueueLength} (${queuePercent.toFixed(0)}%) - Consider increasing maxQueueLength`);
-    } else if (queuePercent >= 50) {
-      console.warn(`[CacheManager] ⚠️ Revalidation queue HIGH: ${this._revalidationQueue.length}/${this._maxQueueLength} (${queuePercent.toFixed(0)}%)`);
-    } else if (this._revalidationQueue.length > 50) {
-      console.info(`[CacheManager] 📊 Revalidation queue: ${this._revalidationQueue.length}/${this._maxQueueLength} items`);
+    const totalQueueLength = this._getTotalQueueLength();
+    if (totalQueueLength % 100 === 0 && totalQueueLength > 0) {
+      const hostStats = Array.from(this._revalidationQueues.entries())
+        .map(([h, q]) => `${h}:${q.length}`)
+        .join(', ');
+      console.log(`[CacheManager] 📊 Queue status - Total: ${totalQueueLength} | Per host: ${hostStats}`);
     }
     
-    // Start processing queue if not already processing
-    if (!this._revalidationProcessing) {
-      this._processRevalidationQueue().catch(() => {});
+    if (!this._revalidationProcessing.get(hostname)) {
+      this._processHostnameQueue(hostname).catch(() => {});
     }
   }
 
-  /**
-   * Clears the revalidation queue
-   * 
-   * Useful when you want to stop all pending background revalidations,
-   * for example when the user triggers a manual refresh.
-   * 
-   * @returns The number of tasks that were cleared from the queue
-   * 
-   * @example
-   * const cleared = cacheManager.clearRevalidationQueue();
-   * console.log(`Cleared ${cleared} pending revalidation tasks`);
-   */
   clearRevalidationQueue(): number {
-    const queueLength = this._revalidationQueue.length;
-    this._revalidationQueue = [];
-    
-    if (queueLength > 0) {
-      console.log(`[CacheManager] 🗑️ Revalidation queue cleared: ${queueLength} tasks removed`);
+    let totalCleared = 0;
+    for (const [hostname, queue] of this._revalidationQueues.entries()) {
+      totalCleared += queue.length;
+      this._revalidationQueues.set(hostname, []);
     }
     
-    return queueLength;
+    if (totalCleared > 0) {
+      console.log(`[CacheManager] 🗑️ Revalidation queues cleared: ${totalCleared} tasks removed`);
+    }
+    
+    return totalCleared;
   }
 
-  /**
-   * Gets the current revalidation queue status
-   * 
-   * @returns Queue status object with length, executing count, and processing state
-   * 
-   * @example
-   * const status = cacheManager.getQueueStatus();
-   * console.log(`Queue: ${status.length}, Executing: ${status.executing}`);
-   */
-  getQueueStatus(): { length: number; executing: number; processing: boolean; maxLength: number } {
+  getQueueStatus(): { length: number; executing: number; processing: boolean; maxLength: number; perHost: Record<string, number> } {
+    let totalLength = 0;
+    let totalExecuting = 0;
+    let anyProcessing = false;
+    const perHost: Record<string, number> = {};
+
+    for (const [hostname, queue] of this._revalidationQueues.entries()) {
+      totalLength += queue.length;
+      perHost[hostname] = queue.length;
+    }
+    for (const [, executing] of this._revalidationExecuting.entries()) {
+      totalExecuting += executing.size;
+    }
+    for (const [, processing] of this._revalidationProcessing.entries()) {
+      if (processing) anyProcessing = true;
+    }
+
     return {
-      length: this._revalidationQueue.length,
-      executing: this._revalidationExecuting.size,
-      processing: this._revalidationProcessing,
-      maxLength: this._maxQueueLength,
+      length: totalLength,
+      executing: totalExecuting,
+      processing: anyProcessing,
+      maxLength: this._maxQueueLengthPerHost,
+      perHost,
     };
   }
 
@@ -3556,12 +3548,7 @@ export class CacheManager {
       uptime,
       connectedAt: this.connectedAt ? new Date(this.connectedAt).toISOString() : null,
       encryptionEnabled: this.encryptionEnabled,
-      queueStatus: {
-        length: this._revalidationQueue.length,
-        executing: this._revalidationExecuting.size,
-        processing: this._revalidationProcessing,
-        maxQueueLength: this._maxQueueLength,
-      },
+      queueStatus: this.getQueueStatus(),
       status: this._getConnectionStatus(),
     };
   }
